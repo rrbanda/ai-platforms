@@ -1,0 +1,20 @@
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: dspa
+  namespace: autorag
+spec:
+  dspVersion: v2
+  apiServer:
+    managedPipelines: {}
+    pipelineStore: kubernetes
+  objectStorage:
+    disableHealthCheck: false
+    enableExternalRoute: false
+    minio:
+      deploy: true
+      image: "quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z"
+  database:
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline

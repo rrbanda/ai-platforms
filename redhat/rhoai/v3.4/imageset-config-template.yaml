@@ -1,0 +1,65 @@
+# ImageSetConfiguration for mirroring RHOAI + Service Mesh 3.x + all dependencies.
+# Usage:
+#   1. Replace REPLACE_OCP_VERSION with your OCP version (e.g., v4.19)
+#   2. oc-mirror --config imageset-config.yaml docker://<mirror-registry> --v2
+#   3. Apply generated CatalogSource + IDMS/ITMS to cluster
+#   4. Update disconnected overlay and Helm values with the generated catalog name
+apiVersion: mirror.openshift.io/v2alpha1
+kind: ImageSetConfiguration
+mirror:
+  operators:
+    - catalog: registry.redhat.io/redhat/redhat-operator-index:REPLACE_OCP_VERSION
+      packages:
+        # Service Mesh 3.x (pre-requisite for OGX/Llama Stack)
+        - name: servicemeshoperator3
+          channels:
+            - name: stable
+
+        # RHOAI operator
+        - name: rhods-operator
+          channels:
+            - name: REPLACE_RHOAI_CHANNEL
+
+        # RHOAI dependencies (managed by the Helm chart)
+        - name: openshift-cert-manager-operator
+          channels:
+            - name: stable-v1
+        - name: rhcl-operator
+          channels:
+            - name: stable
+        - name: leader-worker-set
+          channels:
+            - name: stable-v1.0
+        - name: job-set
+          channels:
+            - name: stable-v1.0
+        - name: kueue-operator
+          channels:
+            - name: REPLACE_KUEUE_CHANNEL
+        - name: openshift-custom-metrics-autoscaler-operator
+          channels:
+            - name: stable
+
+        # Observability stack (optional, for monitoring)
+        - name: cluster-observability-operator
+          channels:
+            - name: stable
+        - name: opentelemetry-product
+          channels:
+            - name: stable
+        - name: tempo-product
+          channels:
+            - name: stable
+
+        # GPU stack (optional, for OGX/Llama Stack)
+        - name: nfd
+          channels:
+            - name: stable
+        - name: gpu-operator-certified
+
+        # Sealed Secrets (optional)
+    - catalog: registry.redhat.io/redhat/certified-operator-index:REPLACE_OCP_VERSION
+      packages:
+        - name: sealed-secrets-operator-helm
+          channels:
+            - name: stable

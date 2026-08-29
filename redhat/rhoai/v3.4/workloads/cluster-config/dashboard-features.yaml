@@ -1,0 +1,56 @@
+apiVersion: opendatahub.io/v1alpha
+kind: OdhDashboardConfig
+metadata:
+  name: odh-dashboard-config
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard
+    app.kubernetes.io/part-of: rhods-dashboard
+    app.opendatahub.io/rhods-dashboard: "true"
+spec:
+  dashboardConfig:
+    # --- Agent features (Developer Preview) ---
+    agentConfigManagement: true
+    agentOps: true
+    agentsCatalog: true
+    # --- Gen AI Studio & Playground ---
+    genAiStudio: true
+    genAiTracing: true
+    promptManagement: true
+    globalProjectPrompts: true
+    toolCalling: true
+    guardrails: true
+    # --- MCP ---
+    mcpCatalog: true
+    mcpRegistry: true
+    # --- AutoRAG / AutoML ---
+    autorag: true
+    automl: true
+    # --- Model Serving & Endpoints ---
+    aiAssetCustomEndpoints: true
+    vLLMDeploymentOnMaaS: true
+    externalModels: true
+    externalVectorStores: true
+    llmGatewayField: true
+    llmdTemplates: true
+    deploymentWizardYAMLViewer: true
+    connectionTest: true
+    # --- Feature Store ---
+    featureStoreAdmin: true
+    # --- Kueue & Eval (disable=false to show) ---
+    disableKueue: false
+    disableLMEval: false
+    # --- Keep defaults ---
+    disableTracking: false
+    disableModelCatalog: false
+    disableModelRegistry: false
+  genAiStudioConfig:
+    aiAssetCustomEndpoints:
+      externalProviders: true
+  notebookController:
+    enabled: true
+    notebookNamespace: rhods-notebooks
+    pvcSize: 20Gi
+  templateDisablement: []
+  templateOrder: []
+  hardwareProfileOrder: []

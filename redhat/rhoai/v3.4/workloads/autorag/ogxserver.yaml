@@ -1,0 +1,36 @@
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: autorag-ogx
+  namespace: autorag
+spec:
+  distribution:
+    name: rh
+  overrideConfig:
+    key: config.yaml
+    name: autorag-ogx-config
+  workload:
+    overrides:
+      env:
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: MKL_NUM_THREADS
+          value: "4"
+        - name: ENABLE_GEMINI
+          value: "1"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: llm-api-secret
+    replicas: 1
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    storage:
+      mountPath: /opt/app-root/src/.ogx
+      size: 10Gi

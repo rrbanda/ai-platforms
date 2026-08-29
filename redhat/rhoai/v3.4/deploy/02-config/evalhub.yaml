@@ -1,0 +1,13 @@
+apiVersion: trustyai.opendatahub.io/v1
+kind: EvalHub
+metadata:
+  name: evalhub
+  namespace: redhat-ods-applications
+spec:
+  replicas: 1
+  tenancy: multi
+  database:
+    type: sqlite
+  mcp:
+    enabled: true
+    transport: http

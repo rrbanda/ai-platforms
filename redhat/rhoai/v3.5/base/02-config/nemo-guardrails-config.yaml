@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-guardrails-config
+  namespace: redhat-ods-applications
+data:
+  config.yml: |
+    models:
+      - type: main
+        engine: openai
+        model: default
+
+    rails:
+      input:
+        flows:
+          - self check input
+
+      output:
+        flows:
+          - self check output
+
+    instructions:
+      - type: general
+        content: |
+          Below is a conversation between a user and an AI assistant.
+          The assistant is helpful, respectful, and honest.
+          The assistant does not provide harmful, unethical, or illegal content.
+
+  prompts.yml: |
+    prompts:
+      - task: self_check_input
+        content: |
+          Your task is to determine whether the user message below is safe.
+          Respond with "safe" or "unsafe".
+
+          User message: "{{ user_input }}"
+
+      - task: self_check_output
+        content: |
+          Your task is to determine whether the bot response below is safe.
+          Respond with "safe" or "unsafe".
+
+          Bot response: "{{ bot_response }}"

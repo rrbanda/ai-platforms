@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autorag-ogx-config
+  namespace: autorag
+  labels:
+    app: ogx
+    ogx.io/watch: "true"
+data:
+  config.yaml: |
+    version: 2
+    image_name: rh
+    apis:
+      - inference
+      - vector_io
+      - files
+      - file_processors
+
+    providers:
+      files:
+        - provider_id: localfs
+          provider_type: inline::localfs
+          config:
+            storage_dir: /opt/app-root/src/.ogx/files
+            metadata_store:
+              table_name: files_metadata
+              backend: sql_default
+
+      file_processors:
+        - provider_id: auto
+          provider_type: inline::auto
+          config: {}
+        - provider_id: markitdown
+          provider_type: inline::markitdown
+          config: {}
+        - provider_id: pypdf
+          provider_type: inline::pypdf
+          config: {}
+
+      inference:
+        # Remote LLM provider -- configure API key in llm-api-secret
+        - provider_id: gemini
+          provider_type: remote::gemini
+          config:
+            api_key: ${env.GEMINI_API_KEY:=}
+            refresh_models: true
+        # Local embedding + reranker (CPU, no GPU required)
+        - provider_id: sentence-transformers
+          provider_type: inline::sentence-transformers
+          config:
+            trust_remote_code: true
+
+      vector_io:
+        # Milvus vector database -- update URI if deployed elsewhere
+        - provider_id: milvus
+          provider_type: remote::milvus
+          config:
+            uri: "http://milvus-service.autorag.svc.cluster.local:19530"
+            token: ${env.MILVUS_TOKEN:=}
+            consistency_level: Strong
+            persistence:
+              namespace: vector_io::milvus_remote
+              backend: kv_default
+
+    models:
+      - metadata: {}
+        model_id: gemini-2.5-flash
+        provider_id: gemini
+        provider_model_id: gemini-2.5-flash
+        model_type: llm
+
+    storage:
+      backends:
+        kv_default:
+          type: kv_sqlite
+          db_path: /opt/app-root/src/.ogx/kvstore.db
+        sql_default:
+          type: sql_sqlite
+          db_path: /opt/app-root/src/.ogx/sql_store.db
+      stores:
+        metadata:
+          namespace: registry
+          backend: kv_default
+        inference:
+          table_name: inference_store
+          backend: sql_default

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Placements (which spokes get what)
+  - placements/all-rhoai-spokes.yaml
+  - placements/gpu-spokes.yaml
+  - placements/rag-spokes.yaml
+  - placements/training-spokes.yaml
+  # RHACM Policies (bootstrap spokes with GitOps + SealedSecrets)
+  - policies/spoke-gitops-policy.yaml
+  - policies/spoke-sealed-secrets-policy.yaml
+  # ApplicationSets (Pull Model -- deliver RHOAI to spokes)
+  - applicationsets/spoke-bootstrap.yaml
+  - applicationsets/spoke-prerequisites.yaml
+  - applicationsets/spoke-platform.yaml
+  - applicationsets/spoke-cluster-config.yaml
+  - applicationsets/spoke-workloads.yaml

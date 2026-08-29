@@ -1,0 +1,13 @@
+apiVersion: v2
+appVersion: v3.5.0
+description: A Helm chart for installing ODH/RHOAI dependencies and component configurations
+keywords:
+- openshift
+- rhoai
+- odh
+- ai
+- rhaii
+- rhai
+name: rhai-on-openshift-chart
+type: application
+version: v3.5.0

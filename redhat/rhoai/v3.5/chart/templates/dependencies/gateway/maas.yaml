@@ -1,0 +1,42 @@
+{{- $aigateway := .Values.components.aigateway | default dict -}}
+{{- $aigatewayDscMerged := include "rhoai-dependencies.componentDSCConfig" (dict "componentName" "aigateway" "component" $aigateway "root" .) | fromYaml -}}
+{{- $maas := $aigateway.modelsAsAService | default dict -}}
+{{- $gateway := $maas.gateway | default dict -}}
+{{- $effectiveAIGatewayState := $aigatewayDscMerged.managementState | default "Removed" -}}
+{{- $effectiveMaaSState := ($aigatewayDscMerged.modelsAsAService | default dict).managementState | default "Removed" -}}
+{{- $isMaaSEnabled := and (eq $effectiveMaaSState "Managed") (eq $effectiveAIGatewayState "Managed") -}}
+{{- $gatewayClass := $maas.gatewayClass | default dict -}}
+{{- if or (eq ($gatewayClass.create | toString) "true") (and $isMaaSEnabled (eq ($gatewayClass.create | toString) "auto")) -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ $gatewayClass.name }}
+  labels:
+    {{- include "rhoai-dependencies.labels" . | nindent 4 }}
+  {{- with $gatewayClass.annotations }}
+    annotations:
+      {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml $gatewayClass.spec | nindent 2 }}
+{{- end }}
+---
+{{- if or (eq ($gateway.create | toString) "true") (and $isMaaSEnabled (eq ($gateway.create | toString) "auto")) -}}
+{{- range $i, $listener := $gateway.spec.listeners }}
+  {{- $ns := (($listener.allowedRoutes | default dict).namespaces | default dict) }}
+  {{- if not $ns.from }}
+    {{- fail (printf "components.aigateway.modelsAsAService.gateway.spec.listeners[%d].allowedRoutes.namespaces.from is required. Choose: Selector (recommended) or Same.\nSet it in your values file or use: --set-json 'components.aigateway.modelsAsAService.gateway.spec.listeners=[{\"name\":\"https\",\"port\":443,\"protocol\":\"HTTPS\",\"allowedRoutes\":{\"namespaces\":{\"from\":\"Selector\",\"selector\":{\"matchLabels\":{\"example-label\":\"true\"}}}}}]'" $i) }}
+  {{- end }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $gateway.name }}
+  namespace: {{ $gateway.namespace }}
+  labels:
+    {{- include "rhoai-dependencies.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml $gateway.annotations | nindent 4 }}
+spec:
+  {{- toYaml $gateway.spec | nindent 2 }}
+{{- end }}

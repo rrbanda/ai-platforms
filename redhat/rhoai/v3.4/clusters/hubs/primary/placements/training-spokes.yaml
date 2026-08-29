@@ -1,0 +1,20 @@
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: training-spokes
+  namespace: openshift-gitops
+spec:
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: rhoai.io/platform
+              operator: In
+              values:
+                - "true"
+            - key: rhoai.io/training
+              operator: In
+              values:
+                - "true"
+            - key: local-cluster
+              operator: DoesNotExist

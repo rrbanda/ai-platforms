@@ -1,0 +1,138 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: openshift-gitops
+spec:
+  description: Restricted default -- only app-of-apps parent
+  sourceRepos:
+    - https://github.com/rrbanda/ai-platforms.git
+  destinations:
+    - namespace: openshift-gitops
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: argoproj.io
+      kind: Application
+  namespaceResourceWhitelist:
+    - group: argoproj.io
+      kind: Application
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: rhoai-platform
+  namespace: openshift-gitops
+spec:
+  description: RHOAI platform operators and DataScienceCluster
+  sourceRepos:
+    - https://github.com/rrbanda/ai-platforms.git
+  destinations:
+    - namespace: openshift-operators
+      server: https://kubernetes.default.svc
+    - namespace: openshift-ingress
+      server: https://kubernetes.default.svc
+    - namespace: redhat-ods-operator
+      server: https://kubernetes.default.svc
+    - namespace: redhat-ods-applications
+      server: https://kubernetes.default.svc
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: rhoai-config
+  namespace: openshift-gitops
+spec:
+  description: RHOAI cluster configuration (dashboard, EvalHub, MLflow, MaaS, MCP)
+  sourceRepos:
+    - https://github.com/rrbanda/ai-platforms.git
+  destinations:
+    - namespace: redhat-ods-applications
+      server: https://kubernetes.default.svc
+    - namespace: openshift-monitoring
+      server: https://kubernetes.default.svc
+    - namespace: openshift-logging
+      server: https://kubernetes.default.svc
+    - namespace: redhat-ai-gateway-infra
+      server: https://kubernetes.default.svc
+    - namespace: mcp-system
+      server: https://kubernetes.default.svc
+    - namespace: models-as-a-service
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: opendatahub.io
+      kind: OdhDashboardConfig
+    - group: trustyai.opendatahub.io
+      kind: EvalHub
+    - group: trustyai.opendatahub.io
+      kind: NemoGuardrails
+    - group: mlflow.opendatahub.io
+      kind: MLflow
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: rhoai-workloads
+  namespace: openshift-gitops
+spec:
+  description: RHOAI application workloads (AutoRAG, inference, training)
+  sourceRepos:
+    - https://github.com/rrbanda/ai-platforms.git
+  destinations:
+    - namespace: autorag
+      server: https://kubernetes.default.svc
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: rhoai-spokes
+  namespace: openshift-gitops
+spec:
+  description: Hub-spoke management (ApplicationSets, Placements, Policies)
+  sourceRepos:
+    - https://github.com/rrbanda/ai-platforms.git
+  destinations:
+    - namespace: openshift-gitops
+      server: https://kubernetes.default.svc
+    - namespace: '*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: argoproj.io
+      kind: ApplicationSet
+    - group: cluster.open-cluster-management.io
+      kind: Placement
+    - group: policy.open-cluster-management.io
+      kind: Policy
+    - group: policy.open-cluster-management.io
+      kind: PlacementBinding
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true

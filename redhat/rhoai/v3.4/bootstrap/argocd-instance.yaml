@@ -1,0 +1,129 @@
+---
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  server:
+    route:
+      enabled: true
+      tls:
+        termination: reencrypt
+  resourceHealthChecks:
+    - group: datasciencecluster.opendatahub.io
+      kind: DataScienceCluster
+      check: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.phase == "Ready" then
+            hs.status = "Healthy"
+            hs.message = "DataScienceCluster is ready"
+          elseif obj.status.phase == "Error" then
+            hs.status = "Degraded"
+            hs.message = obj.status.conditions[1].message or "Error"
+          else
+            hs.status = "Progressing"
+            hs.message = "Waiting for DataScienceCluster"
+          end
+        else
+          hs.status = "Progressing"
+          hs.message = "Waiting for status"
+        end
+        return hs
+    - group: dscinitialization.opendatahub.io
+      kind: DSCInitialization
+      check: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.phase == "Ready" then
+            hs.status = "Healthy"
+            hs.message = "DSCInitialization is ready"
+          elseif obj.status.phase == "Error" then
+            hs.status = "Degraded"
+            hs.message = obj.status.conditions[1].message or "Error"
+          else
+            hs.status = "Progressing"
+            hs.message = "Waiting for DSCInitialization"
+          end
+        else
+          hs.status = "Progressing"
+          hs.message = "Waiting for status"
+        end
+        return hs
+    - group: serving.kserve.io
+      kind: InferenceService
+      check: |
+        hs = {}
+        if obj.status ~= nil and obj.status.conditions ~= nil then
+          for _, c in ipairs(obj.status.conditions) do
+            if c.type == "Ready" then
+              if c.status == "True" then
+                hs.status = "Healthy"
+                hs.message = "InferenceService is ready"
+              elseif c.status == "False" then
+                hs.status = "Degraded"
+                hs.message = c.message or "Not ready"
+              else
+                hs.status = "Progressing"
+                hs.message = "Waiting for InferenceService"
+              end
+              return hs
+            end
+          end
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for status"
+        return hs
+    - group: operators.coreos.com
+      kind: Subscription
+      check: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.state == "AtLatestKnown" then
+            hs.status = "Healthy"
+            hs.message = "Subscription is at latest known version"
+          elseif obj.status.state == "UpgradePending" then
+            hs.status = "Progressing"
+            hs.message = "Upgrade pending"
+          else
+            hs.status = "Progressing"
+            hs.message = obj.status.state or "Waiting"
+          end
+        else
+          hs.status = "Progressing"
+          hs.message = "Waiting for status"
+        end
+        return hs
+  resourceExclusions: |
+    - apiGroups:
+        - tekton.dev
+      kinds:
+        - TaskRun
+        - PipelineRun
+      clusters:
+        - "*"
+  controller:
+    resources:
+      limits:
+        cpu: "2"
+        memory: 4Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+  repo:
+    resources:
+      limits:
+        cpu: "1"
+        memory: 2Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+  redis:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi

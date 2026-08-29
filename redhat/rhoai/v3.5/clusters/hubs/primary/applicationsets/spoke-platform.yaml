@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: spoke-platform
+  namespace: openshift-gitops
+spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: rhoai.io/canary
+              operator: In
+              values:
+                - "true"
+        - matchExpressions:
+            - key: rhoai.io/platform
+              operator: In
+              values:
+                - "true"
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: all-rhoai-spokes
+        requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: '{{name}}-rhoai-platform'
+      annotations:
+        apps.open-cluster-management.io/ocm-managed-cluster: '{{name}}'
+        argocd.argoproj.io/skip-reconcile: "true"
+        argocd.argoproj.io/sync-wave: "1"
+      labels:
+        apps.open-cluster-management.io/pull-to-ocm-managed-cluster: "true"
+    spec:
+      project: rhoai-platform
+      source:
+        repoURL: https://github.com/rrbanda/ai-platforms.git
+        targetRevision: main
+        path: redhat/rhoai/v3.5/chart
+        helm:
+          releaseName: rhoai
+          skipSchemaValidation: true
+          valueFiles:
+            - ../values/full-platform.yaml
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 10m
+        syncOptions:
+          - CreateNamespace=true
+          - SkipDryRunOnMissingResource=true
+          - ServerSideApply=true

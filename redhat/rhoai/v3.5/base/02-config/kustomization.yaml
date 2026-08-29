@@ -5,8 +5,6 @@ resources:
   - dashboard-features.yaml
   - user-workload-monitoring.yaml
   - maas-postgres.yaml
-  - sealed-maas-postgres-credentials.yaml
-  - sealed-maas-db-config.yaml
   - mcp-gateway.yaml
   - mcp-studio-config.yaml
   - evalhub.yaml

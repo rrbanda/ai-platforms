@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: maas-db-config
+  namespace: redhat-ai-gateway-infra
+spec:
+  encryptedData:
+    DB_CONNECTION_URL: AgBhNEmMOYybHkOQsjpi0Dq/86ez6YOI+3oOmdeQRzij5qkQqHennGisdBYNPDRqGwaqboS7AWwJAgFXGjwqg+IJmfDvoUFbhuPQJT8tD13vZohQlMyakA1bilTh1N4GNwVAyiIWBBkym0vFIYPtF0jda69cYu2X50zuSzpul8U9m23qXZQr8ZHQWmzGFoUPtdDIUQN2t7PDWpUsYA281yhhRDy1J+fQwcfWwQyBxKLbJtg1riMeQkTiZfcFbzZNnCnL5+hPN45kQXzt8TTVHXiIOfJe+oU9dIM/JeBgYU+hKFX9jevCuPIgADmkZiOTckMygF9/SW70waL4QAiods6aR5QHcWV7b5/lWk0LG0Gr+sulb1R3yavlVWNE4OCs2dEnIfugXF47mauSiUTv87jqtyFyWaBGzSYRSi366zgqbpV3Y6dt9ohIzdOmuCbTpKrJcp8pHqvGeIWCJyVghe1i7wuxtS2VimT+T3morvZ0Hu9UbDvdzAsfTri2SADo0KhKolF1NaMajekDevwmU/1W0aRmOjQZ2+C7aorVH61NOOd66QPcY2weMKNm8jd3Nr9Vc3vTNOwD5ET4FtHYdmwsyYFi99b9dySNg3Amhl4Z/Zi/PkmFze2UBjMPuZXNi7g5AUr3WylI2bCjEo4drzBPr63+GVuIJ6psDCARWBP7YqwXQuZ5wa6rCs43fNrUkAmX5TRkBKkQ2avd8pWZ6IFIAXLnBlWVJMNCECl7acR8AM3oT5jn6Y9G7uxxYH5R6vD8MCmGqltGyoeQjT5zXRnw/UUvMN998I8o4mTGBOA47kRBP3APA3+JsuttQKHZ
+  template:
+    metadata:
+      name: maas-db-config
+      namespace: redhat-ai-gateway-infra
+    type: Opaque

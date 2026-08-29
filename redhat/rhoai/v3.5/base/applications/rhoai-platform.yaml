@@ -80,8 +80,6 @@ spec:
               argoWorkflowsControllers:
                 managementState: Managed
           kueue:
-            olm:
-              channel: stable-v1.3
             dsc:
               managementState: Unmanaged
               autoCreateQueues: true

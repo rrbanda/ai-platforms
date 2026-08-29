@@ -4,8 +4,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - milvus.yaml
-  - sealed-llm-api-secret.yaml
-  - sealed-s3-connection-secret.yaml
   - ogx-config.yaml
   - ogxserver.yaml
   - dspa.yaml

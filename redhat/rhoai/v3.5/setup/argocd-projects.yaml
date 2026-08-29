@@ -45,7 +45,6 @@ spec:
       kind: '*'
   orphanedResources:
     warn: false
-    warn: true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -85,7 +84,6 @@ spec:
       kind: '*'
   orphanedResources:
     warn: false
-    warn: true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -109,7 +107,6 @@ spec:
       kind: '*'
   orphanedResources:
     warn: false
-    warn: true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -139,4 +136,3 @@ spec:
       kind: '*'
   orphanedResources:
     warn: false
-    warn: true

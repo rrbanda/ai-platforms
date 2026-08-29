@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../base/02-config
+  # Add your cluster-specific sealed secrets here:
+  # - sealed-maas-postgres-credentials.yaml
+  # - sealed-maas-db-config.yaml

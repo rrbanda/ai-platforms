@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-system
+  annotations:
+    openshift.io/display-name: "MCP Gateway"
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gateway
+  namespace: mcp-system
+spec:
+  gatewayClassName: openshift-ai-inference
+  listeners:
+    - name: mcp
+      port: 8001
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All

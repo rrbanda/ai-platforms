@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: spoke-bootstrap
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: all-rhoai-spokes
+        requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: '{{name}}-bootstrap'
+      annotations:
+        apps.open-cluster-management.io/ocm-managed-cluster: '{{name}}'
+        argocd.argoproj.io/skip-reconcile: "true"
+      labels:
+        apps.open-cluster-management.io/pull-to-ocm-managed-cluster: "true"
+    spec:
+      project: rhoai-platform
+      source:
+        repoURL: https://github.com/rrbanda/ai-platforms.git
+        targetRevision: main
+        path: redhat/rhoai/v3.4/setup/bootstrap
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: openshift-gitops
+      syncPolicy:
+        retry:
+          limit: 5
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

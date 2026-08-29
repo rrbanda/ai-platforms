@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - dashboard-features.yaml
+  - user-workload-monitoring.yaml
+  - maas-postgres.yaml
+  - sealed-maas-postgres-credentials.yaml
+  - sealed-maas-db-config.yaml
+  - mcp-gateway.yaml
+  - mcp-studio-config.yaml
+  - evalhub.yaml
+  - mlflow.yaml
+  - nemo-guardrails-config.yaml
+  - nemo-guardrails.yaml
+  - vector-stores-config.yaml
+  - maas-log-forwarder.yaml

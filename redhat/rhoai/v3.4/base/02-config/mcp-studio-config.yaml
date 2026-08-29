@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  OpenShift-MCP-Server: |
+    {
+      "url": "http://openshift-mcp-server.openshift-mcp-server.svc.cluster.local:8080/mcp",
+      "description": "OpenShift MCP Server - cluster management tools"
+    }

@@ -1,0 +1,33 @@
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: maas-showback
+  namespace: openshift-logging
+spec:
+  serviceAccount:
+    name: logcollector
+  inputs:
+    - name: maas-gateway-logs
+      type: application
+      application:
+        includes:
+          - namespace: models-as-a-service
+        selector:
+          matchLabels:
+            app.kubernetes.io/part-of: ai-gateway
+  outputs:
+    - name: loki-maas
+      type: lokiStack
+      lokiStack:
+        target:
+          name: logging-loki
+          namespace: openshift-logging
+        authentication:
+          token:
+            from: serviceAccount
+  pipelines:
+    - name: maas-to-loki
+      inputRefs:
+        - maas-gateway-logs
+      outputRefs:
+        - loki-maas

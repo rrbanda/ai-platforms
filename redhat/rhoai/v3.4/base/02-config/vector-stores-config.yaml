@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gen-ai-aa-vector-stores
+  namespace: redhat-ods-applications
+data:
+  Milvus-AutoRAG: |
+    {
+      "type": "milvus",
+      "url": "http://milvus-service.autorag.svc.cluster.local:19530",
+      "description": "Milvus vector database for RAG workloads"
+    }

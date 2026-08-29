@@ -1,0 +1,21 @@
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: all-rhoai-spokes
+  namespace: openshift-gitops
+spec:
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+    - key: cluster.open-cluster-management.io/unavailable
+      operator: Exists
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: rhoai.io/platform
+              operator: In
+              values:
+                - "true"
+            - key: local-cluster
+              operator: DoesNotExist

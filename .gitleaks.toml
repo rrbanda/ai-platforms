@@ -1,0 +1,21 @@
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''helm-deploy/chart/templates/.*''',
+  '''\.pre-commit-config\.yaml''',
+  '''sealed-.*\.yaml''',
+]
+
+[[rules]]
+id = "rh-registry-service-account"
+description = "Red Hat registry service account token"
+regex = '''eyJhbGciOiJSUzUxMiJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'''
+keywords = ["eyJhbGciOiJSUzUxMiJ9"]
+
+[[rules]]
+id = "rh-sso-offline-token"
+description = "Red Hat SSO offline token"
+regex = '''eyJhbGciOiJIUzUxMiIsInR5cCI[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'''
+keywords = ["eyJhbGciOiJIUzUxMiIsInR5cCI"]

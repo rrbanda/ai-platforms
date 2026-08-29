@@ -14,10 +14,17 @@ managed through ArgoCD with RHACM hub-spoke multi-cluster support.
 ### RHOAI 3.5
 
 ```bash
+# 0. Pre-deployment cleanup (shared/reused clusters only)
+./redhat/rhoai/v3.5/scripts/cluster-cleanup.sh --fix
+
 # 1. Bootstrap (one-time)
 oc apply -k redhat/rhoai/v3.5/setup/bootstrap/
 
-# 2. Deploy
+# 2. Seal secrets for this cluster
+./redhat/rhoai/v3.5/scripts/reseal-all.sh
+git add redhat/rhoai/v3.5/base/*/sealed-*.yaml && git commit -m "Seal secrets" && git push
+
+# 3. Deploy
 oc apply -f redhat/rhoai/v3.5/base/app-of-apps.yaml
 
 # 3. Enable spoke management (optional)

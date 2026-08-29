@@ -1,0 +1,11 @@
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: REPLACE_WITH_SUBSCRIPTION_NAME
+  namespace: models-as-a-service
+spec:
+  groups:
+    - "REPLACE_WITH_GROUP_NAME"
+  models:
+    - name: "REPLACE_WITH_MODEL_NAME"
+      tokenLimit: 1000000

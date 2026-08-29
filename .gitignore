@@ -14,9 +14,10 @@ kubeconfig
 kubeconfig.*
 auth/
 .kube/
-# Plaintext secret templates (sealed versions are safe to commit)
-helm-deploy/workloads/*/templates/
-*.yaml.template
+
+# Filled-in secret files (the plaintext after replacing REPLACE_WITH_ values)
+# Template files (.yaml.template) ARE safe to commit -- they contain only placeholders.
+/tmp/reseal-*
 
 # ─────────────────────────────────────────────────────────────────────────────
 # IDE & Editor
@@ -38,25 +39,3 @@ __pycache__/
 *.pyc
 node_modules/
 .tmp/
-adoption-export/
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Slide Deck (staticrypt artifacts)
-# ─────────────────────────────────────────────────────────────────────────────
-.staticrypt.json
-package-lock.json
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Demo runbook (presenter-only, not for distribution)
-# ─────────────────────────────────────────────────────────────────────────────
-demo/
-scripts/demo-live.sh
-scripts/demo-narrative.md
-scripts/demo-enable-mcp-catalog.md
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Customer-specific content (NEVER commit)
-# ─────────────────────────────────────────────────────────────────────────────
-docs/verizon-*
-docs/speaker-notes.md
-docs/combined-speaker-notes.md

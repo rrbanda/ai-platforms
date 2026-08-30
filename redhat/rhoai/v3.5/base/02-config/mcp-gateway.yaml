@@ -14,39 +14,8 @@ spec:
   gatewayClassName: openshift-ai-inference
   listeners:
     - name: mcp
-      hostname: MCP_GATEWAY_HOSTNAME_PLACEHOLDER
-      port: 8080
+      port: 8001
       protocol: HTTP
       allowedRoutes:
         namespaces:
           from: All
-    - name: mcps
-      hostname: "*.mcp.local"
-      port: 8080
-      protocol: HTTP
-      allowedRoutes:
-        namespaces:
-          from: All
----
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: ReferenceGrant
-metadata:
-  name: allow-mcp-gateway
-  namespace: mcp-system
-spec:
-  from:
-    - group: mcp.kuadrant.io
-      kind: MCPGatewayExtension
-      namespace: mcp-gateway-system
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      namespace: mcp-gateway-system
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      namespace: ocp-mcp-server
-    - group: kuadrant.io
-      kind: AuthPolicy
-      namespace: mcp-system
-  to:
-    - group: gateway.networking.k8s.io
-      kind: Gateway

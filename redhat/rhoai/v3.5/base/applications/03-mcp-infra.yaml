@@ -13,7 +13,6 @@ spec:
     path: redhat/rhoai/v3.5/base/04-mcp-infra
   destination:
     server: https://kubernetes.default.svc
-    namespace: ocp-mcp-server
   syncPolicy:
     retry:
       limit: 10

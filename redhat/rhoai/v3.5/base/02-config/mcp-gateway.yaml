@@ -19,3 +19,9 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: mcps
+      port: 8002
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All

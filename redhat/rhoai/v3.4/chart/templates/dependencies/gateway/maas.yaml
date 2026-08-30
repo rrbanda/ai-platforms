@@ -1,10 +1,10 @@
-{{- $aigateway := .Values.components.aigateway | default dict -}}
-{{- $aigatewayDscMerged := include "rhoai-dependencies.componentDSCConfig" (dict "componentName" "aigateway" "component" $aigateway "root" .) | fromYaml -}}
-{{- $maas := $aigateway.modelsAsAService | default dict -}}
+{{- $kserve := .Values.components.kserve | default dict -}}
+{{- $kserveDscMerged := include "rhoai-dependencies.componentDSCConfig" (dict "componentName" "kserve" "component" $kserve "root" .) | fromYaml -}}
+{{- $maas := $kserve.modelsAsService | default dict -}}
 {{- $gateway := $maas.gateway | default dict -}}
-{{- $effectiveAIGatewayState := $aigatewayDscMerged.managementState | default "Removed" -}}
-{{- $effectiveMaaSState := ($aigatewayDscMerged.modelsAsAService | default dict).managementState | default "Removed" -}}
-{{- $isMaaSEnabled := and (eq $effectiveMaaSState "Managed") (eq $effectiveAIGatewayState "Managed") -}}
+{{- $effectiveKserveState := $kserveDscMerged.managementState | default "Removed" -}}
+{{- $effectiveMaaSState := ($kserveDscMerged.modelsAsService | default dict).managementState | default "Removed" -}}
+{{- $isMaaSEnabled := and (eq $effectiveMaaSState "Managed") (eq $effectiveKserveState "Managed") -}}
 {{- $gatewayClass := $maas.gatewayClass | default dict -}}
 {{- if or (eq ($gatewayClass.create | toString) "true") (and $isMaaSEnabled (eq ($gatewayClass.create | toString) "auto")) -}}
 apiVersion: gateway.networking.k8s.io/v1
@@ -25,7 +25,7 @@ spec:
 {{- range $i, $listener := $gateway.spec.listeners }}
   {{- $ns := (($listener.allowedRoutes | default dict).namespaces | default dict) }}
   {{- if not $ns.from }}
-    {{- fail (printf "components.aigateway.modelsAsAService.gateway.spec.listeners[%d].allowedRoutes.namespaces.from is required. Choose: Selector (recommended) or Same.\nSet it in your values file or use: --set-json 'components.aigateway.modelsAsAService.gateway.spec.listeners=[{\"name\":\"https\",\"port\":443,\"protocol\":\"HTTPS\",\"allowedRoutes\":{\"namespaces\":{\"from\":\"Selector\",\"selector\":{\"matchLabels\":{\"example-label\":\"true\"}}}}}]'" $i) }}
+    {{- fail (printf "components.kserve.modelsAsService.gateway.spec.listeners[%d].allowedRoutes.namespaces.from is required. Choose: Selector (recommended) or Same.\nSet it in your values file or use: --set-json 'components.kserve.modelsAsService.gateway.spec.listeners=[{\"name\":\"https\",\"port\":443,\"protocol\":\"HTTPS\",\"allowedRoutes\":{\"namespaces\":{\"from\":\"Selector\",\"selector\":{\"matchLabels\":{\"example-label\":\"true\"}}}}}]'" $i) }}
   {{- end }}
 {{- end }}
 apiVersion: gateway.networking.k8s.io/v1

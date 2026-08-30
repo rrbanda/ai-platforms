@@ -111,9 +111,6 @@
         "feastoperator": {
           "$ref": "#/definitions/component"
         },
-        "aigateway": {
-          "$ref": "#/definitions/aigatewayComponent"
-        },
         "kserve": {
           "$ref": "#/definitions/kserveComponent"
         },
@@ -141,7 +138,7 @@
         "workbenches": {
           "$ref": "#/definitions/workbenchesComponent"
         },
-        "ogx": {
+        "llamastackoperator": {
           "$ref": "#/definitions/component"
         },
         "sparkoperator": {
@@ -381,6 +378,7 @@
               "$ref": "#/definitions/defaultManagementState"
             }
           },
+          "required": ["managementState"],
           "additionalProperties": false
         },
         "defaults": {
@@ -414,6 +412,7 @@
               }
             }
           },
+          "required": ["managementState"],
           "additionalProperties": false
         },
         "defaults": {
@@ -456,7 +455,7 @@
               "description": "Default cluster queue name"
             }
           },
-          "required": ["defaultLocalQueueName", "defaultClusterQueueName"],
+          "required": ["managementState", "defaultLocalQueueName", "defaultClusterQueueName"],
           "additionalProperties": false
         },
         "defaults": {
@@ -494,6 +493,7 @@
                   "$ref": "#/definitions/defaultManagementState"
                 }
               },
+              "required": ["managementState"],
               "additionalProperties": false
             },
             "wva": {
@@ -504,9 +504,20 @@
                   "$ref": "#/definitions/defaultManagementState"
                 }
               },
+              "required": ["managementState"],
               "additionalProperties": false
+            },
+            "modelsAsService": {
+              "type": "object",
+              "description": "Models as Service configuration for KServe",
+              "properties": {
+                "managementState": {
+                  "$ref": "#/definitions/defaultManagementState"
+                }
+              }
             }
           },
+          "required": ["managementState"],
           "additionalProperties": false
         },
         "gatewayClass": {
@@ -514,51 +525,10 @@
         },
         "gateway": {
           "$ref": "#/definitions/gatewayConfig"
-        }
-      },
-      "required": ["dsc", "dependencies"],
-      "additionalProperties": false
-    },
-    "aigatewayComponent": {
-      "type": "object",
-      "description": "AI Gateway component configuration (manages MaaS and BatchGateway).",
-      "properties": {
-        "dependencies": {
-          "$ref": "#/definitions/componentDeps"
         },
-        "dsc": {
+        "modelsAsService": {
           "type": "object",
-          "description": "DSC configuration for AI Gateway",
-          "properties": {
-            "managementState": {
-              "$ref": "#/definitions/defaultManagementState"
-            },
-            "modelsAsAService": {
-              "type": "object",
-              "description": "Models as a Service sub-component (moved from kserve.modelsAsService in 3.5)",
-              "properties": {
-                "managementState": {
-                  "$ref": "#/definitions/defaultManagementState"
-                }
-              },
-              "additionalProperties": false
-            },
-            "batchGateway": {
-              "type": "object",
-              "description": "Batch Gateway sub-component",
-              "properties": {
-                "managementState": {
-                  "$ref": "#/definitions/defaultManagementState"
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
-        "modelsAsAService": {
-          "type": "object",
-          "description": "Gateway and GatewayClass resources for MaaS",
+          "description": "Models as Service configuration for KServe",
           "properties": {
             "gateway": {
               "$ref": "#/definitions/gatewayConfig"
@@ -566,11 +536,10 @@
             "gatewayClass": {
               "$ref": "#/definitions/gatewayClassConfig"
             }
-          },
-          "additionalProperties": false
+          }
         }
       },
-      "required": ["dsc"],
+      "required": ["dsc", "modelsAsService", "dependencies"],
       "additionalProperties": false
     },
     "modelregistryComponent": {
@@ -592,6 +561,7 @@
               "description": "Namespace for model registries. Overrides defaults if set."
             }
           },
+          "required": ["managementState"],
           "additionalProperties": false
         },
         "defaults": {
@@ -620,6 +590,7 @@
               "description": "Namespace for workbenches. Overrides defaults if set."
             }
           },
+          "required": ["managementState"],
           "additionalProperties": false
         },
         "defaults": {
@@ -672,6 +643,7 @@
               "additionalProperties": false
             }
           },
+          "required": ["managementState"],
           "additionalProperties": false
         },
         "defaults": {

@@ -1,4 +1,4 @@
-apiVersion: trustyai.opendatahub.io/v1
+apiVersion: trustyai.opendatahub.io/v1alpha1
 kind: EvalHub
 metadata:
   name: evalhub
@@ -8,6 +8,3 @@ spec:
   tenancy: multi
   database:
     type: sqlite
-  mcp:
-    enabled: true
-    transport: http

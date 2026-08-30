@@ -1,27 +1,27 @@
 # Design Decisions
 
-Architecture decisions made during the build of this RHOAI GitOps deployment.
+Architecture decisions made during the build of this RHOAI 3.4 GitOps deployment.
 
 ---
 
 ## Why Helm chart + GitOps
 
 The official Red Hat RHOAI Helm chart is extracted from the OCI registry
-(`oci://registry.redhat.io/rhai/rhai-on-openshift-chart`) and committed to
+(`oci://registry.redhat.io/rhai/rhai-on-openshift-chart:v3.4`) and committed to
 Git. ArgoCD reads the chart directly from the repo -- no OCI registry
 authentication is needed at deploy time. The chart is unmodified; all
 customization is in Helm values passed via the ArgoCD Application manifest.
 
-## Why branch-per-version
+## Why folder-per-version
 
-Each RHOAI release gets its own branch (`helm-deploy-v3.4`, `helm-deploy-v3.4`).
+Each RHOAI release gets its own folder (`redhat/rhoai/v3.4`, `redhat/rhoai/v3.5`).
 This isolates the chart version, DSC configuration, and workload manifests per
-release. Upgrading is changing `targetRevision` in the app-of-apps. Rolling
-back is changing it back. Both versions can coexist in the same repo.
+release. Upgrading is changing the path in the app-of-apps. Rolling back is
+changing it back. Both versions coexist in the same repo on the same branch.
 
 ## Why app-of-apps with sync waves
 
-ArgoCD discovers child Applications in `deploy/applications/` and deploys them
+ArgoCD discovers child Applications in `base/applications/` and deploys them
 in wave order. This ensures operators are ready before the platform, and the
 platform is ready before workloads:
 
@@ -29,27 +29,27 @@ platform is ready before workloads:
 - **Wave 1**: RHOAI platform (Helm chart DSC) + cluster config
 - **Wave 2**: Application workloads (AutoRAG)
 
-## Why deploy/ + setup/ separation
+## Why base/ + setup/ separation
 
-Resources in `deploy/` are continuously managed by ArgoCD -- they represent
+Resources in `base/` are continuously managed by ArgoCD -- they represent
 the desired state of the cluster. Resources in `setup/` are applied once
 during initial bootstrap (GitOps operator, SealedSecrets operator, RHACM
 registration) and are never reconciled by ArgoCD. Mixing them creates
 confusion about what ArgoCD controls.
 
-## Why numbered directories (00-, 01-, 02-, 03-)
+## Why numbered directories (00-, 02-, 03-)
 
-The directory listing naturally shows deployment order. `ls deploy/` reads as
-a deployment sequence: operators first, platform second, config third,
-workloads last. This matches the sync wave numbers in the Application manifests.
+The directory listing naturally shows deployment order. `ls base/` reads as
+a deployment sequence: operators first, config second, workloads third.
+This matches the sync wave numbers in the Application manifests.
 
-## Why deploy/ serves as both hub deployment and spoke template
+## Why base/ serves as both hub deployment and spoke template
 
-The same `deploy/` paths are referenced by:
-1. The hub's own `deploy/app-of-apps.yaml` (hub deploys itself)
+The same `base/` paths are referenced by:
+1. The hub's own `base/app-of-apps.yaml` (hub deploys itself)
 2. The `clusters/hubs/primary/applicationsets/` (spokes pull the same paths)
 
-This avoids duplicating manifests. A change to `deploy/02-config/` applies to
+This avoids duplicating manifests. A change to `base/02-config/` applies to
 both the hub and all spokes on next sync.
 
 ## Why Pull Model for hub-spoke (not Push)
@@ -72,19 +72,18 @@ the label. No Git changes needed for per-cluster decisions.
 Encrypted secrets are safe to commit to Git. Each cluster has a unique Sealed
 Secrets controller with its own key pair, so a secret encrypted for cluster A
 cannot be decrypted on cluster B. Plaintext templates live in
-`secrets/templates/` (gitignored) and are never committed.
+`secrets/` and `base/*/templates/` (gitignored) and are never committed.
 
 ## Why Kueue is Unmanaged (not Managed)
 
-The RHOAI 3.5 v2 DSC API webhook rejects `kueue.managementState: Managed`.
 The Helm chart installs the Kueue operator via its own OLM Subscription.
 `Unmanaged` tells the RHOAI operator to integrate with Kueue but not control
-its lifecycle -- and it unlocks the `autoCreateQueues`,
-`defaultClusterQueueName`, `defaultLocalQueueName` fields that `Managed` ignores.
+its lifecycle -- and it unlocks the `defaultClusterQueueName`,
+`defaultLocalQueueName` fields.
 
 ## Why OdhDashboardConfig is in 02-config (not in the Helm chart)
 
-The dashboard feature flags (`genAiStudio`, `mcpCatalog`, `agentsCatalog`, etc.)
+The dashboard feature flags (`genAiStudio`, `mcpCatalog`, `modelAsService`, etc.)
 are a cluster-wide singleton that defaults all flags to `false`. The Helm chart
 deploys the backend operators but does not flip these toggles. Managing them
 separately in `02-config/` allows changing UI features without re-rendering the
@@ -116,8 +115,8 @@ load and unnecessary ArgoCD reconciliation cycles.
 
 Without Lua health checks, ArgoCD shows blank health for custom resources. We
 provide health checks for: DSC, DSCI, InferenceService, Subscription,
-OGXServer, EvalHub, MLflow, NemoGuardrails, and DSPA. This gives accurate
-Healthy/Progressing/Degraded status in the ArgoCD UI.
+LlamaStackDistribution, EvalHub, MLflow, NemoGuardrails, and DSPA. This gives
+accurate Healthy/Progressing/Degraded status in the ArgoCD UI.
 
 ## Why ignoreDifferences for operator-managed annotations
 

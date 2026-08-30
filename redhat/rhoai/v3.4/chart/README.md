@@ -1,4 +1,4 @@
-# RHAI on OpenShift Helm Chart
+# RHOAI Dependencies Helm Chart
 
 A Helm chart for installing ODH/RHOAI dependencies and component configurations on OpenShift.
 
@@ -97,69 +97,25 @@ The script can be customized with environment variables:
 
 > **Note**: The `dependencies.rhcl.config.tlsEnabled` Helm value is intended for ArgoCD use cases. For CLI use case, use the script above.
 
-### KServe Gateway
-
-When KServe is Managed, the chart creates a Gateway CR for inference traffic (`components.kserve.gateway.create` defaults to `auto`).
-
-You **must** configure which namespaces can attach HTTPRoutes to the gateway via `allowedRoutes.namespaces.from` in the listener spec. The chart will fail if this is not set. Use `Selector` (recommended) to restrict by namespace labels, or `Same` to allow only the gateway's own namespace.
-
-When using `Selector`, the specified labels must be applied to each target namespace.
-
-```yaml
-components:
-  kserve:
-    dsc:
-      managementState: Managed
-    gateway:
-      spec:
-        gatewayClassName: openshift-ai-inference
-        listeners:
-          - name: https
-            port: 443
-            protocol: HTTPS
-            allowedRoutes:
-              namespaces:
-                from: Selector
-                selector:
-                  matchLabels:
-                    inference-gateway-access: "true"
-```
-
 ### Enable Models as Service
 
-To enable Models as Service, set `components.aigateway.dsc.managementState` and
-`components.aigateway.dsc.modelsAsAService.managementState` to `Managed`.
+To enable Models as Service, Gateway and GatewayClass are needed. They could be created manually or with the chart.
+To create them with the chart, you need to manually set the gateway hostname, and the certificate secret name.
+By default, the Gateway creation is disabled. To enable it, you need to set the `components.kserve.modelsAsService.gateway.create`
+and `components.kserve.modelsAsService.gatewayClass.create` to `true`.
 
-Gateway and GatewayClass are created automatically when MaaS is Managed
-(`components.aigateway.modelsAsAService.gateway.create` / `gatewayClass.create`
-default to `auto`, matching the KServe gateway pattern). Set either flag to
-`false` to skip chart-managed creation and supply your own resources, or to
-`true` to always create them.
-
-When using the chart-managed Gateway, you **must** configure
-`allowedRoutes.namespaces.from` in the listener spec — the chart will fail if
-this is not set. Use `Selector` (recommended) to restrict by namespace labels,
-or `Same` to allow only the gateway's own namespace. When using `Selector`, the
-specified labels must be applied to each target namespace.
-
-Customize the listener for your environment (hostname and TLS / certificate
-secret as needed). The default annotations
-(`security.opendatahub.io/authorino-tls-bootstrap` and
-`opendatahub.io/managed`) should be kept unless you intentionally change MaaS
-TLS / ownership behavior.
-
-For example:
+For example, it is possible to enable Models as Service with the following values,
+configuring correctly the `<HOSTNAME>`, `<SECRET_NAME>` and correctly define the `allowedRoutes`:
 
 ```yaml
 # values.yaml
 components:
-  aigateway:
-    dsc:
-      managementState: Managed
-      modelsAsAService:
-        managementState: Managed
-    modelsAsAService:
+  kserve:
+    modelsAsService:
+      gatewayClass:
+        create: true
       gateway:
+        create: true
         spec:
           gatewayClassName: maas-gateway-class
           listeners:
@@ -244,21 +200,21 @@ High-level features that:
 | `Unmanaged` | Yes |
 | `Removed` | No |
 
-| Component          | Description                        | Default State | Dependencies |
-|--------------------|------------------------------------|---------------|--------------|
-| `aipipelines`      | AI Pipelines                       | Removed | - |
-| `dashboard`        | Dashboard                          | Removed | - |
-| `feastoperator`    | Feast feature store operator       | Removed | - |
-| `kserve`           | KServe model serving               | Removed | certManager, leaderWorkerSet, jobSet, rhcl, customMetricsAutoscaler |
-| `kueue`            | Kueue job queuing                  | Removed | certManager, kueue |
-| `ogx`              | OGX                                | Removed | nfd, nvidiaGPUOperator |
-| `mlflowoperator`   | MLflow tracking and model registry | Removed | - |
-| `modelregistry`    | Model Registry                     | Removed | - |
-| `ray`              | Ray distributed computing          | Removed | certManager |
-| `trainer`          | Trainer                            | Removed | certManager, jobSet |
-| `trainingoperator` | Kubeflow Training Operator         | Removed | - |
-| `trustyai`         | TrustyAI                           | Removed | - |
-| `workbenches`      | Workbenches                        | Removed | - |
+| Component | Description | Default State | Dependencies |
+|-----------|-------------|---------------|--------------|
+| `aipipelines` | AI Pipelines | Removed | - |
+| `dashboard` | Dashboard | Removed | - |
+| `feastoperator` | Feast feature store operator | Removed | - |
+| `kserve` | KServe model serving | Removed | certManager, leaderWorkerSet, jobSet, rhcl, customMetricsAutoscaler |
+| `kueue` | Kueue job queuing | Removed | certManager, kueue |
+| `llamastackoperator` | LlamaStack Operator | Removed | nfd, nvidiaGPUOperator |
+| `mlflowoperator` | MLflow tracking and model registry | Removed | - |
+| `modelregistry` | Model Registry | Removed | - |
+| `ray` | Ray distributed computing | Removed | certManager |
+| `trainer` | Trainer | Removed | certManager, jobSet |
+| `trainingoperator` | Kubeflow Training Operator | Removed | - |
+| `trustyai` | TrustyAI | Removed | - |
+| `workbenches` | Workbenches | Removed | - |
 
 ### Dependencies
 
@@ -549,7 +505,7 @@ spec:
   source:
     repoURL: https://github.com/your-org/odh-gitops
     targetRevision: main
-    path: charts/rhai-on-openshift-chart
+    path: chart
     helm:
       values: |
         global:

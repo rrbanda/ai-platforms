@@ -11,10 +11,10 @@ metadata:
   name: mcp-gateway
   namespace: mcp-system
 spec:
-  gatewayClassName: openshift-ai-inference
+  gatewayClassName: openshift-default
   listeners:
     - name: mcp
-      port: 8001
+      port: 8080
       protocol: HTTP
       allowedRoutes:
         namespaces:

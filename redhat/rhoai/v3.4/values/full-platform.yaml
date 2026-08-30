@@ -1,4 +1,4 @@
-# RHOAI 3.5 -- Full platform
+# RHOAI 3.4 -- Full platform
 skipCrdCheck: true
 components:
   dashboard:
@@ -13,6 +13,8 @@ components:
       customMetricsAutoscaler: false
     dsc:
       managementState: Managed
+      modelsAsService:
+        managementState: Managed
       nim:
         managementState: Managed
       wva:
@@ -32,21 +34,14 @@ components:
             allowedRoutes:
               namespaces:
                 from: All
-  aigateway:
-    dsc:
-      managementState: Managed
-      modelsAsAService:
-        managementState: Managed
-      batchGateway:
-        managementState: Managed
-    modelsAsAService:
+    modelsAsService:
       gateway:
         create: true
         name: maas-default-gateway
         namespace: openshift-ingress
         annotations:
-          security.opendatahub.io/authorino-tls-bootstrap: "true"
-          opendatahub.io/managed: "false"
+          security.opendatahub.io/authorino-tls-bootstrap: 'true'
+          opendatahub.io/managed: 'false'
         spec:
           gatewayClassName: maas-gateway-class
           listeners:
@@ -64,7 +59,6 @@ components:
   kueue:
     dsc:
       managementState: Unmanaged
-      autoCreateQueues: true
       defaultClusterQueueName: default
       defaultLocalQueueName: default
   ray:
@@ -87,7 +81,6 @@ components:
   trustyai:
     dsc:
       managementState: Managed
-      mcpGuardrailsMode: false
       eval:
         lmeval:
           permitCodeExecution: deny
@@ -98,15 +91,11 @@ components:
   feastoperator:
     dsc:
       managementState: Managed
-  ogx:
+  llamastackoperator:
     dsc:
       managementState: Managed
 
   sparkoperator:
-    dsc:
-      managementState: Managed
-
-  mcplifecycleoperator:
     dsc:
       managementState: Managed
 

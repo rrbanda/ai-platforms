@@ -95,8 +95,8 @@ spec:
           hs.message = "Waiting for status"
         end
         return hs
-    - group: ogx.io
-      kind: OGXServer
+    - group: llamastack.io
+      kind: LlamaStackDistribution
       check: |
         hs = {}
         if obj.status ~= nil and obj.status.conditions ~= nil then
@@ -104,20 +104,20 @@ spec:
             if c.type == "Ready" then
               if c.status == "True" then
                 hs.status = "Healthy"
-                hs.message = c.message or "OGXServer is ready"
+                hs.message = c.message or "LlamaStack is ready"
               elseif c.status == "False" then
                 hs.status = "Degraded"
-                hs.message = c.message or "OGXServer not ready"
+                hs.message = c.message or "LlamaStack not ready"
               else
                 hs.status = "Progressing"
-                hs.message = "Waiting for OGXServer"
+                hs.message = "Waiting for LlamaStack"
               end
               return hs
             end
           end
         end
         hs.status = "Progressing"
-        hs.message = "Waiting for OGXServer status"
+        hs.message = "Waiting for LlamaStack status"
         return hs
     - group: trustyai.opendatahub.io
       kind: EvalHub

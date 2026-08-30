@@ -1,0 +1,28 @@
+apiVersion: llamastack.io/v1alpha1
+kind: LlamaStackDistribution
+metadata:
+  name: autorag-llamastack
+  namespace: autorag
+spec:
+  replicas: 1
+  server:
+    containerSpec:
+      env:
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: MKL_NUM_THREADS
+          value: "4"
+        - name: ENABLE_GEMINI
+          value: "1"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: llm-api-secret
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi

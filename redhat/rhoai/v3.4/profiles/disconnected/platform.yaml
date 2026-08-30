@@ -31,6 +31,8 @@ spec:
               customMetricsAutoscaler: false
             dsc:
               managementState: Managed
+              modelsAsService:
+                managementState: Managed
               nim:
                 managementState: Managed
               wva:
@@ -50,14 +52,7 @@ spec:
                   allowedRoutes:
                     namespaces:
                       from: All
-          aigateway:
-            dsc:
-              managementState: Managed
-              modelsAsAService:
-                managementState: Managed
-              batchGateway:
-                managementState: Managed
-            modelsAsAService:
+            modelsAsService:
               gateway:
                 create: true
                 name: maas-default-gateway
@@ -82,7 +77,6 @@ spec:
           kueue:
             dsc:
               managementState: Unmanaged
-              autoCreateQueues: true
               defaultClusterQueueName: default
               defaultLocalQueueName: default
           ray:
@@ -105,7 +99,6 @@ spec:
           trustyai:
             dsc:
               managementState: Managed
-              mcpGuardrailsMode: false
               eval:
                 lmeval:
                   permitCodeExecution: deny
@@ -116,13 +109,10 @@ spec:
           feastoperator:
             dsc:
               managementState: Managed
-          ogx:
+          llamastackoperator:
             dsc:
               managementState: Managed
           sparkoperator:
-            dsc:
-              managementState: Managed
-          mcplifecycleoperator:
             dsc:
               managementState: Managed
         services:

@@ -6,6 +6,6 @@ metadata:
 data:
   OpenShift-MCP-Server: |
     {
-      "url": "http://openshift-mcp-server.openshift-mcp-server.svc.cluster.local:8080/mcp",
+      "url": "http://openshift-mcp-server.ocp-mcp-server.svc.cluster.local:8080/mcp",
       "description": "OpenShift MCP Server - cluster management tools"
     }

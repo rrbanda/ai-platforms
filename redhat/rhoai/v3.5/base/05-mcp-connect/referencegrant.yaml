@@ -7,7 +7,7 @@ spec:
   from:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      namespace: mcp-system
+      namespace: mcp-gateway-system
     - group: mcp.kuadrant.io
       kind: MCPServerRegistration
       namespace: ocp-mcp-server

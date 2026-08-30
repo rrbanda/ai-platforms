@@ -101,6 +101,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: mcp-system
       server: https://kubernetes.default.svc
+    - namespace: mcp-gateway-system
+      server: https://kubernetes.default.svc
     - namespace: '*'
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:

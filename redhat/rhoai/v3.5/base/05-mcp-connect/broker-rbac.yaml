@@ -15,8 +15,8 @@ metadata:
   namespace: ocp-mcp-server
 subjects:
   - kind: ServiceAccount
-    name: mcp-gateway-controller
-    namespace: openshift-operators
+    name: mcp-controller
+    namespace: mcp-gateway-system
 roleRef:
   kind: Role
   name: mcp-gateway-secret-reader

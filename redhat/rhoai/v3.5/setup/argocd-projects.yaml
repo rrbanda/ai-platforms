@@ -91,17 +91,23 @@ metadata:
   name: rhoai-workloads
   namespace: openshift-gitops
 spec:
-  description: RHOAI application workloads (AutoRAG, inference, training)
+  description: RHOAI application workloads (AutoRAG, MCP, inference, training)
   sourceRepos:
     - https://github.com/rrbanda/ai-platforms.git
   destinations:
     - namespace: autorag
+      server: https://kubernetes.default.svc
+    - namespace: openshift-mcp-server
+      server: https://kubernetes.default.svc
+    - namespace: mcp-system
       server: https://kubernetes.default.svc
     - namespace: '*'
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'

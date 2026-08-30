@@ -1,0 +1,16 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-mcp-server-access
+  namespace: ocp-mcp-server
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: openshift-operators
+    - group: mcp.kuadrant.io
+      kind: MCPServerRegistration
+      namespace: ocp-mcp-server
+  to:
+    - group: ""
+      kind: Service

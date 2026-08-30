@@ -130,10 +130,17 @@ spec:
             dsci:
               managementState: Managed
 
+        operator:
+          rhoai:
+            olm:
+              source: REPLACE_WITH_REDHAT_CATALOG_NAME
         dependencies:
           rhcl:
             config:
               tlsEnabled: true
+          nvidiaGPUOperator:
+            olm:
+              source: REPLACE_WITH_CERTIFIED_CATALOG_NAME
         olm:
           source: REPLACE_WITH_MIRRORED_CATALOG_NAME
   syncPolicy:

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../base/03-workloads/autorag
+images:
+  - name: milvusdb/milvus
+    newName: REGISTRY_PLACEHOLDER/milvusdb/milvus
+    newTag: v2.6.0
+  - name: quay.io/coreos/etcd
+    newName: REGISTRY_PLACEHOLDER/coreos/etcd
+    newTag: v3.5.5
+  - name: quay.io/minio/minio
+    newName: REGISTRY_PLACEHOLDER/minio/minio
+    newTag: RELEASE.2023-09-04T19-57-37Z

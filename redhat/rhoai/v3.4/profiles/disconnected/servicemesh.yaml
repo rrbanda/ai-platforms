@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/rrbanda/ai-platforms.git
     targetRevision: main
-    path: redhat/rhoai/v3.4/base/00-operators/servicemesh
+    path: redhat/rhoai/v3.4/base/00-operators/servicemesh/overlays/disconnected
   destination:
     server: https://kubernetes.default.svc
     namespace: openshift-operators

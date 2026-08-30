@@ -1,0 +1,4 @@
+quay.io/coreos/etcd:v3.5.5
+milvusdb/milvus:v2.6.0
+quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z
+registry.redhat.io/rhel9/postgresql-15:latest

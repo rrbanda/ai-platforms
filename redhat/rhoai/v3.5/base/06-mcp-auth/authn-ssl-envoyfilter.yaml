@@ -1,0 +1,44 @@
+# Configures TLS between the Envoy proxy and Authorino gRPC endpoint.
+# Trusts the OpenShift service CA (used by the service-serving cert).
+# This replaces the auto-generated filter from authorino-tls-bootstrap annotation,
+# giving us full control over auth without ODH controller interference.
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: mcp-gateway-authn-ssl
+  namespace: mcp-system
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: mcp-gateway
+  configPatches:
+    - applyTo: CLUSTER
+      match:
+        cluster:
+          service: authorino-authorino-authorization.kuadrant-system.svc.cluster.local
+      patch:
+        operation: ADD
+        value:
+          name: kuadrant-auth-service
+          connect_timeout: 1s
+          type: STRICT_DNS
+          http2_protocol_options: {}
+          lb_policy: ROUND_ROBIN
+          load_assignment:
+            cluster_name: kuadrant-auth-service
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: authorino-authorino-authorization.kuadrant-system.svc.cluster.local
+                          port_value: 50051
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+              common_tls_context:
+                validation_context:
+                  trusted_ca:
+                    filename: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt

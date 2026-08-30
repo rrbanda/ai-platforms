@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/rrbanda/ai-platforms.git
     targetRevision: main
-    path: redhat/rhoai/v3.5/overlays/sandbox1388/mcp-infra
+    path: redhat/rhoai/v3.5/base/04-mcp-infra
   destination:
     server: https://kubernetes.default.svc
     namespace: ocp-mcp-server

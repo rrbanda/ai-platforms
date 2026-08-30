@@ -97,7 +97,7 @@ spec:
   destinations:
     - namespace: autorag
       server: https://kubernetes.default.svc
-    - namespace: openshift-mcp-server
+    - namespace: ocp-mcp-server
       server: https://kubernetes.default.svc
     - namespace: mcp-system
       server: https://kubernetes.default.svc

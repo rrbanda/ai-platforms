@@ -2,12 +2,12 @@ apiVersion: mcp.x-k8s.io/v1alpha1
 kind: MCPServer
 metadata:
   name: openshift-mcp-server
-  namespace: openshift-mcp-server
+  namespace: ocp-mcp-server
 spec:
   source:
     type: ContainerImage
     containerImage:
-      ref: quay.io/containers/kubernetes_mcp_server:latest
+      ref: registry.redhat.io/openshift-mcp-beta/openshift-mcp-server-rhel9:0.2
   config:
     port: 8080
     arguments:
@@ -29,4 +29,4 @@ spec:
         memory: 128Mi
       limits:
         cpu: 500m
-        memory: 256Mi
+        memory: 512Mi

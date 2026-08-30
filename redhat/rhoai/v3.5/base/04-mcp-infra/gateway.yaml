@@ -40,6 +40,23 @@ spec:
       targetPort: 8080
   type: ClusterIP
 ---
+# External access Route. OpenShift auto-generates the hostname as
+# mcp-gateway-mcp-system.apps.<cluster-domain> -- no hardcoding needed.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mcp-gateway
+  namespace: mcp-system
+spec:
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: mcp-gateway-openshift-ai-inference
+    weight: 100
+---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:

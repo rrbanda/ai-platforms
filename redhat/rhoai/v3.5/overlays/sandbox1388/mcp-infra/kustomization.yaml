@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../base/04-mcp-infra
+patches:
+  - target:
+      group: mcp.kuadrant.io
+      version: v1alpha1
+      kind: MCPGatewayExtension
+      name: mcp-gateway-extension
+      namespace: mcp-system
+    patch: |-
+      - op: replace
+        path: /spec/publicHost
+        value: mcp-gateway-mcp-system.apps.ocp.qn6c5.sandbox1388.opentlc.com

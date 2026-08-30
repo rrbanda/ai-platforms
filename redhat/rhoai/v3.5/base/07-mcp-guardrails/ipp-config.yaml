@@ -1,0 +1,31 @@
+# IPP (Inference Payload Processing) config for NeMo Guardrails MCP integration.
+# Configures nemo-request-guard and nemo-response-guard BBR plugins that
+# intercept MCP tool calls and route them through NeMo Guardrails for
+# PII detection, prompt injection prevention, and content safety.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-bbr-plugins-config
+  namespace: mcp-system
+data:
+  custom-ipp-config.yaml: |
+    apiVersion: llm-d.ai/v1alpha1
+    kind: PayloadProcessorConfig
+    plugins:
+    - type: nemo-request-guard
+      name: nemo-request-guard
+      parameters:
+        nemoURL: http://nemo-guardrails.redhat-ods-applications.svc.cluster.local:8080
+        configId: nemo-guardrails-config
+    - type: nemo-response-guard
+      name: nemo-response-guard
+      parameters:
+        nemoURL: http://nemo-guardrails.redhat-ods-applications.svc.cluster.local:8080
+        configId: nemo-guardrails-config
+    profiles:
+    - name: default
+      plugins:
+        request:
+        - pluginRef: nemo-request-guard
+        response:
+        - pluginRef: nemo-response-guard

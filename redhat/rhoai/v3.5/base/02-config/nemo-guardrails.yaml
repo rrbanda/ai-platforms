@@ -3,7 +3,14 @@ kind: NemoGuardrails
 metadata:
   name: nemo-guardrails
   namespace: redhat-ods-applications
+  annotations:
+    security.opendatahub.io/enable-auth: "true"
 spec:
   replicas: 1
   nemoConfigs:
     - name: nemo-guardrails-config
+  template:
+    pod:
+      mcpGateway:
+        name: mcp-gateway
+        namespace: openshift-operators

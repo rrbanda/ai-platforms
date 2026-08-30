@@ -1,0 +1,32 @@
+# Per-user rate limiting for MCP Gateway.
+# Prevents any single agent/user from flooding the gateway.
+# Limits are per authenticated identity (SA username).
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: mcp-rate-limit
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    sectionName: mcp
+  defaults:
+    limits:
+      "per-user-burst":
+        rates:
+          - limit: 30
+            window: 10s
+        counters:
+          - expression: auth.identity.user.username
+      "per-user-sustained":
+        rates:
+          - limit: 500
+            window: 1h
+        counters:
+          - expression: auth.identity.user.username
+      "global-protection":
+        rates:
+          - limit: 100
+            window: 10s

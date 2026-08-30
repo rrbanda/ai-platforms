@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - nemo-config.yaml
+  - ipp-config.yaml
+  - ipp-deployment.yaml
+  # BBR EnvoyFilter disabled: the IPP FULL_DUPLEX_STREAMED body mode
+  # is incompatible with MCP JSON-RPC traffic. Enable when the NeMo
+  # Guardrails operator fully supports MCP Gateway integration (TP).
+  # - ipp-envoyfilter.yaml

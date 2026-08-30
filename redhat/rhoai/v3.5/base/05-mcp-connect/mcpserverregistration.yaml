@@ -13,3 +13,7 @@ spec:
     kind: HTTPRoute
     name: openshift-mcp-server-route
     namespace: ocp-mcp-server
+  credentialRef:
+    name: mcp-broker-credential
+    key: token
+  tokenURLElicitation: {}

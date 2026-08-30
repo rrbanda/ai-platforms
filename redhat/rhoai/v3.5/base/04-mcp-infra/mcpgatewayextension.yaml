@@ -4,6 +4,7 @@ metadata:
   name: mcp-gateway-extension
   namespace: mcp-system
 spec:
+  publicHost: MCP_GATEWAY_HOSTNAME_PLACEHOLDER
   targetRef:
     group: gateway.networking.k8s.io
     kind: Gateway

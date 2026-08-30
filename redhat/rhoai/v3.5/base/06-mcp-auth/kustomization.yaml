@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - authorino-tls.yaml
-  - authn-ssl-envoyfilter.yaml
   - authpolicy.yaml
   - oidc-discovery-rbac.yaml
   - mcp-access-rbac.yaml

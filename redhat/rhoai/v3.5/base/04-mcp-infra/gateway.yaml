@@ -4,6 +4,7 @@ metadata:
   name: mcp-gateway
   namespace: mcp-system
   annotations:
+    security.opendatahub.io/authorino-tls-bootstrap: "true"
     opendatahub.io/managed: "false"
 spec:
   gatewayClassName: openshift-ai-inference

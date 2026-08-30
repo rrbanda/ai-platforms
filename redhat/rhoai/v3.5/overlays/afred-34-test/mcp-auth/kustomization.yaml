@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../base/06-mcp-auth
+patches:
+  - target:
+      group: kuadrant.io
+      version: v1
+      kind: AuthPolicy
+      name: mcp-auth-policy
+      namespace: mcp-system
+    patch: |
+      - op: replace
+        path: /spec/defaults/rules/authentication/kubernetes-token/kubernetesTokenReview/audiences
+        value:
+          - "https://oidc.op1.openshiftapps.com/2juqbss0c7be4ihcm2cb9okmq34rav87"

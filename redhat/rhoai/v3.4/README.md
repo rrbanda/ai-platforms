@@ -381,7 +381,7 @@ cp profiles/disconnected/servicemesh.yaml base/applications/00-servicemesh.yaml
 cp profiles/disconnected/platform.yaml base/applications/rhoai-platform.yaml
 ```
 
-Edit both: replace `REPLACE_WITH_MIRRORED_CATALOG_NAME` with your catalog name.
+Edit both: replace `REPLACE_WITH_REDHAT_CATALOG_NAME` with your catalog name.
 Commit, push, apply app-of-apps.
 
 ---

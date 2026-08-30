@@ -1,19 +1,11 @@
-# Authorino TLS configuration for RHCL/Kuadrant.
+# Authorino TLS: enable service-ca cert for Envoy-to-Authorino gRPC.
 #
-# Two resources work together:
-# 1. Service annotation: triggers OpenShift service-ca to generate a cert
-#    signed by the cluster's service CA (NOT cert-manager self-signed).
-# 2. Authorino CR: enables TLS listener using that cert.
+# ONE-TIME PREREQ per cluster (if cert-manager created a conflicting cert):
+#   oc delete certificate authorino-server-cert -n kuadrant-system 2>/dev/null
+#   oc delete secret authorino-server-cert -n kuadrant-system 2>/dev/null
 #
-# The authn-ssl EnvoyFilter (auto-created by ODH Model Controller when
-# the Gateway has security.opendatahub.io/authorino-tls-bootstrap=true)
-# trusts the service CA at /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt.
-#
-# IMPORTANT: If cert-manager previously created an authorino-server-cert
-# Secret, delete the cert-manager Certificate first:
-#   oc delete certificate authorino-server-cert -n kuadrant-system
-#   oc delete secret authorino-server-cert -n kuadrant-system
-# The service-ca operator will recreate the Secret with a proper cert.
+# The service annotation triggers OpenShift service-ca to regenerate it.
+# ServerSideApply merges annotations without replacing the service.
 ---
 apiVersion: v1
 kind: Service

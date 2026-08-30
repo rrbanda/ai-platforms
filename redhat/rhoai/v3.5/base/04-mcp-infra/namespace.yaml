@@ -1,8 +1,15 @@
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: mcp-system
+  annotations:
+    openshift.io/display-name: "MCP Gateway"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: ocp-mcp-server
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
-    openshift.io/display-name: "OCP MCP Server"
+    openshift.io/display-name: "MCP Server"

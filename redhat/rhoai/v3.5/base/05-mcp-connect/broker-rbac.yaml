@@ -15,7 +15,7 @@ metadata:
   namespace: ocp-mcp-server
 subjects:
   - kind: ServiceAccount
-    name: MCP_CONTROLLER_SA_NAME
+    name: mcp-controller
     namespace: openshift-operators
 roleRef:
   kind: Role

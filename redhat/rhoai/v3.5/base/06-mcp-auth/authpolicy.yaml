@@ -17,7 +17,7 @@ spec:
     sectionName: mcp
   defaults:
     when:
-      - predicate: "!request.host.endsWith('.mcp.local')"
+      - predicate: "request.host != 'openshift-mcp.mcp.local'"
     rules:
       authentication:
         "kubernetes-token":

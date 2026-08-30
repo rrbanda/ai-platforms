@@ -14,7 +14,7 @@ spec:
   gatewayClassName: openshift-ai-inference
   listeners:
     - name: mcp
-      hostname: MCP_GATEWAY_HOSTNAME
+      hostname: mcp-gateway-mcp-system.apps.ocp.qn6c5.sandbox1388.opentlc.com
       port: 8080
       protocol: HTTP
       allowedRoutes:

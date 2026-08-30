@@ -41,7 +41,7 @@ spec:
             olm:
               source: REPLACE_WITH_REDHAT_CATALOG_NAME
         olm:
-          source: REPLACE_WITH_MIRRORED_CATALOG_NAME
+          source: REPLACE_WITH_REDHAT_CATALOG_NAME
   syncPolicy:
     retry:
       limit: 10

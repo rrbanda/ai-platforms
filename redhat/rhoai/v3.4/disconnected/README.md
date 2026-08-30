@@ -142,31 +142,30 @@ oc get operatorhub cluster -o jsonpath='{.spec.disableAllDefaultSources}'
 
 ### Step 7 -- Mirror additional workload images
 
-The operator catalog mirror covers operators, but some workload images deployed by RHOAI are **not** included in the operator bundle. Mirror these separately:
-
-| Image | Used By | Notes |
-|---|---|---|
-| `milvusdb/milvus:v2.6.0` | Milvus vector database | AutoRAG workload |
-| `quay.io/coreos/etcd:v3.5.5` | etcd (Milvus dependency) | |
-| `quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z` | MinIO (DSPA built-in storage) | |
-| `registry.redhat.io/rhel9/postgresql-15:latest` | PostgreSQL (MaaS backend) | |
-
-You can add these to the `imageset-config.yaml` under `additionalImages` and re-run, or mirror them individually with `skopeo`:
+The operator catalog mirror covers operators, but some workload images are **not** included in the operator bundle. A pre-built image list is provided at `disconnected/images/workload-images.txt`. Mirror them using the `skopeo-mirror.sh` script:
 
 ```bash
-for img in \
-  "docker://milvusdb/milvus:v2.6.0" \
-  "docker://quay.io/coreos/etcd:v3.5.5" \
-  "docker://quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z" \
-  "docker://registry.redhat.io/rhel9/postgresql-15:latest"; do
-
-  skopeo copy --all \
-    "${img}" \
-    "docker://<INTERNAL_REGISTRY_URL>/$(echo ${img} | sed 's|docker://||')"
-done
+../../common/disconnected/scripts/skopeo-mirror.sh direct \
+  --image-list disconnected/images/workload-images.txt \
+  --target-registry <INTERNAL_REGISTRY_URL>
 ```
 
-Alternatively, add to your `imageset-config.yaml`:
+For air-gapped transfers, use the pull/push workflow instead:
+
+```bash
+# On connected host
+../../common/disconnected/scripts/skopeo-mirror.sh pull \
+  --image-list disconnected/images/workload-images.txt \
+  --local-dir ./mirror-images
+
+# Transfer ./mirror-images across the air gap, then on the disconnected side:
+../../common/disconnected/scripts/skopeo-mirror.sh push \
+  --image-list disconnected/images/workload-images.txt \
+  --local-dir ./mirror-images \
+  --target-registry <INTERNAL_REGISTRY_URL>
+```
+
+Alternatively, add the workload images to your `imageset-config.yaml` under `additionalImages` and re-run `oc-mirror`:
 
 ```yaml
 mirror:
@@ -179,33 +178,30 @@ mirror:
 
 ### Step 8 -- Bootstrap GitOps and Sealed Secrets
 
-The bootstrap subscriptions need to point to your mirrored catalogs. Edit the subscription sources before applying:
+A Kustomize overlay is provided that patches the bootstrap subscription sources to point to your mirrored catalogs. Edit the overlay before applying:
 
 ```bash
-cd redhat/rhoai/v3.4/setup/bootstrap
-
-# Update GitOps operator subscription to use mirrored catalog
-sed -i 's/source: redhat-operators/source: <REDHAT_CATALOG_NAME>/g' \
-  gitops-operator-subscription.yaml
-
-# Update Sealed Secrets subscription to use mirrored catalog
-sed -i 's/source: certified-operators/source: <CERTIFIED_CATALOG_NAME>/g' \
-  sealed-secrets-subscription.yaml
+cd redhat/rhoai/v3.4
 ```
 
-Replace `<REDHAT_CATALOG_NAME>` and `<CERTIFIED_CATALOG_NAME>` with the CatalogSource names from Step 5.
+Edit `setup/bootstrap/overlays/disconnected/kustomization.yaml` and replace the two placeholders with your CatalogSource names from Step 5:
+- `REPLACE_WITH_REDHAT_CATALOG_NAME` → your Red Hat catalog name (e.g. `cs-redhat-operator-index-v4-19`)
+- `REPLACE_WITH_CERTIFIED_CATALOG_NAME` → your Certified catalog name (e.g. `cs-certified-operator-index-v4-19`)
 
-Apply the bootstrap:
+Apply the disconnected bootstrap overlay:
 
 ```bash
-oc apply -k redhat/rhoai/v3.4/setup/bootstrap/
+oc apply -k setup/bootstrap/overlays/disconnected/
 ```
 
 Wait for both operators to install:
 
 ```bash
-oc get csv -n openshift-gitops-operator --watch
-oc get csv -n sealed-secrets --watch
+oc wait csv --all --for=jsonpath='{.status.phase}'=Succeeded \
+  -n openshift-gitops-operator --timeout=300s
+
+oc wait csv --all --for=jsonpath='{.status.phase}'=Succeeded \
+  -n sealed-secrets --timeout=300s
 ```
 
 ### Step 9 -- Switch to disconnected profiles, seal secrets, and deploy
@@ -216,152 +212,135 @@ See [After Mirroring (Common Steps)](#after-mirroring-common-steps) below.
 
 ## Path B: Using skopeo (Manual Pull + Push)
 
-For organizations that cannot or prefer not to use `oc-mirror`. This path requires more manual steps but gives full control over what is mirrored.
+For organizations that cannot or prefer not to use `oc-mirror`. This path uses the `skopeo-mirror.sh` script and pre-built image lists to simplify mirroring while giving full control over what is transferred.
 
-### Step 1 -- Identify images to mirror
+### Step 1 -- Review image lists
 
-Review the operator packages listed in the ImageSetConfiguration template:
+The repository provides pre-built image lists at `disconnected/images/`:
+
+| File | Contents |
+|---|---|
+| `all-images.txt` | All images (operators + workloads) -- use this for a complete mirror |
+| `operator-images.txt` | Operator images only |
+| `workload-images.txt` | Workload images only (Milvus, etcd, MinIO, PostgreSQL) |
+
+Review the list to confirm it covers your needs:
 
 ```bash
-cat redhat/rhoai/v3.4/disconnected/imageset-config-template.yaml
+wc -l disconnected/images/all-images.txt
+cat disconnected/images/all-images.txt
 ```
 
-The template lists **14 operator packages** across two catalog indexes:
-- `redhat-operator-index`: servicemeshoperator3, rhods-operator, openshift-cert-manager-operator, rhcl-operator, leader-worker-set, job-set, kueue-operator, openshift-custom-metrics-autoscaler-operator, cluster-observability-operator, opentelemetry-product, tempo-product, nfd, gpu-operator-certified
-- `certified-operator-index`: sealed-secrets-operator-helm
+### Step 2 -- Pull all images to a local directory
 
-### Step 2 -- Mirror the Red Hat operator catalog index
+On the **connected host**, use `skopeo-mirror.sh` to download all images:
 
 ```bash
-oc adm catalog mirror \
-  registry.redhat.io/redhat/redhat-operator-index:v4.19 \
-  <INTERNAL_REGISTRY_URL> \
-  --filter-by-os="linux/amd64" \
-  --index-filter-by-os="linux/amd64" \
-  --to-manifests=./redhat-catalog-manifests
+../../common/disconnected/scripts/skopeo-mirror.sh pull \
+  --image-list disconnected/images/all-images.txt \
+  --local-dir ./mirror-images
 ```
 
-This generates ICSP/IDMS manifests and a `mapping.txt` file in `./redhat-catalog-manifests/`.
-
-### Step 3 -- Mirror the Certified operator catalog index
+The script copies all multi-arch manifests (`--all` flag) and writes a report to `./mirror-report.txt`. Preview first with `--dry-run`:
 
 ```bash
-oc adm catalog mirror \
-  registry.redhat.io/redhat/certified-operator-index:v4.19 \
-  <INTERNAL_REGISTRY_URL> \
-  --filter-by-os="linux/amd64" \
-  --index-filter-by-os="linux/amd64" \
-  --to-manifests=./certified-catalog-manifests
+../../common/disconnected/scripts/skopeo-mirror.sh pull \
+  --image-list disconnected/images/all-images.txt \
+  --local-dir ./mirror-images \
+  --dry-run
 ```
 
-### Step 4 -- Mirror individual images using skopeo (for air gap)
+> **Tip:** Use `--parallel 8` to speed up downloads (default is 4). Use `--auth-file /path/to/auth.json` if your credentials are not in `~/.docker/config.json`.
 
-If your connected host cannot reach the internal registry directly, pull images to a local directory first:
-
-```bash
-# Pull catalog and operator images to local directory
-skopeo copy --all \
-  docker://registry.redhat.io/redhat/redhat-operator-index:v4.19 \
-  dir:///home/<YOUR_USER>/mirror/redhat-operator-index
-
-# Repeat for each operator image listed in mapping.txt
-while IFS='=' read -r src dst; do
-  skopeo copy --all "docker://${src}" "dir:///home/<YOUR_USER>/mirror/$(echo ${src} | tr '/:' '_')"
-done < ./redhat-catalog-manifests/mapping.txt
-```
-
-> **Warning:** This can take a very long time. Consider using `oc-mirror` (Path A) instead for large mirrors.
-
-### Step 5 -- Transfer the mirror directory across the air gap
+### Step 3 -- Transfer the mirror directory across the air gap
 
 ```bash
-tar -cf rhoai-skopeo-mirror.tar mirror/
+tar -cf rhoai-skopeo-mirror.tar mirror-images/
 # Copy to USB drive or portable SSD, then extract on disconnected side
+tar -xf rhoai-skopeo-mirror.tar
 ```
 
-### Step 6 -- Push images from local directory to internal registry
+### Step 4 -- Push images to the internal registry
+
+On a host that can reach your internal registry:
 
 ```bash
-# Push catalog index
-skopeo copy --all \
-  dir:///path/to/mirror/redhat-operator-index \
-  docker://<INTERNAL_REGISTRY_URL>/redhat/redhat-operator-index:v4.19
-
-# Push operator images from mapping.txt
-while IFS='=' read -r src dst; do
-  local_dir="$(echo ${src} | tr '/:' '_')"
-  skopeo copy --all \
-    "dir:///path/to/mirror/${local_dir}" \
-    "docker://${dst}"
-done < ./redhat-catalog-manifests/mapping.txt
+../../common/disconnected/scripts/skopeo-mirror.sh push \
+  --local-dir ./mirror-images \
+  --image-list disconnected/images/all-images.txt \
+  --target-registry <INTERNAL_REGISTRY_URL>
 ```
 
-Repeat the same process for the certified catalog manifests.
+Use `--skip-tls-verify` if your registry uses a self-signed certificate.
 
-### Step 7 -- Create and apply IDMS and CatalogSource resources
-
-Create an ImageDigestMirrorSet from the generated manifests:
+**Partially connected alternative:** If your connected host can reach the internal registry directly, skip the pull/push workflow and copy images directly:
 
 ```bash
-oc apply -f ./redhat-catalog-manifests/imageDigestMirrorSet.yaml
-oc apply -f ./certified-catalog-manifests/imageDigestMirrorSet.yaml
+../../common/disconnected/scripts/skopeo-mirror.sh direct \
+  --image-list disconnected/images/all-images.txt \
+  --target-registry <INTERNAL_REGISTRY_URL>
 ```
 
-Create CatalogSource resources for each mirrored catalog:
+### Step 5 -- Generate and apply IDMS and CatalogSource resources
 
-```yaml
-# redhat-catalog-source.yaml
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: <REDHAT_CATALOG_NAME>
-  namespace: openshift-marketplace
-spec:
-  sourceType: grpc
-  image: <INTERNAL_REGISTRY_URL>/redhat/redhat-operator-index:v4.19
-  displayName: Red Hat Operators (Mirrored)
-  publisher: Red Hat
-  updateStrategy:
-    registryPoll:
-      interval: 30m
-```
-
-```yaml
-# certified-catalog-source.yaml
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: <CERTIFIED_CATALOG_NAME>
-  namespace: openshift-marketplace
-spec:
-  sourceType: grpc
-  image: <INTERNAL_REGISTRY_URL>/redhat/certified-operator-index:v4.19
-  displayName: Certified Operators (Mirrored)
-  publisher: Red Hat
-  updateStrategy:
-    registryPoll:
-      interval: 30m
-```
+Use the `generate-cluster-resources.sh` script to create IDMS, CatalogSource, and OperatorHub resources:
 
 ```bash
-oc apply -f redhat-catalog-source.yaml
-oc apply -f certified-catalog-source.yaml
+../../common/disconnected/scripts/generate-cluster-resources.sh \
+  --registry <INTERNAL_REGISTRY_URL> \
+  --redhat-catalog REPLACE_WITH_REDHAT_CATALOG_NAME \
+  --certified-catalog REPLACE_WITH_CERTIFIED_CATALOG_NAME \
+  --output-dir ./cluster-resources
 ```
 
-### Step 8 -- Mirror workload images and disable default catalogs
+Replace `REPLACE_WITH_REDHAT_CATALOG_NAME` and `REPLACE_WITH_CERTIFIED_CATALOG_NAME` with the names you want for your mirrored CatalogSources (e.g. `mirror-redhat-operators`, `mirror-certified-operators`).
 
-Mirror the additional workload images (see [Path A, Step 7](#step-7----mirror-additional-workload-images) for the image list).
-
-Disable default catalogs:
+Apply all generated resources:
 
 ```bash
-oc patch operatorhub cluster --type merge \
-  -p '{"spec":{"disableAllDefaultSources":true}}'
+oc apply -f ./cluster-resources/
 ```
 
-### Step 9 -- Bootstrap and deploy
+This creates the IDMS, both CatalogSources, and disables the default OperatorHub catalogs in one step.
 
-Follow the same bootstrap and deploy procedure as Path A, Steps 8 and 9.
+**Verify:**
+
+```bash
+oc get imagedigestmirrorset
+oc get catalogsource -n openshift-marketplace
+oc get operatorhub cluster -o jsonpath='{.spec.disableAllDefaultSources}'
+# Should output: true
+```
+
+### Step 6 -- Bootstrap GitOps and Sealed Secrets
+
+Use the disconnected bootstrap overlay (same as [Path A, Step 8](#step-8----bootstrap-gitops-and-sealed-secrets)):
+
+```bash
+cd redhat/rhoai/v3.4
+```
+
+Edit `setup/bootstrap/overlays/disconnected/kustomization.yaml` and replace the two placeholders with the catalog names you chose in Step 5:
+- `REPLACE_WITH_REDHAT_CATALOG_NAME` → your Red Hat catalog name
+- `REPLACE_WITH_CERTIFIED_CATALOG_NAME` → your Certified catalog name
+
+```bash
+oc apply -k setup/bootstrap/overlays/disconnected/
+```
+
+Wait for operators:
+
+```bash
+oc wait csv --all --for=jsonpath='{.status.phase}'=Succeeded \
+  -n openshift-gitops-operator --timeout=300s
+
+oc wait csv --all --for=jsonpath='{.status.phase}'=Succeeded \
+  -n sealed-secrets --timeout=300s
+```
+
+### Step 7 -- Continue with common steps
+
+See [After Mirroring (Common Steps)](#after-mirroring-common-steps) below.
 
 ---
 
@@ -384,8 +363,8 @@ oc get catalogsource -n openshift-marketplace
 ```
 
 Note the exact names -- you will use them in the next steps. Example:
-- Red Hat catalog: `cs-redhat-operator-index-v4-19`
-- Certified catalog: `cs-certified-operator-index-v4-19`
+- Red Hat catalog: `cs-redhat-operator-index-v4-19` (from oc-mirror) or `mirror-redhat-operators` (from generate-cluster-resources.sh)
+- Certified catalog: `cs-certified-operator-index-v4-19` (from oc-mirror) or `mirror-certified-operators` (from generate-cluster-resources.sh)
 
 ### 3. Verify default catalogs are disabled
 
@@ -396,10 +375,18 @@ oc get operatorhub cluster -o jsonpath='{.spec.disableAllDefaultSources}'
 
 ### 4. Bootstrap GitOps and Sealed Secrets
 
-If you have not already done so (Step 8 in Path A):
+If you have not already done so (Step 8 in Path A or Step 6 in Path B), use the disconnected bootstrap overlay:
 
 ```bash
-oc apply -k redhat/rhoai/v3.4/setup/bootstrap/
+cd redhat/rhoai/v3.4
+```
+
+Edit `setup/bootstrap/overlays/disconnected/kustomization.yaml` -- replace the two placeholders with your actual CatalogSource names:
+- `REPLACE_WITH_REDHAT_CATALOG_NAME` → your Red Hat catalog name
+- `REPLACE_WITH_CERTIFIED_CATALOG_NAME` → your Certified catalog name
+
+```bash
+oc apply -k setup/bootstrap/overlays/disconnected/
 ```
 
 Wait for the operators to be ready:
@@ -412,13 +399,25 @@ oc wait csv --all --for=jsonpath='{.status.phase}'=Succeeded \
   -n sealed-secrets --timeout=300s
 ```
 
-### 5. Switch to disconnected profiles
+### 5. Configure workload image overrides
+
+Kustomize overlays are provided to redirect workload images (Milvus, etcd, MinIO, PostgreSQL) to your internal registry. Update the `REGISTRY_PLACEHOLDER` in both overlay files:
+
+```bash
+sed -i 's|REGISTRY_PLACEHOLDER|<INTERNAL_REGISTRY_URL>|g' \
+  disconnected/overlays/workloads/kustomization.yaml \
+  disconnected/overlays/config/kustomization.yaml
+```
+
+Replace `<INTERNAL_REGISTRY_URL>` with your actual mirror registry URL (e.g. `registry.example.com:5000`).
+
+These overlays use Kustomize `images` transformers to rewrite image references at deploy time, so workload pods pull from your internal registry instead of public registries.
+
+### 6. Switch to disconnected profiles
 
 Copy the disconnected profile YAMLs into the active application directory:
 
 ```bash
-cd redhat/rhoai/v3.4
-
 # Platform profile (uses mirrored catalog for OLM)
 cp profiles/disconnected/platform.yaml base/applications/rhoai-platform.yaml
 
@@ -426,21 +425,19 @@ cp profiles/disconnected/platform.yaml base/applications/rhoai-platform.yaml
 cp profiles/disconnected/servicemesh.yaml base/applications/00-servicemesh.yaml
 ```
 
-Edit both files -- replace the placeholder with your actual mirrored CatalogSource names:
+Edit both files -- replace the placeholders with your actual mirrored CatalogSource names:
 
 ```bash
-# In rhoai-platform.yaml:
-#   Replace REPLACE_WITH_MIRRORED_CATALOG_NAME with your Red Hat catalog name
-sed -i 's/REPLACE_WITH_MIRRORED_CATALOG_NAME/<REDHAT_CATALOG_NAME>/g' \
+sed -i 's/REPLACE_WITH_REDHAT_CATALOG_NAME/<YOUR_REDHAT_CATALOG_NAME>/g' \
   base/applications/rhoai-platform.yaml
 
-# In 00-servicemesh.yaml:
-#   If needed, update the subscription source to match your catalog
+sed -i 's/REPLACE_WITH_CERTIFIED_CATALOG_NAME/<YOUR_CERTIFIED_CATALOG_NAME>/g' \
+  base/applications/00-servicemesh.yaml
 ```
 
 > **v3.4 note:** RHOAI 3.4 uses **LlamaStack** (via `llamastackoperator`) and the **Models as a Service** (`modelsAsService`) component under KServe. This differs from v3.5, which uses OGX.
 
-### 6. Seal secrets
+### 7. Seal secrets
 
 Create and seal any required secrets (e.g. registry credentials):
 
@@ -463,7 +460,7 @@ Or use the convenience script:
 ./scripts/reseal-all.sh
 ```
 
-### 7. Commit and push changes
+### 8. Commit and push changes
 
 ```bash
 git add -A
@@ -471,7 +468,7 @@ git commit -m "Switch to disconnected profile for RHOAI 3.4"
 git push
 ```
 
-### 8. Deploy the App-of-Apps
+### 9. Deploy the App-of-Apps
 
 ```bash
 oc apply -f redhat/rhoai/v3.4/base/app-of-apps.yaml
@@ -493,8 +490,10 @@ cp profiles/disconnected/platform.yaml base/applications/rhoai-platform.yaml
 cp profiles/disconnected/servicemesh.yaml base/applications/00-servicemesh.yaml
 
 # Replace placeholders with actual CatalogSource names
-sed -i 's/REPLACE_WITH_MIRRORED_CATALOG_NAME/<REDHAT_CATALOG_NAME>/g' \
+sed -i 's/REPLACE_WITH_REDHAT_CATALOG_NAME/<YOUR_REDHAT_CATALOG_NAME>/g' \
   base/applications/rhoai-platform.yaml
+sed -i 's/REPLACE_WITH_CERTIFIED_CATALOG_NAME/<YOUR_CERTIFIED_CATALOG_NAME>/g' \
+  base/applications/00-servicemesh.yaml
 ```
 
 To switch **back** to connected mode:
@@ -509,7 +508,7 @@ If you only need the inference stack (KServe, model serving) without the full pl
 
 ```bash
 cp profiles/disconnected/inference-only.yaml base/applications/rhoai-platform.yaml
-sed -i 's/REPLACE_WITH_MIRRORED_CATALOG_NAME/<REDHAT_CATALOG_NAME>/g' \
+sed -i 's/REPLACE_WITH_REDHAT_CATALOG_NAME/<YOUR_REDHAT_CATALOG_NAME>/g' \
   base/applications/rhoai-platform.yaml
 ```
 
@@ -523,15 +522,15 @@ sed -i 's/REPLACE_WITH_MIRRORED_CATALOG_NAME/<REDHAT_CATALOG_NAME>/g' \
 
 3. **Two CatalogSources are needed.** Red Hat operators and Certified operators use different catalog indexes (`redhat-operator-index` and `certified-operator-index`). You must mirror and create a CatalogSource for **both** if you use Sealed Secrets from the certified catalog.
 
-4. **Workbench/notebook images are NOT in the operator bundle.** Operator mirrors only include the operator itself. Workload images like Milvus, etcd, MinIO, and PostgreSQL must be mirrored separately via `additionalImages` in the ImageSetConfiguration or manually with `skopeo`.
+4. **Workbench/notebook images are NOT in the operator bundle.** Operator mirrors only include the operator itself. Workload images like Milvus, etcd, MinIO, and PostgreSQL must be mirrored separately using `skopeo-mirror.sh` with `disconnected/images/workload-images.txt`, or via `additionalImages` in the ImageSetConfiguration.
 
 5. **GPU Operator images are large (~20 GB).** The NFD and GPU operator images are substantial. Ensure sufficient disk space and bandwidth. If you do not need GPU support, remove `nfd` and `gpu-operator-certified` from the `imageset-config.yaml` to save space and time.
 
-6. **CatalogSource name must match the profile YAML.** The value you set for `olm.source` in the disconnected platform profile must exactly match the `metadata.name` of the CatalogSource you created. A mismatch means OLM cannot find the operator packages.
+6. **CatalogSource name must match everywhere.** The `REPLACE_WITH_REDHAT_CATALOG_NAME` value in the bootstrap overlay, platform profile, and any other subscription must exactly match the `metadata.name` of the CatalogSource you created. A mismatch means OLM cannot find the operator packages.
 
-7. **Multi-arch images need the `--all` flag in skopeo.** By default, `skopeo copy` only copies the image for the current architecture. Use `--all` to copy all architectures (important for multi-arch clusters): `skopeo copy --all docker://source docker://dest`.
+7. **Multi-arch images need the `--all` flag in skopeo.** By default, `skopeo copy` only copies the image for the current architecture. The `skopeo-mirror.sh` script already passes `--all` to copy all architectures. If mirroring manually, always use: `skopeo copy --all docker://source docker://dest`.
 
-8. **Disable default OperatorHub catalogs.** If you do not disable the default catalogs with `oc patch operatorhub cluster ...`, OLM may attempt to pull from the internet and fail (or use stale non-mirrored packages).
+8. **Disable default OperatorHub catalogs.** If you do not disable the default catalogs with `oc patch operatorhub cluster ...`, OLM may attempt to pull from the internet and fail. The `generate-cluster-resources.sh` script produces a `disable-default-catalogs.yaml` that handles this.
 
 9. **Sealed Secrets controller image must be mirrored too.** The Sealed Secrets operator is in the `certified-operator-index`. If you forget to mirror this catalog, the Sealed Secrets controller pod will fail with `ImagePullBackOff`.
 
@@ -545,6 +544,8 @@ sed -i 's/REPLACE_WITH_MIRRORED_CATALOG_NAME/<REDHAT_CATALOG_NAME>/g' \
     oc patch image.config.openshift.io/cluster --type merge \
       -p '{"spec":{"additionalTrustedCA":{"name":"registry-ca"}}}'
     ```
+
+11. **Update REGISTRY_PLACEHOLDER in workload overlays.** The disconnected overlays at `disconnected/overlays/workloads/` and `disconnected/overlays/config/` contain `REGISTRY_PLACEHOLDER` that must be replaced with your actual mirror registry URL before deploying workloads.
 
 ---
 
@@ -599,12 +600,20 @@ Files in this repository relevant to disconnected deployment of RHOAI 3.4:
 | File | Purpose |
 |---|---|
 | `disconnected/imageset-config-template.yaml` | ImageSetConfiguration template for `oc-mirror` v2 -- lists all operator packages and channels to mirror |
+| `disconnected/images/all-images.txt` | Complete image list (operators + workloads) for `skopeo-mirror.sh` |
+| `disconnected/images/operator-images.txt` | Operator images only |
+| `disconnected/images/workload-images.txt` | Workload images only (Milvus, etcd, MinIO, PostgreSQL) |
+| `disconnected/overlays/workloads/kustomization.yaml` | Kustomize overlay to redirect workload images to mirror registry (replace `REGISTRY_PLACEHOLDER`) |
+| `disconnected/overlays/config/kustomization.yaml` | Kustomize overlay to redirect config images to mirror registry (replace `REGISTRY_PLACEHOLDER`) |
+| `../../common/disconnected/scripts/skopeo-mirror.sh` | Script to pull/push/direct-copy images using skopeo with parallelism and reporting |
+| `../../common/disconnected/scripts/generate-cluster-resources.sh` | Script to generate IDMS, CatalogSource, and OperatorHub YAML for cluster configuration |
+| `setup/bootstrap/overlays/disconnected/kustomization.yaml` | Kustomize overlay that patches bootstrap subscriptions to use mirrored catalogs (replace `REPLACE_WITH_REDHAT_CATALOG_NAME` and `REPLACE_WITH_CERTIFIED_CATALOG_NAME`) |
 | `profiles/disconnected/platform.yaml` | Full platform ArgoCD Application with `olm.source` set to placeholder for mirrored catalog |
 | `profiles/disconnected/inference-only.yaml` | Inference-only ArgoCD Application with `olm.source` set to placeholder for mirrored catalog |
 | `profiles/disconnected/servicemesh.yaml` | Service Mesh ArgoCD Application for disconnected environments |
 | `profiles/connected/platform.yaml` | Connected equivalent (for reference / switching back) |
-| `setup/bootstrap/gitops-operator-subscription.yaml` | GitOps operator Subscription (update `source` for disconnected) |
-| `setup/bootstrap/sealed-secrets-subscription.yaml` | Sealed Secrets operator Subscription (update `source` for disconnected) |
+| `setup/bootstrap/gitops-operator-subscription.yaml` | GitOps operator Subscription (base -- patched by disconnected overlay) |
+| `setup/bootstrap/sealed-secrets-subscription.yaml` | Sealed Secrets operator Subscription (base -- patched by disconnected overlay) |
 | `base/app-of-apps.yaml` | Top-level ArgoCD Application that deploys all child apps |
 | `base/applications/rhoai-platform.yaml` | Active platform Application (overwritten by profile copy) |
 | `base/applications/00-servicemesh.yaml` | Active Service Mesh Application (overwritten by profile copy) |

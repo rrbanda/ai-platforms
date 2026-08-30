@@ -13,7 +13,7 @@ spec:
     path: redhat/rhoai/v3.5/base/00-operators/mcp-gateway
   destination:
     server: https://kubernetes.default.svc
-    namespace: openshift-operators
+    namespace: mcp-gateway-system
   syncPolicy:
     retry:
       limit: 5
@@ -22,5 +22,5 @@ spec:
         factor: 2
         maxDuration: 5m
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
       - ServerSideApply=true

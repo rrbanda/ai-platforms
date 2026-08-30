@@ -2,7 +2,7 @@ apiVersion: mcp.kuadrant.io/v1alpha1
 kind: MCPGatewayExtension
 metadata:
   name: mcp-gateway-extension
-  namespace: mcp-system
+  namespace: mcp-gateway-system
 spec:
   publicHost: MCP_GATEWAY_HOSTNAME_PLACEHOLDER
   targetRef:

@@ -4,6 +4,9 @@ metadata:
   name: mcp-gateway
   namespace: openshift-operators
 spec:
+  # publicHost is required when the Gateway listener has no hostname.
+  # Override per-cluster via overlay if needed.
+  publicHost: mcp-gateway.local
   targetRef:
     group: gateway.networking.k8s.io
     kind: Gateway

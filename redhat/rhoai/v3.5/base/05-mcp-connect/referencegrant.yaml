@@ -1,7 +1,7 @@
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: allow-mcp-gateway-access
+  name: allow-mcp-server-access
   namespace: ocp-mcp-server
 spec:
   from:

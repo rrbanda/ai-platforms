@@ -15,7 +15,7 @@ metadata:
   namespace: ocp-mcp-server
 subjects:
   - kind: ServiceAccount
-    name: mcp-controller
+    name: MCP_CONTROLLER_SA_PLACEHOLDER
     namespace: mcp-gateway-system
 roleRef:
   kind: Role

@@ -1,0 +1,16 @@
+# Allow unauthenticated access to OIDC discovery endpoints.
+# Required for Authorino to fetch JWKS keys when using JWT validation.
+# Not strictly required for kubernetesTokenReview, but enables future
+# JWT-based auth patterns (e.g., external OIDC providers).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-jwks-anonymous-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:service-account-issuer-discovery
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:unauthenticated

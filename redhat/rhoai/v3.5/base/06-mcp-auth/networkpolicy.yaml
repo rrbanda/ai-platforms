@@ -1,0 +1,74 @@
+# NetworkPolicy for mcp-system: restrict gateway pod ingress to
+# OpenShift router (external traffic) and broker (openshift-operators).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-gateway-ingress
+  namespace: mcp-system
+spec:
+  podSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: mcp-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    # OpenShift router pods (external HTTPS traffic)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+    # MCP Gateway broker (ext_proc from openshift-operators)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-operators
+    # Istiod control plane (xDS config push)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-ingress
+    # Authorino (gRPC auth callbacks from kuadrant-system)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kuadrant-system
+    # RHCL operator (WASM serving from rhcl-operator)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rhcl-operator
+---
+# NetworkPolicy for ocp-mcp-server: only allow traffic from
+# the gateway (broker forwarding tool calls) and Prometheus scraping.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server-ingress
+  namespace: ocp-mcp-server
+spec:
+  podSelector:
+    matchLabels:
+      mcp-server: openshift-mcp-server
+  policyTypes:
+    - Ingress
+  ingress:
+    # Gateway/broker forwarding tool calls
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-system
+    # MCP lifecycle operator managing the server
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mcp-system
+    # Openshift-operators (MCP controller reconciling)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-operators
+    # Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: monitoring

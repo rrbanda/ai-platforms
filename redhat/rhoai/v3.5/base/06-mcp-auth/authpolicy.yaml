@@ -1,0 +1,51 @@
+# AuthPolicy for MCP Gateway: authentication + authorization.
+# Authentication: kubernetesTokenReview (avoids OIDC discovery TLS issues on ROSA).
+# Authorization: kubernetesSubjectAccessReview checks if caller can "get" the
+#   MCPServer resource, enforcing per-team RBAC at the K8s level.
+# To grant a team access, create a Role/RoleBinding in ocp-mcp-server namespace:
+#   rules: [{apiGroups: [mcp.x-k8s.io], resources: [mcpservers], verbs: [get]}]
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: mcp-auth-policy
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    sectionName: mcp
+  defaults:
+    rules:
+      authentication:
+        "kubernetes-token":
+          kubernetesTokenReview:
+            audiences:
+              - "https://kubernetes.default.svc"
+      authorization:
+        "mcp-access":
+          kubernetesSubjectAccessReview:
+            user:
+              selector: auth.identity.user.username
+            resourceAttributes:
+              group:
+                value: mcp.x-k8s.io
+              resource:
+                value: mcpservers
+              name:
+                value: openshift-mcp-server
+              namespace:
+                value: ocp-mcp-server
+              verb:
+                value: get
+      response:
+        unauthenticated:
+          code: 401
+          body:
+            value: |
+              {"error":"Unauthorized","message":"Authentication required. Provide a valid bearer token."}
+        unauthorized:
+          code: 403
+          body:
+            value: |
+              {"error":"Forbidden","message":"You do not have permission to use MCP tools. Contact your cluster administrator."}

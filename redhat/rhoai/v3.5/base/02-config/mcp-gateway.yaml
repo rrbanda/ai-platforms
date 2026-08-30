@@ -10,23 +10,41 @@ kind: Gateway
 metadata:
   name: mcp-gateway
   namespace: mcp-system
+  annotations:
+    security.opendatahub.io/authorino-tls-bootstrap: "true"
 spec:
   gatewayClassName: openshift-ai-inference
   listeners:
     - name: mcp
-      hostname: mcp-gateway-mcp-system.apps.ocp.qn6c5.sandbox1388.opentlc.com
       port: 8080
       protocol: HTTP
       allowedRoutes:
         namespaces:
           from: All
     - name: mcps
-      hostname: "*.mcp.local"
       port: 8080
       protocol: HTTP
       allowedRoutes:
         namespaces:
           from: All
+---
+# Alias service: MCP Gateway controller hardcodes "-istio" suffix for
+# internal broker-to-gateway connectivity, but openshift-ai-inference class
+# creates a service named "<gw>-openshift-ai-inference".
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-gateway-istio
+  namespace: mcp-system
+spec:
+  selector:
+    gateway.networking.k8s.io/gateway-name: mcp-gateway
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  type: ClusterIP
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant

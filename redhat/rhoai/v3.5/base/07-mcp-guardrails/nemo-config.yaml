@@ -1,0 +1,37 @@
+# NeMo Guardrails config for MCP tool-call safety.
+# Provides PII detection, prompt injection prevention, and keyword filtering.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-guardrails-config
+  namespace: redhat-ods-applications
+data:
+  config.yaml: |
+    rails:
+      config:
+        sensitive_data_detection:
+          input:
+            entities:
+              - EMAIL_ADDRESS
+              - PERSON
+              - PHONE_NUMBER
+              - CREDIT_CARD
+          output:
+            entities:
+              - EMAIL_ADDRESS
+              - CREDIT_CARD
+        regex_detection:
+          input:
+            patterns:
+              - "\\b(password|secret|api[_-]?key|token|credential)\\b"
+              - "\\d{3}-\\d{2}-\\d{4}"
+            case_insensitive: true
+      input:
+        flows:
+          - detect sensitive data on input
+          - regex check input
+      output:
+        flows:
+          - detect sensitive data on output
+  rails.co: |
+    # Built-in rails for MCP tool-call safety

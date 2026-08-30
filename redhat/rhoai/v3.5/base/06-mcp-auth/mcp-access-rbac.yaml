@@ -1,0 +1,33 @@
+# RBAC for MCP tool access authorization.
+# The AuthPolicy checks if the caller can "get" MCPServer resources.
+# Grant this Role to any SA/user/group that should use MCP tools.
+#
+# Example: grant a team's SA access:
+#   oc create rolebinding mcp-access-myteam \
+#     --role=mcp-tool-user \
+#     --serviceaccount=my-namespace:my-agent-sa \
+#     -n ocp-mcp-server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mcp-tool-user
+  namespace: ocp-mcp-server
+rules:
+  - apiGroups: ["mcp.x-k8s.io"]
+    resources: ["mcpservers"]
+    verbs: ["get"]
+---
+# Grant the mcp-viewer SA access (used by the MCP server itself and for testing)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-access-viewer
+  namespace: ocp-mcp-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mcp-tool-user
+subjects:
+  - kind: ServiceAccount
+    name: mcp-viewer
+    namespace: ocp-mcp-server

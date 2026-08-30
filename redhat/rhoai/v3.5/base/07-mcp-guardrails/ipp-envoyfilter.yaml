@@ -1,0 +1,47 @@
+# EnvoyFilter for BBR ext_proc on MCP Gateway.
+# The NeMo Guardrails operator scans for EnvoyFilters containing
+# "envoy.filters.http.ext_proc.bbr" sub-filter to detect BBR plugin presence.
+# When detected alongside the MCPGatewayExtension, the operator provisions
+# the mcp-sse-strip EnvoyFilter for SSE-to-JSON conversion.
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: mcp-bbr-guardrails
+  namespace: mcp-system
+  labels:
+    app.kubernetes.io/component: guardrails
+    app.kubernetes.io/part-of: mcp-gateway
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: mcp-gateway
+  configPatches:
+    # Insert BBR request guard ext_proc AFTER the Kuadrant WASM auth filter
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.ext_proc.bbr
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
+            allow_mode_override: true
+            failure_mode_allow: true
+            grpc_service:
+              envoy_grpc:
+                cluster_name: outbound|9004||mcp-payload-processing.mcp-system.svc.cluster.local
+              timeout: 300s
+            message_timeout: 300s
+            processing_mode:
+              request_body_mode: FULL_DUPLEX_STREAMED
+              request_header_mode: SEND
+              request_trailer_mode: SEND
+              response_body_mode: FULL_DUPLEX_STREAMED
+              response_header_mode: SEND
+              response_trailer_mode: SEND

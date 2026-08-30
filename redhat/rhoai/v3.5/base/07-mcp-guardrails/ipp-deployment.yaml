@@ -1,0 +1,85 @@
+# BBR payload processor for MCP Gateway guardrails enforcement.
+# Runs NeMo request/response guard plugins as ext_proc gRPC server.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-payload-processing
+  namespace: mcp-system
+  labels:
+    app: mcp-payload-processing
+    app.kubernetes.io/component: guardrails
+    app.kubernetes.io/part-of: mcp-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-payload-processing
+  template:
+    metadata:
+      labels:
+        app: mcp-payload-processing
+        app.kubernetes.io/component: guardrails
+        app.kubernetes.io/part-of: mcp-gateway
+    spec:
+      containers:
+        - name: payload-processing
+          image: registry.redhat.io/rhoai/odh-ai-gateway-payload-processing-rhel9@sha256:e2007ddc9c4bb690949ab2081c2545a7031dbdf19374a1502caeb22f27519d8a
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config-file"
+            - "/config/custom-ipp-config.yaml"
+            - "--v=3"
+            - "--tracing=false"
+          env:
+            - name: GATEWAY_NAMESPACE
+              value: mcp-system
+            - name: GATEWAY_NAME
+              value: mcp-gateway
+          ports:
+            - name: grpc
+              containerPort: 9004
+              protocol: TCP
+            - name: metrics
+              containerPort: 9005
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: plugins-config-volume
+              mountPath: /config
+      volumes:
+        - name: plugins-config-volume
+          configMap:
+            name: mcp-bbr-plugins-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-payload-processing
+  namespace: mcp-system
+  labels:
+    app: mcp-payload-processing
+spec:
+  selector:
+    app: mcp-payload-processing
+  ports:
+    - name: grpc
+      port: 9004
+      protocol: TCP
+      targetPort: 9004
+  type: ClusterIP

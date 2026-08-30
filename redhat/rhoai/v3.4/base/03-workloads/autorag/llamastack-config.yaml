@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: autorag-ogx-config
+  name: autorag-llamastack-config
   namespace: autorag
   labels:
-    app: ogx
-    ogx.io/watch: "true"
+    app: llama-stack
+    llamastack.io/watch: "true"
 data:
   config.yaml: |
     version: 2
@@ -21,7 +21,7 @@ data:
         - provider_id: localfs
           provider_type: inline::localfs
           config:
-            storage_dir: /opt/app-root/src/.ogx/files
+            storage_dir: /opt/app-root/src/.llama/files
             metadata_store:
               table_name: files_metadata
               backend: sql_default
@@ -73,10 +73,10 @@ data:
       backends:
         kv_default:
           type: kv_sqlite
-          db_path: /opt/app-root/src/.ogx/kvstore.db
+          db_path: /opt/app-root/src/.llama/kvstore.db
         sql_default:
           type: sql_sqlite
-          db_path: /opt/app-root/src/.ogx/sql_store.db
+          db_path: /opt/app-root/src/.llama/sql_store.db
       stores:
         metadata:
           namespace: registry

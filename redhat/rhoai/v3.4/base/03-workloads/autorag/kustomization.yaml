@@ -6,6 +6,6 @@ resources:
   - milvus.yaml
   - sealed-llm-api-secret.yaml
   - sealed-s3-connection-secret.yaml
-  - ogx-config.yaml
-  - ogxserver.yaml
+  - llamastack-config.yaml
+  - llamastack.yaml
   - dspa.yaml

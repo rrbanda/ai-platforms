@@ -1,0 +1,21 @@
+# CatalogSource — mirrored certified operator index image.
+#
+# Replace:
+#   CATALOG_NAME_PLACEHOLDER  -> CatalogSource name (e.g. mirror-certified-operators)
+#   REGISTRY_PLACEHOLDER      -> mirror registry URL
+#   REPLACE_OCP_VERSION       -> OCP version tag (e.g. v4.14)
+#
+# Apply with: oc apply -f catalogsource-certified.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: CATALOG_NAME_PLACEHOLDER
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: REGISTRY_PLACEHOLDER/redhat/certified-operator-index:REPLACE_OCP_VERSION
+  displayName: Mirrored Certified Operators
+  publisher: Red Hat (mirrored)
+  updateStrategy:
+    registryPoll:
+      interval: 30m

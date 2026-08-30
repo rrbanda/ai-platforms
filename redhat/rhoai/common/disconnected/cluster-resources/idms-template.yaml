@@ -1,0 +1,25 @@
+# ImageDigestMirrorSet — redirects image pulls from public registries
+# to the internal disconnected mirror registry.
+#
+# Replace REGISTRY_PLACEHOLDER with your mirror registry URL, e.g.:
+#   registry.internal.example.com:5000
+#
+# Apply with: oc apply -f idms.yaml
+apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  name: rhoai-mirror
+spec:
+  imageDigestMirrors:
+    # Red Hat container registry
+    - mirrors:
+        - REGISTRY_PLACEHOLDER
+      source: registry.redhat.io
+    # Quay.io registry
+    - mirrors:
+        - REGISTRY_PLACEHOLDER
+      source: quay.io
+    # Red Hat Connect partner registry
+    - mirrors:
+        - REGISTRY_PLACEHOLDER
+      source: registry.connect.redhat.com

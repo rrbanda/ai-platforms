@@ -1,0 +1,13 @@
+# OperatorHub — disable all default catalog sources.
+#
+# In a disconnected environment, default catalogs will fail to pull
+# index images from the internet. This resource disables them so
+# only mirrored CatalogSources are used.
+#
+# Apply with: oc apply -f disable-default-catalogs.yaml
+apiVersion: config.openshift.io/v1
+kind: OperatorHub
+metadata:
+  name: cluster
+spec:
+  disableAllDefaultSources: true

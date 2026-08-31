@@ -1,7 +1,33 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: rhoai-keycloak
+  name: rhoai-keycloak-operator
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: rhoai-platform
+  source:
+    repoURL: https://github.com/rrbanda/ai-platforms.git
+    targetRevision: main
+    path: redhat/rhoai/v3.5/base/08-keycloak-operator
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-keycloak-instance
   namespace: openshift-gitops
   annotations:
     argocd.argoproj.io/sync-wave: "3"
@@ -19,9 +45,8 @@ spec:
       backoff:
         duration: 30s
         factor: 2
-        maxDuration: 5m
+        maxDuration: 10m
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
-      - RespectIgnoreDifferences=true

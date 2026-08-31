@@ -18,5 +18,5 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: openshift-mcp-server
+        - name: rhoai-mcp-server-redhat-openshift-mcp-server
           port: 8080

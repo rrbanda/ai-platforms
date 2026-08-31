@@ -613,6 +613,27 @@ oc rollout restart deployment/openshift-gitops-repo-server -n openshift-gitops
 
 ---
 
+## Known Limitations (Production Readiness)
+
+**Keycloak dev-file DB:** The Keycloak instance uses an embedded `dev-file` database.
+Realm and client configuration is lost on every pod restart. After restart, recreate
+the `openshift` realm and `adk-agent-client` via the admin API. For production,
+switch `spec.db.vendor` to `postgres` with an external PostgreSQL database.
+
+**SealedSecrets are cluster-bound:** Each SealedSecret is encrypted with the target
+cluster's sealing key. Deploying on a new cluster requires re-sealing all secrets
+with that cluster's certificate. Use `scripts/reseal-all.sh` or `kubeseal --fetch-cert`.
+
+**OCP Agent BuildConfig is manual:** The `ocp-agent` namespace's BuildConfig and
+ImageStream were created via `oc apply`, not GitOps. To fully GitOps-manage the CI
+pipeline, add them to the agent Helm chart or a separate ArgoCD Application.
+
+**Keycloak operator auto-upgrades:** The RHBK operator subscription uses
+`installPlanApproval: Automatic`. Upgrades within the pinned channel happen without
+manual approval. For production, consider switching to `Manual`.
+
+---
+
 ## Chart Source
 
 Extracted from the official Red Hat OCI registry:

@@ -17,6 +17,8 @@ spec:
     accessTokenLifespan: 1800
     ssoSessionIdleTimeout: 1800
     clients:
+      # WARNING: Wildcard redirectUris/webOrigins are for lab/dev only.
+      # For production, restrict to actual redirect URIs in a per-cluster overlay.
       - clientId: mcp-client
         enabled: true
         publicClient: true

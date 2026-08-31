@@ -1,3 +1,6 @@
+# NOTE: installPlanApproval is Automatic -- operator upgrades within the
+# pinned channel happen without manual approval. For production, consider
+# switching to Manual to control upgrade timing.
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:

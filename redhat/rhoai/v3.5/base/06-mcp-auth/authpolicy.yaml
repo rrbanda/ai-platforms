@@ -2,7 +2,9 @@
 # Either method succeeds → request is authenticated.
 # On-cluster agents: use kubernetesTokenReview with SA tokens
 # External agents (GKE/EKS): use Keycloak JWT via client_credentials grant
-# Authorization: kubernetesSubjectAccessReview for SA tokens (Keycloak JWT skips RBAC)
+# NOTE: Only authentication is enforced. Any valid token (SA or JWT) passes.
+# To add authorization, add a `authorization:` block with kubernetesSubjectAccessReview
+# (for SA tokens) or JWT claims/roles checking (for Keycloak tokens).
 apiVersion: kuadrant.io/v1
 kind: AuthPolicy
 metadata:

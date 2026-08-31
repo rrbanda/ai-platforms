@@ -14,5 +14,7 @@ spec:
     httpEnabled: true
   hostname:
     strict: false
+  proxy:
+    headers: xforwarded
   ingress:
     enabled: true

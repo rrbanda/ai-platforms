@@ -1,0 +1,84 @@
+# Keycloak Realm for MCP token exchange.
+# Three clients:
+#   mcp-client (public) - for browser/agent OAuth login
+#   mcp-server (confidential) - MCP server exchanges tokens
+#   openshift (confidential) - target audience for K8s API
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: KeycloakRealmImport
+metadata:
+  name: mcp-realm
+  namespace: keycloak
+spec:
+  keycloakCRName: mcp-keycloak
+  realm:
+    realm: openshift
+    enabled: true
+    sslRequired: external
+    accessTokenLifespan: 1800
+    ssoSessionIdleTimeout: 1800
+    clients:
+      - clientId: mcp-client
+        enabled: true
+        publicClient: true
+        standardFlowEnabled: true
+        directAccessGrantsEnabled: true
+        redirectUris:
+          - "*"
+        webOrigins:
+          - "*"
+        defaultClientScopes:
+          - openid
+          - mcp-server
+        optionalClientScopes:
+          - "mcp:openshift"
+      - clientId: mcp-server
+        enabled: true
+        publicClient: false
+        serviceAccountsEnabled: true
+        standardFlowEnabled: false
+        directAccessGrantsEnabled: false
+        defaultClientScopes:
+          - openid
+          - groups
+          - mcp-server
+        optionalClientScopes:
+          - "mcp:openshift"
+      - clientId: openshift
+        enabled: true
+        publicClient: false
+        serviceAccountsEnabled: true
+    clientScopes:
+      - name: mcp-server
+        protocol: openid-connect
+        protocolMappers:
+          - name: audience-mcp-server
+            protocol: openid-connect
+            protocolMapper: oidc-audience-mapper
+            config:
+              included.client.audience: mcp-server
+              id.token.claim: "true"
+              access.token.claim: "true"
+      - name: "mcp:openshift"
+        protocol: openid-connect
+        protocolMappers:
+          - name: audience-openshift
+            protocol: openid-connect
+            protocolMapper: oidc-audience-mapper
+            config:
+              included.client.audience: openshift
+              id.token.claim: "true"
+              access.token.claim: "true"
+      - name: groups
+        protocol: openid-connect
+        protocolMappers:
+          - name: groups
+            protocol: openid-connect
+            protocolMapper: oidc-group-membership-mapper
+            config:
+              claim.name: groups
+              full.path: "false"
+              id.token.claim: "true"
+              access.token.claim: "true"
+    # Users are created via Keycloak admin console or API after deployment.
+    # Do NOT hardcode credentials in Git.
+    # See secrets/templates/keycloak-users.yaml for the SealedSecret template.

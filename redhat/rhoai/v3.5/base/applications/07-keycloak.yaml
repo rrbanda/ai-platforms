@@ -15,7 +15,7 @@ spec:
     server: https://kubernetes.default.svc
   syncPolicy:
     retry:
-      limit: 5
+      limit: 15
       backoff:
         duration: 30s
         factor: 2
@@ -23,3 +23,5 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

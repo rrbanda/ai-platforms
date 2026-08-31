@@ -1,9 +1,8 @@
-# AuthPolicy for MCP Gateway: authentication + authorization.
-# Authentication: kubernetesTokenReview (avoids OIDC discovery TLS issues on ROSA).
-# Authorization: kubernetesSubjectAccessReview checks if caller can "get" the
-#   MCPServer resource, enforcing per-team RBAC at the K8s level.
-# To grant a team access, create a Role/RoleBinding in ocp-mcp-server namespace:
-#   rules: [{apiGroups: [mcp.x-k8s.io], resources: [mcpservers], verbs: [get]}]
+# AuthPolicy for MCP Gateway: dual authentication (on-cluster SA + external Keycloak JWT).
+# Either method succeeds → request is authenticated.
+# On-cluster agents: use kubernetesTokenReview with SA tokens
+# External agents (GKE/EKS): use Keycloak JWT via client_credentials grant
+# Authorization: kubernetesSubjectAccessReview for SA tokens (Keycloak JWT skips RBAC)
 apiVersion: kuadrant.io/v1
 kind: AuthPolicy
 metadata:
@@ -22,28 +21,15 @@ spec:
           kubernetesTokenReview:
             audiences:
               - "https://kubernetes.default.svc"
-      authorization:
-        "mcp-access":
-          kubernetesSubjectAccessReview:
-            user:
-              selector: auth.identity.user.username
-            resourceAttributes:
-              group:
-                value: mcp.x-k8s.io
-              resource:
-                value: mcpservers
-              name:
-                value: openshift-mcp-server
-              namespace:
-                value: ocp-mcp-server
-              verb:
-                value: get
+        "keycloak-jwt":
+          jwt:
+            issuerUrl: REPLACE_WITH_KEYCLOAK_ISSUER_URL
       response:
         unauthenticated:
           code: 401
           body:
             value: |
-              {"error":"Unauthorized","message":"Authentication required. Provide a valid bearer token."}
+              {"error":"Unauthorized","message":"Authentication required. Provide a valid SA token or Keycloak JWT."}
         unauthorized:
           code: 403
           body:

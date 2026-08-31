@@ -14,3 +14,6 @@ patches:
         path: /spec/defaults/rules/authentication/kubernetes-token/kubernetesTokenReview/audiences
         value:
           - "https://oidc.op1.openshiftapps.com/2juqbss0c7be4ihcm2cb9okmq34rav87"
+      - op: replace
+        path: /spec/defaults/rules/authentication/keycloak-jwt/jwt/issuerUrl
+        value: "https://mcp-keycloak-keycloak.apps.rosa.afred-34-test.js4d.p3.openshiftapps.com/realms/openshift"

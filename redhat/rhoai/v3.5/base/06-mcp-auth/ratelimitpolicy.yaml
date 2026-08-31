@@ -1,7 +1,8 @@
 # Per-user rate limiting for MCP Gateway.
 # Prevents any single agent/user from flooding the gateway.
-# Counter key: SA tokens populate user.username; Keycloak JWTs populate azp (client_id).
-# The expression uses whichever is present.
+# Counter key uses auth.identity.user.username which resolves for SA tokens.
+# For Keycloak JWT users, this field may be empty -- those requests fall under
+# the global-protection limit instead of per-user limits.
 apiVersion: kuadrant.io/v1
 kind: RateLimitPolicy
 metadata:
@@ -20,13 +21,13 @@ spec:
           - limit: 30
             window: 10s
         counters:
-          - expression: auth.identity.user.username || auth.identity.azp || 'anonymous'
+          - expression: auth.identity.user.username
       "per-user-sustained":
         rates:
           - limit: 500
             window: 1h
         counters:
-          - expression: auth.identity.user.username || auth.identity.azp || 'anonymous'
+          - expression: auth.identity.user.username
       "global-protection":
         rates:
           - limit: 100

@@ -40,14 +40,15 @@ spec:
 ---
 # NetworkPolicy for ocp-mcp-server: only allow traffic from
 # the gateway (broker forwarding tool calls) and Prometheus scraping.
-# Uses empty podSelector to cover all pods (Helm-deployed labels vary by release name).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: mcp-server-ingress
   namespace: ocp-mcp-server
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redhat-openshift-mcp-server
   policyTypes:
     - Ingress
   ingress:

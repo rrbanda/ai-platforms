@@ -2,6 +2,7 @@
 # Mounts the spoke-kubeconfig Secret into the MCP server pod.
 config:
   kubeconfig: /etc/spoke-kubeconfig/kubeconfig
+  cluster_auth_mode: kubeconfig
 
 extraVolumes:
   - name: spoke-kubeconfig

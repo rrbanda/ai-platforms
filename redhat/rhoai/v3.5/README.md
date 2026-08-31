@@ -214,7 +214,93 @@ Placements, and Policies.
 ## MCP Server Stack
 
 The MCP (Model Context Protocol) stack provides a secure, authenticated gateway
-for AI agents to interact with OpenShift cluster tools.
+for AI agents to interact with OpenShift cluster tools across hub and spoke clusters.
+
+### End-to-end architecture
+
+```mermaid
+flowchart TB
+    subgraph external ["External"]
+        Agent["AI Agent / MCP Client"]
+    end
+
+    subgraph hub ["Hub Cluster: afred-34-test"]
+        subgraph gitops ["ArgoCD GitOps"]
+            AppInfra["rhoai-mcp-infra"]
+            AppServer["rhoai-mcp-server"]
+            AppConnect["rhoai-mcp-connect"]
+            AppAuth["rhoai-mcp-auth"]
+            AppGW["rhoai-mcp-gateway-operator"]
+            AppKC["rhoai-keycloak-operator"]
+        end
+
+        subgraph mcpSystem ["mcp-system namespace"]
+            Route["Route<br/>edge TLS"]
+            Gateway["Gateway<br/>openshift-ai-inference"]
+            EnvoyWASM["Envoy Proxy<br/>WASM auth + ext_proc"]
+            AuthnSSL["authn-ssl<br/>EnvoyFilter"]
+        end
+
+        subgraph opOperators ["openshift-operators namespace"]
+            MCPCtrl["MCP Gateway<br/>Controller v0.7.1"]
+            Broker["MCP Gateway<br/>Broker"]
+            ExtProc["ext_proc<br/>EnvoyFilter"]
+            MCPGWExt["MCPGatewayExtension"]
+        end
+
+        subgraph mcpServer ["ocp-mcp-server namespace"]
+            MCPSrv["MCP Server v0.3<br/>Helm chart<br/>35 tools"]
+            MCPReg["MCPServerRegistration<br/>33 discovered tools"]
+            HTTPRoute["HTTPRoute<br/>openshift-mcp.mcp.local"]
+            SpokeKC["spoke-kubeconfig<br/>Secret"]
+        end
+
+        subgraph authNS ["kuadrant-system"]
+            Authorino["Authorino<br/>TLS + gRPC"]
+            Limitador["Limitador<br/>rate limiting"]
+        end
+
+        subgraph kcNS ["keycloak namespace"]
+            Keycloak["RHBK 26.6<br/>Keycloak"]
+            Realm["Realm: openshift<br/>mcp-client + mcp-server"]
+        end
+
+        subgraph policies ["Security Policies"]
+            AuthPolicy["AuthPolicy<br/>kubernetesTokenReview<br/>+ SubjectAccessReview"]
+            RatePolicy["RateLimitPolicy<br/>30/10s burst<br/>500/1h sustained"]
+            NetPolicy["NetworkPolicy<br/>ingress restricted"]
+        end
+
+        RHACM["RHACM v2.17.1<br/>Hub"]
+        HubAPI["Hub K8s API"]
+    end
+
+    subgraph spoke ["Spoke Cluster: sandbox602"]
+        SpokeAPI["Spoke K8s API<br/>OCP 4.22.10"]
+        Klusterlet["Klusterlet Agent"]
+        SpokeSA["mcp-hub-reader SA<br/>cluster-reader role"]
+    end
+
+    Agent -->|"1. POST /mcp<br/>Bearer token"| Route
+    Route -->|"2. TLS termination"| EnvoyWASM
+    EnvoyWASM -->|"3. WASM validates token"| Authorino
+    Authorino -->|"4. TokenReview + SAR"| HubAPI
+    EnvoyWASM -->|"5. Rate limit check"| Limitador
+    EnvoyWASM -->|"6. ext_proc routing"| Broker
+    Broker -->|"7a. Tool call<br/>no context"| MCPSrv
+    MCPSrv -->|"8a. Query hub"| HubAPI
+    Broker -->|"7b. Tool call<br/>context=sandbox602"| MCPSrv
+    MCPSrv -->|"8b. kubeconfig<br/>credentials"| SpokeAPI
+    RHACM -->|"Manages"| Klusterlet
+    Klusterlet -->|"Reports"| RHACM
+    MCPGWExt -->|"Configures"| Broker
+    MCPGWExt -->|"Creates"| ExtProc
+    MCPReg -->|"Registers tools"| MCPGWExt
+    HTTPRoute -->|"Routes to"| MCPSrv
+    AuthnSSL -->|"TLS config"| EnvoyWASM
+    SpokeKC -->|"Mounted"| MCPSrv
+    Keycloak -.->|"Future: token exchange"| MCPSrv
+```
 
 ### What it deploys
 

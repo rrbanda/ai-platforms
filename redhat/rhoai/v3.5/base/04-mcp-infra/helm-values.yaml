@@ -1,0 +1,40 @@
+# MCP Server v0.3 Helm values (base -- no spoke kubeconfig)
+# Override via per-cluster overlay for multicluster spoke access.
+openshift: true
+ingress:
+  enabled: false
+
+serviceAccount:
+  create: false
+  name: mcp-viewer
+
+config:
+  readOnly: true
+  toolsets:
+    - core
+    - config
+    - helm
+    - prometheus
+    - netedge
+  deniedResources:
+    - group: ""
+      version: v1
+      kind: Secret
+    - group: ""
+      version: v1
+      kind: ConfigMap
+    - group: rbac.authorization.k8s.io
+      version: v1
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      version: v1
+      kind: RoleBinding
+    - group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+
+extraVolumes: []
+extraVolumeMounts: []

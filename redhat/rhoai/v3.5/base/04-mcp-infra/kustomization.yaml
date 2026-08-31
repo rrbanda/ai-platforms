@@ -4,6 +4,5 @@ resources:
   - namespace.yaml
   - gateway.yaml
   - rbac.yaml
-  - mcp-server-config.yaml
-  - mcpserver.yaml
   - mcpgatewayextension.yaml
+  # MCPServer + config now managed by Helm chart (03b-mcp-server-helm app)

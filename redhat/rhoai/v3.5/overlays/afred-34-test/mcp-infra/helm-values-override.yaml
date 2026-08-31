@@ -1,0 +1,14 @@
+# Spoke kubeconfig for multicluster MCP access on afred-34-test hub.
+# Mounts the spoke-kubeconfig Secret into the MCP server pod.
+config:
+  kubeconfig: /etc/spoke-kubeconfig/kubeconfig
+
+extraVolumes:
+  - name: spoke-kubeconfig
+    secret:
+      secretName: spoke-kubeconfig
+
+extraVolumeMounts:
+  - name: spoke-kubeconfig
+    mountPath: /etc/spoke-kubeconfig
+    readOnly: true

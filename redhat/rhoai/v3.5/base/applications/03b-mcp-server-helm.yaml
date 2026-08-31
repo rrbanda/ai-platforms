@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-mcp-server
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: rhoai-platform
+  sources:
+    - repoURL: https://charts.openshift.io
+      chart: redhat-openshift-mcp-server
+      targetRevision: 0.3.0
+      helm:
+        valueFiles:
+          - $values/redhat/rhoai/v3.5/base/04-mcp-infra/helm-values.yaml
+          - $values/redhat/rhoai/v3.5/overlays/afred-34-test/mcp-infra/helm-values-override.yaml
+    - repoURL: https://github.com/rrbanda/ai-platforms.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ocp-mcp-server
+  syncPolicy:
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

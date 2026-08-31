@@ -8,7 +8,7 @@ data:
     log_level = 5
     port = "8080"
     read_only = true
-    toolsets = ["core", "config"]
+    toolsets = ["core", "config", "helm", "prometheus", "netedge"]
     cluster_auth_mode = "passthrough"
 
     [[denied_resources]]

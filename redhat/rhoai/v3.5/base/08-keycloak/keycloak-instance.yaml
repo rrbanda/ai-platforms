@@ -1,0 +1,33 @@
+# Red Hat Build of Keycloak instance for MCP token exchange.
+# Uses OpenShift service-serving certs for TLS.
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: mcp-keycloak
+  namespace: keycloak
+spec:
+  instances: 1
+  db:
+    vendor: h2
+  http:
+    tlsSecret: keycloak-tls
+  ingress:
+    enabled: true
+---
+# Annotate the Keycloak service for OpenShift service-serving cert
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-keycloak-service
+  namespace: keycloak
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: keycloak-tls
+spec:
+  ports:
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+  selector:
+    app: keycloak
+    app.kubernetes.io/instance: mcp-keycloak

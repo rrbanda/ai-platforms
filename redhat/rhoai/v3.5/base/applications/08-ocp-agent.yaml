@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-ocp-agent
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: rhoai-workloads
+  source:
+    repoURL: https://github.com/rrbanda/google-adk-ocp-agent.git
+    targetRevision: main
+    path: helm
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-hub.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ocp-agent
+  syncPolicy:
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -13,19 +13,12 @@ spec:
     arguments:
       - --config
       - /etc/mcp-config/config.toml
-      - --kubeconfig
-      - /etc/mcp-kubeconfig/kubeconfig
     storage:
       - path: /etc/mcp-config
         source:
           type: ConfigMap
           configMap:
             name: openshift-mcp-server-config
-      - path: /etc/mcp-kubeconfig
-        source:
-          type: Secret
-          secret:
-            name: spoke-kubeconfig
   runtime:
     replicas: 1
     security:

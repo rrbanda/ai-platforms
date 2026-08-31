@@ -12,5 +12,7 @@ spec:
     vendor: dev-file
   http:
     httpEnabled: true
+  hostname:
+    strict: false
   ingress:
     enabled: true

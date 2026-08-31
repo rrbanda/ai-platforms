@@ -9,14 +9,14 @@ serviceAccount:
   name: mcp-viewer
 
 config:
-  readOnly: true
+  read_only: true
   toolsets:
     - core
     - config
     - helm
-    - prometheus
+    - metrics
     - netedge
-  deniedResources:
+  denied_resources:
     - group: ""
       version: v1
       kind: Secret

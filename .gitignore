@@ -19,6 +19,11 @@ auth/
 # Template files (.yaml.template) ARE safe to commit -- they contain only placeholders.
 /tmp/reseal-*
 
+# Docker/registry auth files (oc registry login outputs)
+-
+.dockerconfigjson
+.docker/
+
 # ─────────────────────────────────────────────────────────────────────────────
 # IDE & Editor
 # ─────────────────────────────────────────────────────────────────────────────

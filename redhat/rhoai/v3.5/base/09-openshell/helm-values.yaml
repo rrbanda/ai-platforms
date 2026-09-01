@@ -1,8 +1,8 @@
 # OpenShell Helm values -- OpenShift base defaults.
-# Per NVIDIA docs, disableTls lets the OpenShift Route handle TLS (edge),
-# making the chart portable across clusters with no per-cluster TLS config.
+# TLS is disabled on the server; an edge-terminated Route (created in prereqs)
+# handles external TLS, making the chart portable with no per-cluster TLS SANs.
 openshiftRoute:
-  enabled: true
+  enabled: false
 
 podSecurityContext:
   fsGroup: null

@@ -8,3 +8,4 @@ resources:
   - maas-model-ref.yaml
   - maas-auth-policy.yaml
   - maas-subscription.yaml
+  - maas-subscription-premium.yaml

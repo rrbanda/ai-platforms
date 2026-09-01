@@ -5,6 +5,7 @@ resources:
   - dashboard-features.yaml
   - user-workload-monitoring.yaml
   - maas-postgres.yaml
+  - maas-gateway.yaml
   - mcp-studio-config.yaml
   - evalhub.yaml
   - mlflow.yaml

@@ -1,12 +1,47 @@
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSModelRef
 metadata:
-  name: gemini-2-5-flash
+  name: gemini-3-7-flash
   namespace: gemini-external
   annotations:
-    openshift.io/display-name: "Gemini 2.5 Flash"
-    openshift.io/description: "Google Gemini 2.5 Flash external model via MaaS gateway"
+    openshift.io/display-name: "Gemini 3.7 Flash"
 spec:
   modelRef:
     kind: ExternalModel
-    name: gemini-2-5-flash
+    name: gemini-3-7-flash
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: gemini-3-5-flash
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 3.5 Flash"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: gemini-3-5-flash
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: gemini-3-5-flash-lite
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 3.5 Flash Lite"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: gemini-3-5-flash-lite
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: gemini-2-5-pro
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 2.5 Pro"
+spec:
+  modelRef:
+    kind: ExternalModel
+    name: gemini-2-5-pro

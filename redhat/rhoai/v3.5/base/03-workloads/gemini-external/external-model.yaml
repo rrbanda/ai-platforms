@@ -1,16 +1,67 @@
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: ExternalModel
 metadata:
-  name: gemini-2-5-flash
+  name: gemini-3-7-flash
   namespace: gemini-external
   annotations:
-    openshift.io/display-name: "Gemini 2.5 Flash"
+    openshift.io/display-name: "Gemini 3.7 Flash"
     openshift.io/description: >-
-      Google Gemini 2.5 Flash via AI Studio API, proxied through MaaS gateway
-      with governance, auth, and rate limiting.
+      Google's newest and most intelligent model. Combines frontier intelligence
+      with superior search, grounding, and agentic capabilities.
 spec:
   provider: openai
   endpoint: generativelanguage.googleapis.com
-  targetModel: gemini-2.5-flash
+  targetModel: gemini-3.7-flash
+  credentialRef:
+    name: gemini-api-key
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: gemini-3-5-flash
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 3.5 Flash"
+    openshift.io/description: >-
+      Sustained frontier performance for agentic and coding tasks.
+      Excellent balance of intelligence and speed.
+spec:
+  provider: openai
+  endpoint: generativelanguage.googleapis.com
+  targetModel: gemini-3.5-flash
+  credentialRef:
+    name: gemini-api-key
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: gemini-3-5-flash-lite
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 3.5 Flash Lite"
+    openshift.io/description: >-
+      Cost-effective model built for at-scale usage. Ideal for high-volume
+      workloads that need good quality at lower cost.
+spec:
+  provider: openai
+  endpoint: generativelanguage.googleapis.com
+  targetModel: gemini-3.5-flash-lite
+  credentialRef:
+    name: gemini-api-key
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: gemini-2-5-pro
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 2.5 Pro"
+    openshift.io/description: >-
+      State-of-the-art multipurpose model excelling at coding and complex
+      reasoning. Retiring Oct 2026 - may require prior API key usage.
+spec:
+  provider: openai
+  endpoint: generativelanguage.googleapis.com
+  targetModel: gemini-2.5-pro
   credentialRef:
     name: gemini-api-key

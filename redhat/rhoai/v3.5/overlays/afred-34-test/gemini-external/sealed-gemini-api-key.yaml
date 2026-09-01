@@ -1,17 +1,3 @@
-# PLACEHOLDER -- re-seal with afred-34-test's certificate before deploying.
-#
-# Run (logged into afred-34-test):
-#   oc create secret generic gemini-api-key \
-#     --namespace=gemini-external \
-#     --from-literal=api-key='<YOUR_GOOGLE_AI_STUDIO_API_KEY>' \
-#     --dry-run=client -o yaml | \
-#     kubeseal \
-#       --controller-name=sealed-secrets-controller \
-#       --controller-namespace=sealed-secrets \
-#       --format=yaml \
-#     > overlays/afred-34-test/gemini-external/sealed-gemini-api-key.yaml
-#
-# Then commit and push. ArgoCD syncs the rest.
 ---
 apiVersion: bitnami.com/v1alpha1
 kind: SealedSecret
@@ -20,7 +6,7 @@ metadata:
   namespace: gemini-external
 spec:
   encryptedData:
-    api-key: REPLACE_WITH_SEALED_VALUE
+    api-key: AgB2Ks+LU36mEINW1FRKdJpFZXtTqkekcC3JzlmN8zVOepTh6xETL1Cd9hc/8sKK3x6y5hTG091iDT4+YJPA48CBDYhmkGt78FhlOQALTt0I7ZMGBhKmYzhcbADAIHNXRIU5uCPOr4GuZSEzoqcwvnEseMkMQwI9faDsKKNK1u8RPgOfihKw6c3pyna4dbd15+yr4zW0vuKvE11wKMapGug7FigV6Yo1LfsEcqiXJmmhZVA7z/Iw+GTD0DvMJuBMKcqNcJhahIXRYs6mfkvKefVc7LqWASM7evIDrcbS7+jHN8Eth0avPUig1SyD9tzLY4vWnEGVS8hIvRJqJSaRjVPETVhkdmcNlYP54b927O4pLQ4ZLYtN4ypNiodmE894K/15El+kbFLwpSuJj9x/DaZyXf2KXKveI9x2mReznqDN+BztyFp+r9x+CALRDzsORKi1wDW1M9Tgm2hnRThg/3/6/Lms0SrTC5AlkO7ZefxZNZWMGipZhTABXAbK0kgwrr8OBhGysXglxkbMcuTuZuJh50RO9Fr9ivkUylrZFDGiwaZ/4LjVA1k4AZ8YumfihUshUFxx2uZ8TDQwL1GnuLFE/OWZiC0Da/taUkHugfRddetmmRJZ5qBlum9o6Zo3lbC1iBg1s54uvYABBOAFHVVlL8T7i2sSvzRa78WbalASE0nC7qjiqoGARCj2SN4c97ctNcya09u01voRgmm7F/AVfsLvIwHV9h2S16j/KRmvAArCAO/rO9A8w3gVmaE3Sy47cDNn3A==
   template:
     metadata:
       name: gemini-api-key

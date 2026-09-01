@@ -1,0 +1,17 @@
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalProvider
+metadata:
+  name: google-ai-studio
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Google AI Studio"
+    openshift.io/description: >-
+      Shared provider for all Gemini models via Google AI Studio
+      OpenAI-compatible endpoint.
+spec:
+  provider: openai
+  endpoint: generativelanguage.googleapis.com
+  auth:
+    type: apikey
+    secretRef:
+      name: gemini-api-key

@@ -12,4 +12,4 @@ spec:
       name: gemini-api-key
       namespace: gemini-external
       labels:
-        inference.networking.k8s.io/bbr-managed: "true"
+        inference.llm-d.ai/ipp-managed: "true"

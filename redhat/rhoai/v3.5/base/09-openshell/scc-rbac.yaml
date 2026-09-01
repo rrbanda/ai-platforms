@@ -1,0 +1,15 @@
+# Grant privileged SCC to the openshell-sandbox SA so sandboxes
+# can run with the capabilities the supervisor requires.
+# Per NVIDIA docs: oc adm policy add-scc-to-user privileged -z openshell-sandbox -n openshell
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openshell-sandbox-privileged
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged
+subjects:
+  - kind: ServiceAccount
+    name: openshell-sandbox
+    namespace: openshell

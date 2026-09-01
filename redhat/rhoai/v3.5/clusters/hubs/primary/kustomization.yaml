@@ -16,3 +16,4 @@ resources:
   - applicationsets/spoke-platform.yaml
   - applicationsets/spoke-cluster-config.yaml
   - applicationsets/spoke-workloads.yaml
+  - applicationsets/spoke-gemini-external.yaml

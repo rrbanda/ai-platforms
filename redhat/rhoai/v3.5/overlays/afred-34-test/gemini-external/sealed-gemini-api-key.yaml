@@ -1,0 +1,29 @@
+# PLACEHOLDER -- re-seal with afred-34-test's certificate before deploying.
+#
+# Run (logged into afred-34-test):
+#   oc create secret generic gemini-api-key \
+#     --namespace=gemini-external \
+#     --from-literal=api-key='<YOUR_GOOGLE_AI_STUDIO_API_KEY>' \
+#     --dry-run=client -o yaml | \
+#     kubeseal \
+#       --controller-name=sealed-secrets-controller \
+#       --controller-namespace=sealed-secrets \
+#       --format=yaml \
+#     > overlays/afred-34-test/gemini-external/sealed-gemini-api-key.yaml
+#
+# Then commit and push. ArgoCD syncs the rest.
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gemini-api-key
+  namespace: gemini-external
+spec:
+  encryptedData:
+    api-key: REPLACE_WITH_SEALED_VALUE
+  template:
+    metadata:
+      name: gemini-api-key
+      namespace: gemini-external
+      labels:
+        inference.llm-d.ai/ipp-managed: "true"

@@ -5,7 +5,6 @@ metadata:
   namespace: openshift-ingress
   annotations:
     openshift.io/display-name: "MaaS Gateway Route"
-    router.openshift.io/service-ca-certificate: "true"
 spec:
   to:
     kind: Service

@@ -4,3 +4,4 @@ resources:
   - ../../../base/02-config
   - sealed-maas-postgres-credentials.yaml
   - sealed-maas-db-config.yaml
+  - sealed-maas-gateway-tls.yaml

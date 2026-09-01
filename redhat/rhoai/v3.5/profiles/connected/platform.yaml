@@ -71,6 +71,12 @@ spec:
                   - name: https
                     port: 443
                     protocol: HTTPS
+                    tls:
+                      mode: Terminate
+                      certificateRefs:
+                      - group: ''
+                        kind: Secret
+                        name: maas-default-gateway-tls
                     allowedRoutes:
                       namespaces:
                         from: All

@@ -5,16 +5,31 @@ metadata:
   namespace: models-as-a-service
   annotations:
     openshift.io/display-name: "Gemini External Standard Tier"
-    openshift.io/description: "Standard tier: 500000 tokens/hr for all authenticated users"
+    openshift.io/description: "Standard tier for all Gemini external models"
 spec:
   owner:
     groups:
       - name: system:authenticated
     users: []
   modelRefs:
-    - name: gemini-2-5-flash
+    - name: gemini-3-7-flash
       namespace: gemini-external
       tokenRateLimits:
         - limit: 500000
+          window: 1h
+    - name: gemini-3-5-flash
+      namespace: gemini-external
+      tokenRateLimits:
+        - limit: 500000
+          window: 1h
+    - name: gemini-3-5-flash-lite
+      namespace: gemini-external
+      tokenRateLimits:
+        - limit: 1000000
+          window: 1h
+    - name: gemini-2-5-pro
+      namespace: gemini-external
+      tokenRateLimits:
+        - limit: 200000
           window: 1h
   priority: 10

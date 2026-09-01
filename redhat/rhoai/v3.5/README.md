@@ -566,6 +566,68 @@ oc apply -f overlays/<cluster>/gemini-external/argocd-app.yaml
 
 For hub-spoke, the `spoke-gemini-external` ApplicationSet handles this automatically.
 
+### MaaS Gateway TLS Setup (per-cluster)
+
+The MaaS Gateway listener requires a TLS certificate and hostname to complete
+HTTPS handshakes. The Helm chart deploys the Gateway with `tls.certificateRefs`
+pointing to a `maas-default-gateway-tls` Secret, but the hostname and the cert
+Secret itself must be configured per cluster.
+
+**1. Generate and seal a TLS certificate:**
+
+```bash
+DOMAIN=$(oc get ingresses.config/cluster -o jsonpath='{.spec.domain}')
+
+# Generate self-signed cert
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+  -keyout /tmp/maas-gw.key -out /tmp/maas-gw.crt \
+  -subj "/CN=maas.${DOMAIN}" \
+  -addext "subjectAltName=DNS:maas.${DOMAIN},DNS:*.${DOMAIN}"
+
+# Create and seal the Secret
+oc create secret tls maas-default-gateway-tls \
+  --cert=/tmp/maas-gw.crt --key=/tmp/maas-gw.key \
+  --namespace=openshift-ingress \
+  --dry-run=client -o yaml | \
+  kubeseal --controller-name=sealed-secrets-controller \
+    --controller-namespace=sealed-secrets --format=yaml \
+  > overlays/<cluster>/config/sealed-maas-gateway-tls.yaml
+
+# Add to kustomization
+echo "  - sealed-maas-gateway-tls.yaml" >> overlays/<cluster>/config/kustomization.yaml
+
+rm -f /tmp/maas-gw.key /tmp/maas-gw.crt
+```
+
+**2. Patch the Gateway hostname (one-time per cluster):**
+
+```bash
+DOMAIN=$(oc get ingresses.config/cluster -o jsonpath='{.spec.domain}')
+oc patch gateway maas-default-gateway -n openshift-ingress --type=json \
+  -p "[{\"op\":\"add\",\"path\":\"/spec/listeners/0/hostname\",\"value\":\"maas.${DOMAIN}\"}]"
+```
+
+The Gateway has `opendatahub.io/managed: "false"`, so the ODH controller
+will not overwrite this patch.
+
+**3. Set the Route hostname to match:**
+
+```bash
+DOMAIN=$(oc get ingresses.config/cluster -o jsonpath='{.spec.domain}')
+oc patch route maas-gateway-route -n openshift-ingress --type=merge \
+  -p "{\"spec\":{\"host\":\"maas.${DOMAIN}\"}}"
+```
+
+With passthrough TLS, the Route hostname must match the Gateway listener
+hostname so that HAProxy forwards connections with the correct SNI.
+
+**4. Verify:**
+
+```bash
+curl -sk "https://maas.${DOMAIN}/v1/models"
+# Should return 401 (unauthenticated) -- TLS is working
+```
+
 ---
 
 ## Optional Components
@@ -605,7 +667,7 @@ v3.5/
 ├── chart/                              # Official RHOAI 3.5 Helm chart (unmodified)
 │
 ├── overlays/                           # Per-cluster sealed secrets
-│   ├── <cluster-name>/config/         # MaaS DB credentials (sealed)
+│   ├── <cluster-name>/config/         # MaaS DB creds + gateway TLS cert (sealed)
 │   ├── <cluster-name>/workloads/      # LLM API key, S3 creds (sealed)
 │   └── <cluster-name>/gemini-external/  # Gemini API key (sealed) + ArgoCD app
 │

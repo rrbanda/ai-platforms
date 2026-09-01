@@ -1,0 +1,15 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gemini-api-key
+  namespace: gemini-external
+spec:
+  encryptedData:
+    api-key: AgBN2BlRJsB5q0oj1APF+rO2JnPGmdgy7zpjNQs/QnInIRLrOGhJtEwNWO65Mf4Aa3XTPTwhwYngZisdB3/94tLixW7Pc4pFAikTew8x71RohZrZbJ8yVgjhsUjhISc12Uba5f8TJCoT5cJE+Sco3bvWVuC3+Gi8gzg3mefBuPkNQx0c6BShNjopJSDzBbjvB3L8ndvNjkXk7QUQzYQdr2y3qVxctQwXyRAcI3Htp1LMS90rdPrBfLjAKALbpirzab2DOkL5qBiM48l1U8UVZ0nryitxJCilH+CQXQachOv7wMVEs2zeRRb0Qa8tjcg2d2mtf0Pw7kdTzZTd7X9X3R25SHKuU4riXLnFmhKVR6PpaGuFg2SWG2f9Gy3vV7ynb3AMUq/uxIvU4Zicr8oj5CNzz+WXxwNDFauzfn7tJAHHJwP3nJydjtnj1g6MkMmuQTz7sbPHUhluM/YqpYCQivDGXHg0mkvMmn/uaCHUUsqiYCkapvqjTmr/lNgbGLVqDqhl3M5aq1qjmDFXOjeuc4MUyKb4rNKAIegulXuQUoBQ4xn3yVDHa4l0eSD4NvweS+pTQvyZs8T1yQPsynMapJ/bWF7goYZ9Ft0Je0xhJVUN64fnAyauM67zvWgliQKt4gBhxLQ/6pUCd9DiExIxjVyT/9+R+oVYHQoVPp5BVmHTUZEtiCYi6dLxRjGRuxmedk4ElSMSUiXp/qwN5z8VLLY0KmSFu8W1goyBbP8SjnyvModBb7DcSf++kr6rsTpBRYlQhFMVjA==
+  template:
+    metadata:
+      name: gemini-api-key
+      namespace: gemini-external
+      labels:
+        inference.networking.k8s.io/bbr-managed: "true"

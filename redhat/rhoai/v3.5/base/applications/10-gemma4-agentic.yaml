@@ -13,7 +13,6 @@ spec:
     path: redhat/rhoai/v3.5/base/03-workloads/gemma4-agentic
   destination:
     server: https://kubernetes.default.svc
-    namespace: gemma4-agentic
   syncPolicy:
     retry:
       limit: 10
@@ -22,6 +21,5 @@ spec:
         factor: 2
         maxDuration: 10m
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true

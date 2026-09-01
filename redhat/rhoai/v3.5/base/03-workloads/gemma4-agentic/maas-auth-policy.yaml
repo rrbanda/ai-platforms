@@ -1,0 +1,16 @@
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: gemma4-agentic-access
+  namespace: models-as-a-service
+  annotations:
+    openshift.io/display-name: "Gemma 4 Agentic Access"
+    openshift.io/description: "Grants all authenticated users access to Gemma 4 12B Agentic"
+spec:
+  modelRefs:
+    - name: gemma4-12b-agentic
+      namespace: gemma4-agentic
+  subjects:
+    groups:
+      - name: system:authenticated
+    users: []

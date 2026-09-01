@@ -6,7 +6,6 @@ metadata:
   annotations:
     openshift.io/display-name: "MaaS Gateway Route"
 spec:
-  host: maas.apps.ocp.qn6c5.sandbox1388.opentlc.com
   to:
     kind: Service
     name: maas-default-gateway-maas-gateway-class

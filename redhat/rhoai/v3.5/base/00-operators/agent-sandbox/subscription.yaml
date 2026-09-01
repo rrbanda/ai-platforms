@@ -9,3 +9,4 @@ spec:
   name: agent-sandbox-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
+  startingCSV: agent-sandbox-operator.v0.9.0

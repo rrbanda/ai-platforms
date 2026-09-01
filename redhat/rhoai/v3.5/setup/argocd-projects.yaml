@@ -64,6 +64,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: openshift-logging
       server: https://kubernetes.default.svc
+    - namespace: openshift-ingress
+      server: https://kubernetes.default.svc
     - namespace: redhat-ai-gateway-infra
       server: https://kubernetes.default.svc
     - namespace: mcp-system

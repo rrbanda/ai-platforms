@@ -1,5 +1,6 @@
 # OpenShell Helm values -- OpenShift base defaults.
-# Cluster-specific values (route host, TLS SANs) go in the overlay.
+# Per NVIDIA docs, disableTls lets the OpenShift Route handle TLS (edge),
+# making the chart portable across clusters with no per-cluster TLS config.
 openshiftRoute:
   enabled: true
 
@@ -10,5 +11,6 @@ securityContext:
   runAsUser: null
 
 server:
+  disableTls: true
   auth:
     allowUnauthenticatedUsers: true

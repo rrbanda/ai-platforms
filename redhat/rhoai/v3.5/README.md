@@ -52,6 +52,8 @@ oc apply -f base/app-of-apps.yaml
 | 1 | `rhoai-platform` | rhoai-platform | `chart/` (Helm) |
 | 2 | `rhoai-cluster-config` | rhoai-config | `overlays/<cluster>/config/` |
 | 3 | `autorag-workload` | rhoai-workloads | `overlays/<cluster>/workloads/` |
+| 3 | `gemini-external` | rhoai-workloads | `base/03-workloads/gemini-external` |
+| 3 | `gemini-external-secrets` | rhoai-workloads | `overlays/<cluster>/gemini-external/` |
 | 4 | `rhoai-mcp-infra` | rhoai-platform | `base/04-mcp-infra` |
 | 5 | `rhoai-mcp-connect` | rhoai-platform | `base/05-mcp-connect` |
 | 6 | `rhoai-mcp-auth` | rhoai-platform | `base/06-mcp-auth` |
@@ -518,6 +520,54 @@ in the MCP server overlay.
 
 ---
 
+## Gemini External Models (MaaS)
+
+Registers 5 Google Gemini models as external models in MaaS, providing
+OpenAI-compatible inference (`/v1/chat/completions`) with API key auth,
+subscription-based access control, and per-model token rate limiting.
+
+| Model | Rate limit |
+|---|---|
+| `gemini-3.7-flash` | 500K tokens/hr |
+| `gemini-3.5-flash` | 500K tokens/hr |
+| `gemini-2.5-flash` | 500K tokens/hr |
+| `gemini-3.5-flash-lite` | 1M tokens/hr |
+| `gemini-2.5-pro` | 200K tokens/hr |
+
+**Base (shared):** `base/03-workloads/gemini-external/` -- model configs, auth, subscriptions (no secrets)
+**Per-cluster secrets:** `overlays/<cluster>/gemini-external/` -- cluster-specific SealedSecret
+(see [gemini-external/README.md](base/03-workloads/gemini-external/README.md)
+for full setup, troubleshooting, and adding new models)
+
+**Key design decision:** Resource names use **dotted** Google model names
+(e.g., `gemini-3.5-flash`) rather than hyphenated K8s-style names. K8s accepts
+dots in `metadata.name` (DNS subdomain format), and this ensures the model name
+flows consistently through the entire MaaS pipeline -- HTTPRoute matching,
+Authorino auth, subscription validation, and the Google API. The `spec.modelName`
+field documented in RHOAI 3.5 does NOT propagate aliases to the auth policy.
+
+**New cluster setup:** Seal the Google AI Studio API key for the target cluster:
+
+```bash
+oc create secret generic gemini-api-key \
+  --namespace=gemini-external \
+  --from-literal=api-key='YOUR_KEY' \
+  --dry-run=client -o yaml | \
+  kubeseal --controller-name=sealed-secrets-controller \
+    --controller-namespace=sealed-secrets --format=yaml \
+  > overlays/<cluster>/gemini-external/sealed-gemini-api-key.yaml
+```
+
+Then apply the per-cluster ArgoCD Application:
+
+```bash
+oc apply -f overlays/<cluster>/gemini-external/argocd-app.yaml
+```
+
+For hub-spoke, the `spoke-gemini-external` ApplicationSet handles this automatically.
+
+---
+
 ## Optional Components
 
 ### Loki-based MaaS showback
@@ -544,6 +594,8 @@ v3.5/
 │   │   └── templates/                 # Secret templates (safe to commit)
 │   ├── 03-workloads/autorag/          # Wave 3: OGX, Milvus, DSPA
 │   │   └── templates/                 # Secret templates
+│   ├── 03-workloads/gemini-external/  # Wave 3: Gemini models via MaaS (shared, no secrets)
+│   │   └── templates/                 # Secret template (for reference)
 │   ├── 04-mcp-infra/                  # Wave 4: MCP namespaces, Gateway, MCPServer
 │   ├── 04-optional/loki-showback/     # Optional: Loki log forwarding
 │   ├── 05-mcp-connect/               # Wave 5: HTTPRoute, MCPServerRegistration
@@ -554,7 +606,8 @@ v3.5/
 │
 ├── overlays/                           # Per-cluster sealed secrets
 │   ├── <cluster-name>/config/         # MaaS DB credentials (sealed)
-│   └── <cluster-name>/workloads/      # LLM API key, S3 creds (sealed)
+│   ├── <cluster-name>/workloads/      # LLM API key, S3 creds (sealed)
+│   └── <cluster-name>/gemini-external/  # Gemini API key (sealed) + ArgoCD app
 │
 ├── setup/                              # One-time setup (not ArgoCD-managed)
 │   ├── bootstrap/                     # GitOps + SealedSecrets operators

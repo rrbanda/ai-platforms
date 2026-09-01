@@ -1,7 +1,7 @@
 apiVersion: inference.opendatahub.io/v1alpha1
 kind: ExternalModel
 metadata:
-  name: gemini-3-7-flash
+  name: gemini-3.7-flash
   namespace: gemini-external
   annotations:
     openshift.io/display-name: "Gemini 3.7 Flash"
@@ -15,12 +15,12 @@ spec:
       apiFormat: openai-chat
       path: /v1beta/openai/chat/completions
       targetModel: gemini-3.7-flash
-      weight: 1
+      weight: 100
 ---
 apiVersion: inference.opendatahub.io/v1alpha1
 kind: ExternalModel
 metadata:
-  name: gemini-3-5-flash
+  name: gemini-3.5-flash
   namespace: gemini-external
   annotations:
     openshift.io/display-name: "Gemini 3.5 Flash"
@@ -33,12 +33,30 @@ spec:
       apiFormat: openai-chat
       path: /v1beta/openai/chat/completions
       targetModel: gemini-3.5-flash
-      weight: 1
+      weight: 100
 ---
 apiVersion: inference.opendatahub.io/v1alpha1
 kind: ExternalModel
 metadata:
-  name: gemini-3-5-flash-lite
+  name: gemini-2.5-flash
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 2.5 Flash"
+    openshift.io/description: >-
+      Fast and versatile performance across a diverse variety of tasks.
+spec:
+  externalProviderRefs:
+    - ref:
+        name: google-ai-studio
+      apiFormat: openai-chat
+      path: /v1beta/openai/chat/completions
+      targetModel: gemini-2.5-flash
+      weight: 100
+---
+apiVersion: inference.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: gemini-3.5-flash-lite
   namespace: gemini-external
   annotations:
     openshift.io/display-name: "Gemini 3.5 Flash Lite"
@@ -51,12 +69,12 @@ spec:
       apiFormat: openai-chat
       path: /v1beta/openai/chat/completions
       targetModel: gemini-3.5-flash-lite
-      weight: 1
+      weight: 100
 ---
 apiVersion: inference.opendatahub.io/v1alpha1
 kind: ExternalModel
 metadata:
-  name: gemini-2-5-pro
+  name: gemini-2.5-pro
   namespace: gemini-external
   annotations:
     openshift.io/display-name: "Gemini 2.5 Pro"
@@ -70,4 +88,4 @@ spec:
       apiFormat: openai-chat
       path: /v1beta/openai/chat/completions
       targetModel: gemini-2.5-pro
-      weight: 1
+      weight: 100

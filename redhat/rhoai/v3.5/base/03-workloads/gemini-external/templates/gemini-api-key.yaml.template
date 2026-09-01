@@ -1,0 +1,25 @@
+# Template -- do NOT apply directly.
+# Seal this secret per-cluster using kubeseal. See the overlay directories
+# for each cluster's sealed version.
+#
+# Usage:
+#   oc create secret generic gemini-api-key \
+#     --namespace=gemini-external \
+#     --from-literal=api-key='YOUR_GOOGLE_AI_STUDIO_API_KEY' \
+#     --dry-run=client -o yaml | \
+#     kubeseal \
+#       --controller-name=sealed-secrets-controller \
+#       --controller-namespace=sealed-secrets \
+#       --format=yaml \
+#     > overlays/<CLUSTER>/gemini-external/sealed-gemini-api-key.yaml
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gemini-api-key
+  namespace: gemini-external
+  labels:
+    inference.llm-d.ai/ipp-managed: "true"
+type: Opaque
+stringData:
+  api-key: REPLACE_ME

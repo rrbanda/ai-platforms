@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: spoke-gemini-external
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: all-rhoai-spokes
+        requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: '{{name}}-gemini-external'
+      annotations:
+        apps.open-cluster-management.io/ocm-managed-cluster: '{{name}}'
+        argocd.argoproj.io/skip-reconcile: "true"
+        argocd.argoproj.io/sync-wave: "3"
+      labels:
+        apps.open-cluster-management.io/pull-to-ocm-managed-cluster: "true"
+    spec:
+      project: rhoai-workloads
+      source:
+        repoURL: https://github.com/rrbanda/ai-platforms.git
+        targetRevision: main
+        path: redhat/rhoai/v3.5/base/03-workloads/gemini-external
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 10m
+        syncOptions:
+          - ServerSideApply=true
+          - SkipDryRunOnMissingResource=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: spoke-gemini-external-secrets
+  namespace: openshift-gitops
+spec:
+  generators:
+    - clusterDecisionResource:
+        configMapRef: acm-placement
+        labelSelector:
+          matchLabels:
+            cluster.open-cluster-management.io/placement: all-rhoai-spokes
+        requeueAfterSeconds: 180
+  goTemplate: true
+  template:
+    metadata:
+      name: '{{ .name }}-gemini-external-secrets'
+      annotations:
+        apps.open-cluster-management.io/ocm-managed-cluster: '{{ .name }}'
+        argocd.argoproj.io/skip-reconcile: "true"
+        argocd.argoproj.io/sync-wave: "3"
+      labels:
+        apps.open-cluster-management.io/pull-to-ocm-managed-cluster: "true"
+    spec:
+      project: rhoai-workloads
+      source:
+        repoURL: https://github.com/rrbanda/ai-platforms.git
+        targetRevision: main
+        path: 'redhat/rhoai/v3.5/overlays/{{ .name }}/gemini-external'
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          selfHeal: true
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 10m
+        syncOptions:
+          - ServerSideApply=true
+          - SkipDryRunOnMissingResource=true

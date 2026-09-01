@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/rrbanda/ai-platforms.git
     targetRevision: main
-    path: redhat/rhoai/v3.5/base/02-config
+    path: redhat/rhoai/v3.5/overlays/afred-34-test/config
   destination:
     server: https://kubernetes.default.svc
     namespace: redhat-ods-applications

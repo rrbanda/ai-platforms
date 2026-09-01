@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - sealed-gemini-api-key.yaml
+  - external-provider.yaml
   - external-model.yaml
   - maas-model-ref.yaml
   - maas-auth-policy.yaml

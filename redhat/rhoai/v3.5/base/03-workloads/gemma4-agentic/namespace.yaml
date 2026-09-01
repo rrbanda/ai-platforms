@@ -4,5 +4,7 @@ metadata:
   name: gemma4-agentic
   labels:
     opendatahub.io/dashboard: "true"
+    opendatahub.io/generated-namespace: "true"
+    maas.opendatahub.io/gateway-access: "true"
   annotations:
     openshift.io/display-name: "Gemma 4 Agentic Serving"

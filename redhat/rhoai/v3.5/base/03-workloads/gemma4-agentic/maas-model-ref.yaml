@@ -1,0 +1,12 @@
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: gemma4-12b-agentic
+  namespace: gemma4-agentic
+  annotations:
+    openshift.io/display-name: "Gemma 4 12B Agentic (FP8)"
+    openshift.io/description: "Tool-calling enabled Gemma 4 for agentic workloads, served via MaaS gateway"
+spec:
+  modelRef:
+    kind: LLMInferenceService
+    name: gemma4-12b-agentic

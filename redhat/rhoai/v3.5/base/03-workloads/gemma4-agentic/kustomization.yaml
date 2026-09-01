@@ -3,5 +3,8 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - serving-runtime.yaml
-  - inference-service.yaml
+  - llm-inference-service.yaml
+  - maas-model-ref.yaml
+  - maas-auth-policy.yaml
+  - maas-subscription-free.yaml
+  - maas-subscription-premium.yaml

@@ -1,7 +1,0 @@
-# Cluster-specific: afred-34-test route hostname and TLS SANs.
-openshiftRoute:
-  host: openshell-openshell.apps.rosa.afred-34-test.js4d.p3.openshiftapps.com
-
-pkiInitJob:
-  serverDnsNames:
-    - openshell-openshell.apps.rosa.afred-34-test.js4d.p3.openshiftapps.com

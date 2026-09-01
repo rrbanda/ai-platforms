@@ -1,0 +1,16 @@
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: ExternalModel
+metadata:
+  name: gemini-2-5-flash
+  namespace: gemini-external
+  annotations:
+    openshift.io/display-name: "Gemini 2.5 Flash"
+    openshift.io/description: >-
+      Google Gemini 2.5 Flash via AI Studio API, proxied through MaaS gateway
+      with governance, auth, and rate limiting.
+spec:
+  provider: openai
+  endpoint: generativelanguage.googleapis.com
+  targetModel: gemini-2.5-flash
+  credentialRef:
+    name: gemini-api-key

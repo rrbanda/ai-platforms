@@ -1,0 +1,20 @@
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: gemini-external-standard
+  namespace: models-as-a-service
+  annotations:
+    openshift.io/display-name: "Gemini External Standard Tier"
+    openshift.io/description: "Standard tier: 500000 tokens/hr for all authenticated users"
+spec:
+  owner:
+    groups:
+      - name: system:authenticated
+    users: []
+  modelRefs:
+    - name: gemini-2-5-flash
+      namespace: gemini-external
+      tokenRateLimits:
+        - limit: 500000
+          window: 1h
+  priority: 10

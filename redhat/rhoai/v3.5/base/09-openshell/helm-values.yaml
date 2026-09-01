@@ -1,9 +1,6 @@
 # OpenShell Helm values -- OpenShift base defaults.
-# TLS is disabled on the server; an edge-terminated Route (created in prereqs)
-# handles external TLS, making the chart portable with no per-cluster TLS SANs.
-openshiftRoute:
-  enabled: false
-
+# mTLS is the default; access via port-forward or ingress.
+# Ref: OpenShell on OpenShift quick reference.
 podSecurityContext:
   fsGroup: null
 
@@ -11,6 +8,5 @@ securityContext:
   runAsUser: null
 
 server:
-  disableTls: true
   auth:
     allowUnauthenticatedUsers: true

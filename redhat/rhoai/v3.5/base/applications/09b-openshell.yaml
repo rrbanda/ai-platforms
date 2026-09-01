@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-openshell
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: rhoai-platform
+  sources:
+    - repoURL: ghcr.io/nvidia/openshell
+      chart: helm-chart
+      targetRevision: 0.0.106
+      helm:
+        valueFiles:
+          - $values/redhat/rhoai/v3.5/base/09-openshell/helm-values.yaml
+          - $values/redhat/rhoai/v3.5/overlays/afred-34-test/openshell/helm-values-override.yaml
+    - repoURL: https://github.com/rrbanda/ai-platforms.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshell
+  syncPolicy:
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

@@ -1,0 +1,14 @@
+# OpenShell Helm values -- OpenShift base defaults.
+# Cluster-specific values (route host, TLS SANs) go in the overlay.
+openshiftRoute:
+  enabled: true
+
+podSecurityContext:
+  fsGroup: null
+
+securityContext:
+  runAsUser: null
+
+server:
+  auth:
+    allowUnauthenticatedUsers: true

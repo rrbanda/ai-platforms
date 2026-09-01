@@ -27,6 +27,7 @@ spec:
   sourceRepos:
     - https://github.com/rrbanda/ai-platforms.git
     - https://charts.openshift.io
+    - ghcr.io/nvidia/openshell
   destinations:
     - namespace: openshift-operators
       server: https://kubernetes.default.svc

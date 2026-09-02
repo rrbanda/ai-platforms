@@ -13,6 +13,16 @@ spec:
     key: config.yaml
     name: fine-tuning-ogx-config
   workload:
+    overrides:
+      env:
+        - name: VLLM_SQL_FINETUNED_URL
+          value: "https://qwen25-sql-finetuned-kserve-workload-svc.fine-tuning-demo.svc.cluster.local:8000/v1"
+        - name: VLLM_BASE_URL
+          value: "https://qwen25-base-kserve-workload-svc.fine-tuning-demo.svc.cluster.local:8000/v1"
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: MKL_NUM_THREADS
+          value: "4"
     replicas: 1
     resources:
       requests:

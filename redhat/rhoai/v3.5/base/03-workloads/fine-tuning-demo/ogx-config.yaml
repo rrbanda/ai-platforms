@@ -41,13 +41,13 @@ data:
         - provider_id: vllm-sql-finetuned
           provider_type: remote::vllm
           config:
-            url: https://qwen25-sql-finetuned-kserve-workload-svc.fine-tuning-demo.svc.cluster.local:8000/v1
+            url: ${env.VLLM_SQL_FINETUNED_URL}
             tls_verify: false
             refresh_models: true
         - provider_id: vllm-base
           provider_type: remote::vllm
           config:
-            url: https://qwen25-base-kserve-workload-svc.fine-tuning-demo.svc.cluster.local:8000/v1
+            url: ${env.VLLM_BASE_URL}
             tls_verify: false
             refresh_models: true
         - provider_id: sentence-transformers

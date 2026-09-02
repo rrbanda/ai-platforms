@@ -7,6 +7,8 @@ spec:
   modelRefs:
     - name: qwen25-sql-finetuned
       namespace: fine-tuning-demo
+    - name: qwen25-base
+      namespace: fine-tuning-demo
   subjects:
     groups:
       - name: system:authenticated
@@ -20,6 +22,11 @@ metadata:
 spec:
   modelRefs:
     - name: qwen25-sql-finetuned
+      namespace: fine-tuning-demo
+      tokenRateLimits:
+        - limit: 500000
+          window: 1h
+    - name: qwen25-base
       namespace: fine-tuning-demo
       tokenRateLimits:
         - limit: 500000

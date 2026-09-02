@@ -9,4 +9,5 @@ resources:
   - workbench.yaml
   - lmeval-job.yaml
   - llm-inference-service.yaml
+  - llm-inference-service-base.yaml
   - maas-model-ref.yaml

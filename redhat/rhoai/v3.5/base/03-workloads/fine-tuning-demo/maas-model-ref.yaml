@@ -12,3 +12,18 @@ spec:
   modelRef:
     kind: LLMInferenceService
     name: qwen25-sql-finetuned
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSModelRef
+metadata:
+  name: qwen25-base
+  namespace: fine-tuning-demo
+  annotations:
+    openshift.io/display-name: "Qwen2.5-1.5B Base (Before Fine-Tuning)"
+    openshift.io/description: >-
+      Vanilla Qwen2.5-1.5B-Instruct for A/B comparison with the
+      fine-tuned LoRA variant.
+spec:
+  modelRef:
+    kind: LLMInferenceService
+    name: qwen25-base

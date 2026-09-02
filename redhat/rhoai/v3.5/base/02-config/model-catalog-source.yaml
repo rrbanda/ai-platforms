@@ -12,7 +12,7 @@ metadata:
 data:
   sources.yaml: |
     catalogs:
-      - name: "Fine-Tuned Models"
+      - name: "SQL Demo Models"
         id: "finetuned-models"
         enabled: true
         type: "yaml"
@@ -20,6 +20,7 @@ data:
           yamlCatalogPath: "/data/user-model-sources/finetuned-models.yaml"
         labels:
           - Fine-Tuned
+          - Demo
   finetuned-models.yaml: |
     models:
       - name: "qwen25-1.5b-sql-finetuned"
@@ -65,3 +66,27 @@ data:
           - name: "lora-adapter-v1"
             uri: "pvc://fine-tuning-shared/checkpoints"
             description: "LoRA adapter weights (safetensors) on shared NFS PVC"
+      - name: "qwen25-1.5b-base"
+        description: >-
+          Vanilla Qwen2.5-1.5B-Instruct (no fine-tuning). Deployed alongside
+          the LoRA fine-tuned variant for A/B comparison in the GenAI Playground.
+        customProperties:
+          model_type:
+            metadataType: MetadataStringValue
+            string_value: "generative"
+          base_model:
+            metadataType: MetadataStringValue
+            string_value: "Qwen/Qwen2.5-1.5B-Instruct"
+          task:
+            metadataType: MetadataStringValue
+            string_value: "general"
+          fine_tuning_method:
+            metadataType: MetadataStringValue
+            string_value: "none"
+          status:
+            metadataType: MetadataStringValue
+            string_value: "deployed"
+        artifacts:
+          - name: "base-model"
+            uri: "hf://Qwen/Qwen2.5-1.5B-Instruct"
+            description: "HuggingFace model hub (downloaded at runtime by vLLM)"

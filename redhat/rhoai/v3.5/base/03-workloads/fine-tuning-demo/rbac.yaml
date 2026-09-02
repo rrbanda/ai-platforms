@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fine-tuning-demo-access
+rules:
+  - apiGroups: ["trainer.kubeflow.org"]
+    resources: ["clustertrainingruntimes", "trainingruntimes", "trainjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["trustyai.opendatahub.io"]
+    resources: ["lmevaljobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps", "pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fine-tuning-demo-access
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: fine-tuning-demo
+roleRef:
+  kind: ClusterRole
+  name: fine-tuning-demo-access
+  apiGroup: rbac.authorization.k8s.io

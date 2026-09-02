@@ -1,0 +1,107 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-sql-finetuned-model
+  namespace: fine-tuning-demo
+  annotations:
+    openshift.io/display-name: "Register SQL Fine-Tuned Model"
+    openshift.io/description: >-
+      Registers the LoRA-fine-tuned Qwen2.5-1.5B-Instruct SQL model
+      in the RHOAI Model Registry with training metadata.
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: register
+          image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
+          command: ["python3", "-c"]
+          args:
+            - |
+              import json, urllib.request, urllib.error, ssl, os
+
+              REGISTRY_URL = "https://model-catalog.rhoai-model-registries.svc:8443"
+              ctx = ssl.create_default_context()
+              ctx.check_hostname = False
+              ctx.verify_mode = ssl.CERT_NONE
+
+              token = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
+              headers = {
+                  "Content-Type": "application/json",
+                  "Authorization": f"Bearer {token}",
+              }
+
+              def api_call(path, data=None):
+                  body = json.dumps(data).encode() if data else None
+                  req = urllib.request.Request(
+                      f"{REGISTRY_URL}/api/model_registry/v1alpha3/{path}",
+                      data=body, headers=headers, method="POST" if data else "GET"
+                  )
+                  try:
+                      resp = urllib.request.urlopen(req, context=ctx)
+                      return json.loads(resp.read())
+                  except urllib.error.HTTPError as e:
+                      print(f"HTTP {e.code}: {e.read().decode()}")
+                      raise
+
+              print("Registering model in RHOAI Model Registry...")
+
+              rm = api_call("registered_models", {
+                  "name": "qwen25-1.5b-sql-finetuned",
+                  "description": "Qwen2.5-1.5B-Instruct fine-tuned with LoRA SFT for SQL generation. "
+                                 "Trained on 5000 examples from sql-create-context dataset.",
+                  "customProperties": {
+                      "base_model": {"string_value": "Qwen/Qwen2.5-1.5B-Instruct"},
+                      "task": {"string_value": "text-to-sql"},
+                      "fine_tuning_method": {"string_value": "LoRA SFT"},
+                      "framework": {"string_value": "Training Hub + Kubeflow Trainer"},
+                  },
+              })
+              rm_id = rm["id"]
+              print(f"RegisteredModel created: id={rm_id}")
+
+              mv = api_call(f"model_versions", {
+                  "name": "v1-lora-sft-sql",
+                  "registeredModelId": rm_id,
+                  "description": "LoRA rank=16, alpha=32, 1 epoch, lr=2e-4, 5000 training examples. "
+                                 "Final training loss: 0.64. Direct SQL output rate: 5/5 (100%).",
+                  "customProperties": {
+                      "lora_r": {"int_value": "16"},
+                      "lora_alpha": {"int_value": "32"},
+                      "num_epochs": {"int_value": "1"},
+                      "learning_rate": {"string_value": "2e-4"},
+                      "training_examples": {"int_value": "5000"},
+                      "final_loss": {"string_value": "0.64"},
+                      "training_runtime": {"string_value": "3m22s"},
+                      "gpu": {"string_value": "NVIDIA A10G 24GB"},
+                  },
+              })
+              mv_id = mv["id"]
+              print(f"ModelVersion created: id={mv_id}")
+
+              ma = api_call(f"model_versions/{mv_id}/artifacts", {
+                  "name": "lora-adapter-checkpoint",
+                  "description": "LoRA adapter weights (adapter_model.safetensors) on shared NFS PVC.",
+                  "uri": "pvc://fine-tuning-shared/checkpoints",
+                  "artifactType": "model-artifact",
+                  "customProperties": {
+                      "storage_type": {"string_value": "pvc"},
+                      "pvc_name": {"string_value": "fine-tuning-shared"},
+                      "adapter_path": {"string_value": "/checkpoints"},
+                      "adapter_format": {"string_value": "safetensors"},
+                      "adapter_size_mb": {"string_value": "37"},
+                  },
+              })
+              print(f"ModelArtifact created: id={ma['id']}")
+              print("MODEL REGISTRATION COMPLETE")
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

@@ -1,0 +1,97 @@
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: qwen25-sql-finetuned
+  namespace: fine-tuning-demo
+  annotations:
+    opendatahub.io/model-type: generative
+    openshift.io/display-name: "Qwen2.5-1.5B SQL Fine-Tuned (LoRA)"
+    openshift.io/description: >-
+      Qwen2.5-1.5B-Instruct fine-tuned for SQL generation via LoRA SFT.
+      Serves the base model with LoRA adapter loaded from shared PVC.
+      OpenAI-compatible API endpoint.
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
+spec:
+  model:
+    name: qwen25-sql-finetuned
+    uri: hf://Qwen/Qwen2.5-1.5B-Instruct
+  replicas: 1
+  router:
+    route: {}
+  template:
+    containers:
+      - name: main
+        image: registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:ba060ec145e1b7ac3a3b25b89fc75f7d146746156990ff5858235eaa9d158e32
+        command:
+          - python
+          - -m
+          - vllm.entrypoints.openai.api_server
+        args:
+          - --served-model-name={{.Name}}
+          - --model=/mnt/models
+          - --enable-ssl-refresh
+          - --ssl-certfile=/var/run/kserve/tls/tls.crt
+          - --ssl-keyfile=/var/run/kserve/tls/tls.key
+          - --enable-force-include-usage
+          - --max-model-len=2048
+          - --dtype=float16
+          - --gpu-memory-utilization=0.85
+          - --enable-lora
+          - --lora-modules=sql-lora=/mnt/adapters/checkpoints
+          - --max-loras=1
+          - --max-lora-rank=16
+        env:
+          - name: HF_HOME
+            value: /tmp/hf_home
+        ports:
+          - containerPort: 8000
+            name: http
+            protocol: TCP
+        resources:
+          requests:
+            cpu: "2"
+            memory: "8Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "4"
+            memory: "16Gi"
+            nvidia.com/gpu: "1"
+        volumeMounts:
+          - name: shm
+            mountPath: /dev/shm
+          - name: adapters
+            mountPath: /mnt/adapters
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTPS
+          initialDelaySeconds: 180
+          periodSeconds: 30
+          timeoutSeconds: 30
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+            scheme: HTTPS
+          initialDelaySeconds: 120
+          periodSeconds: 15
+          timeoutSeconds: 15
+          failureThreshold: 30
+    nodeSelector:
+      nvidia.com/gpu.product: NVIDIA-A10G
+    tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+    volumes:
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi
+      - name: adapters
+        persistentVolumeClaim:
+          claimName: fine-tuning-shared

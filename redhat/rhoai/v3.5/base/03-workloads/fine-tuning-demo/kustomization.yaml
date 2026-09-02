@@ -3,6 +3,10 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - rbac.yaml
   - hardware-profile.yaml
   - pvc.yaml
   - workbench.yaml
+  - lmeval-job.yaml
+  - model-registry-job.yaml
+  - llm-inference-service.yaml

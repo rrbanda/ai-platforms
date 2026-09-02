@@ -1,0 +1,60 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: sql-finetuned-eval
+  namespace: fine-tuning-demo
+  annotations:
+    openshift.io/display-name: "SQL Fine-Tuned Model Evaluation"
+    openshift.io/description: >-
+      Evaluates the LoRA-fine-tuned Qwen2.5-1.5B-Instruct model using
+      lm-evaluation-harness (arc_easy benchmark). Loads base model + adapter
+      from the shared PVC.
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: Qwen/Qwen2.5-1.5B-Instruct
+    - name: peft
+      value: /mnt/shared/checkpoints
+    - name: dtype
+      value: float16
+  taskList:
+    - taskNames:
+        - arc_easy
+  batchSize: "8"
+  logSamples: true
+  allowOnline: true
+  pod:
+    container:
+      resources:
+        limits:
+          cpu: "4"
+          memory: "24Gi"
+          nvidia.com/gpu: "1"
+        requests:
+          cpu: "2"
+          memory: "12Gi"
+          nvidia.com/gpu: "1"
+      env:
+        - name: HF_HOME
+          value: /tmp/hf_cache
+      volumeMounts:
+        - name: shared-storage
+          mountPath: /mnt/shared
+    volumes:
+      - name: shared-storage
+        persistentVolumeClaim:
+          claimName: fine-tuning-shared
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: nvidia.com/gpu.product
+                  operator: In
+                  values:
+                    - NVIDIA-A10G
+  outputs:
+    pvcName: fine-tuning-shared

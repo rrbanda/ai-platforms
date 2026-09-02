@@ -13,6 +13,7 @@ data:
     apis:
       - inference
       - responses
+      - vector_io
       - files
       - file_processors
 
@@ -61,6 +62,15 @@ data:
         - provider_id: builtin
           provider_type: inline::builtin
           config: {}
+
+      vector_io:
+        - provider_id: faiss
+          provider_type: inline::faiss
+          config:
+            kvstore:
+              type: sqlite
+              namespace: vector_io
+              db_path: /opt/app-root/src/.ogx/faiss_store.db
 
     registered_resources:
       models:

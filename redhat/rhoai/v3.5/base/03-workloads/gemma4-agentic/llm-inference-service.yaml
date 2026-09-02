@@ -17,7 +17,7 @@ spec:
   model:
     name: gemma4-12b-agentic
     uri: hf://RedHatAI/gemma-4-12B-it-FP8-Dynamic
-  replicas: 1
+  replicas: 0
   router:
     route: {}
     gateway:

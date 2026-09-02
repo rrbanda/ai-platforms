@@ -5,6 +5,7 @@ metadata:
   labels:
     opendatahub.io/dashboard: "true"
     opendatahub.io/generated-namespace: "true"
+    maas.opendatahub.io/gateway-access: "true"
   annotations:
     openshift.io/display-name: "Fine-Tuning Demo"
     openshift.io/description: >-

@@ -11,3 +11,5 @@ resources:
   - llm-inference-service.yaml
   - llm-inference-service-base.yaml
   - maas-model-ref.yaml
+  - ogx-config.yaml
+  - ogx-server.yaml

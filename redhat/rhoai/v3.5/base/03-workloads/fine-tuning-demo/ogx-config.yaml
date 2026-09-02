@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fine-tuning-ogx-config
+  namespace: fine-tuning-demo
+  labels:
+    ogx.io/watch: "true"
+    opendatahub.io/dashboard: "true"
+    app: ogx
+data:
+  config.yaml: |
+    version: 2
+    image_name: rh
+    apis:
+      - inference
+      - files
+      - file_processors
+
+    providers:
+      files:
+        - provider_id: localfs
+          provider_type: inline::localfs
+          config:
+            storage_dir: /opt/app-root/src/.ogx/files
+            metadata_store:
+              table_name: files_metadata
+              backend: sql_default
+
+      file_processors:
+        - provider_id: auto
+          provider_type: inline::auto
+          config: {}
+        - provider_id: markitdown
+          provider_type: inline::markitdown
+          config: {}
+        - provider_id: pypdf
+          provider_type: inline::pypdf
+          config: {}
+
+      inference:
+        - provider_id: vllm-sql-finetuned
+          provider_type: remote::vllm
+          config:
+            url: https://qwen25-sql-finetuned-kserve-workload-svc.fine-tuning-demo.svc.cluster.local:8000/v1
+            tls_verify: false
+        - provider_id: vllm-base
+          provider_type: remote::vllm
+          config:
+            url: https://qwen25-base-kserve-workload-svc.fine-tuning-demo.svc.cluster.local:8000/v1
+            tls_verify: false
+        - provider_id: sentence-transformers
+          provider_type: inline::sentence-transformers
+          config:
+            trust_remote_code: true
+
+    models:
+      - metadata: {}
+        model_id: sql-lora
+        provider_id: vllm-sql-finetuned
+        provider_model_id: sql-lora
+        model_type: llm
+      - metadata: {}
+        model_id: qwen25-base
+        provider_id: vllm-base
+        provider_model_id: qwen25-base
+        model_type: llm
+
+    storage:
+      backends:
+        kv_default:
+          type: kv_sqlite
+          db_path: /opt/app-root/src/.ogx/kvstore.db
+        sql_default:
+          type: sql_sqlite
+          db_path: /opt/app-root/src/.ogx/sql_store.db
+      stores:
+        metadata:
+          namespace: registry
+          backend: kv_default
+        inference:
+          table_name: inference_store
+          backend: sql_default

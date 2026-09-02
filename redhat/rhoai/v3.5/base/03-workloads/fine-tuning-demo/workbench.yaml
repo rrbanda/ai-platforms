@@ -6,6 +6,8 @@ metadata:
   annotations:
     notebooks.opendatahub.io/inject-oauth: "true"
     opendatahub.io/image-display-name: "Training Hub Universal CUDA"
+    opendatahub.io/hardware-profile-name: a10g-gpu-training
+    opendatahub.io/hardware-profile-namespace: redhat-ods-applications
     openshift.io/display-name: "Fine-Tuning Workbench"
     openshift.io/description: >-
       Workbench for LoRA fine-tuning demos with Training Hub, Kubeflow SDK,
@@ -19,24 +21,9 @@ spec:
     spec:
       affinity: {}
       enableServiceLinks: false
-      nodeSelector:
-        nvidia.com/gpu.product: NVIDIA-A10G
-      tolerations:
-        - effect: NoSchedule
-          key: nvidia.com/gpu
-          operator: Exists
       containers:
         - name: fine-tuning-workbench
           image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
-          resources:
-            requests:
-              cpu: "2"
-              memory: 16Gi
-              nvidia.com/gpu: "1"
-            limits:
-              cpu: "4"
-              memory: 32Gi
-              nvidia.com/gpu: "1"
           env:
             - name: NOTEBOOK_ARGS
               value: '--ServerApp.port=8888 --ServerApp.token="" --ServerApp.password="" --ServerApp.base_url=/notebook/fine-tuning-demo/fine-tuning-workbench'

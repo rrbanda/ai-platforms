@@ -3,5 +3,6 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - hardware-profile.yaml
   - pvc.yaml
   - workbench.yaml

@@ -1,0 +1,42 @@
+apiVersion: infrastructure.opendatahub.io/v1
+kind: HardwareProfile
+metadata:
+  name: a10g-gpu-training
+  namespace: redhat-ods-applications
+  annotations:
+    opendatahub.io/display-name: "A10G GPU — Fine-Tuning"
+    opendatahub.io/description: >-
+      NVIDIA A10G GPU with 24GB VRAM for LoRA/QLoRA fine-tuning workloads.
+      4 CPUs (up to 8), 16 GiB memory (up to 32 GiB), 1 GPU.
+    opendatahub.io/disabled: "false"
+  labels:
+    app.opendatahub.io/hardwareprofile: "true"
+spec:
+  identifiers:
+    - displayName: CPU
+      identifier: cpu
+      resourceType: CPU
+      defaultCount: 2
+      minCount: 1
+      maxCount: 8
+    - displayName: Memory
+      identifier: memory
+      resourceType: Memory
+      defaultCount: 16Gi
+      minCount: 8Gi
+      maxCount: 32Gi
+    - displayName: "NVIDIA GPU"
+      identifier: nvidia.com/gpu
+      resourceType: Accelerator
+      defaultCount: 1
+      minCount: 1
+      maxCount: 1
+  scheduling:
+    type: Node
+    node:
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A10G
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule

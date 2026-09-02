@@ -92,6 +92,7 @@ metadata:
   name: nfs-server
   namespace: nfs-provisioner
 spec:
+  clusterIP: "172.30.216.116"
   ports:
     - name: nfs
       port: 2049

@@ -4,6 +4,7 @@ metadata:
   name: fine-tuning-demo
   labels:
     opendatahub.io/dashboard: "true"
+    opendatahub.io/generated-namespace: "true"
   annotations:
     openshift.io/display-name: "Fine-Tuning Demo"
     openshift.io/description: >-

@@ -8,7 +8,7 @@ metadata:
     openshift.io/description: >-
       Evaluates the LoRA-fine-tuned Qwen2.5-1.5B-Instruct model using
       lm-evaluation-harness (arc_easy benchmark). Loads base model + adapter
-      from the shared PVC.
+      from the shared PVC. Runs on CPU (1.5B model fits comfortably).
   labels:
     opendatahub.io/dashboard: "true"
 spec:
@@ -19,24 +19,23 @@ spec:
     - name: peft
       value: /mnt/shared/checkpoints
     - name: dtype
-      value: float16
+      value: float32
   taskList:
     taskNames:
       - arc_easy
-  batchSize: "8"
+  batchSize: "4"
+  limit: "100"
   logSamples: true
   allowOnline: true
   pod:
     container:
       resources:
         limits:
-          cpu: "4"
-          memory: "24Gi"
-          nvidia.com/gpu: "1"
+          cpu: "8"
+          memory: "16Gi"
         requests:
-          cpu: "2"
-          memory: "12Gi"
-          nvidia.com/gpu: "1"
+          cpu: "4"
+          memory: "8Gi"
       env:
         - name: HF_HOME
           value: /tmp/hf_cache
@@ -47,14 +46,5 @@ spec:
       - name: shared-storage
         persistentVolumeClaim:
           claimName: fine-tuning-shared
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: nvidia.com/gpu.product
-                  operator: In
-                  values:
-                    - NVIDIA-A10G
   outputs:
     pvcName: fine-tuning-shared

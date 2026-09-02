@@ -46,7 +46,6 @@ data:
             network:
               tls:
                 verify: false
-            refresh_models: true
         - provider_id: vllm-base
           provider_type: remote::vllm
           config:
@@ -56,11 +55,15 @@ data:
             network:
               tls:
                 verify: false
-            refresh_models: true
-        - provider_id: sentence-transformers
-          provider_type: inline::sentence-transformers
-          config:
-            trust_remote_code: true
+
+    registered_resources:
+      models:
+        - model_id: sql-lora
+          provider_id: vllm-sql-finetuned
+          model_type: llm
+        - model_id: qwen25-base
+          provider_id: vllm-base
+          model_type: llm
 
     storage:
       backends:

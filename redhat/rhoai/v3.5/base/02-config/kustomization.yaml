@@ -12,3 +12,4 @@ resources:
   - nemo-guardrails-config.yaml
   - nemo-guardrails.yaml
   - vector-stores-config.yaml
+  - nfs-provisioner.yaml

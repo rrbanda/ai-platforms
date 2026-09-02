@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fine-tuning-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    openshift.io/display-name: "Fine-Tuning Demo"
+    openshift.io/description: >-
+      SQL generation fine-tuning demo: LoRA fine-tune Qwen2.5-1.5B-Instruct
+      for executable SQL output using Training Hub and Kubeflow Trainer.

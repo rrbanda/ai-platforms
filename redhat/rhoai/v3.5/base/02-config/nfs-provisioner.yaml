@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nfs-provisioner
+  annotations:
+    openshift.io/display-name: "NFS Provisioner"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-server
+  namespace: nfs-provisioner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: nfs-server-scc
+allowPrivilegedContainer: false
+allowHostDirVolumePlugin: false
+allowHostNetwork: false
+allowHostPorts: false
+allowHostPID: false
+allowHostIPC: false
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - persistentVolumeClaim
+  - emptyDir
+  - configMap
+  - secret
+  - projected
+users:
+  - system:serviceaccount:nfs-provisioner:nfs-server
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-backing-store
+  namespace: nfs-provisioner
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+  namespace: nfs-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-server
+  template:
+    metadata:
+      labels:
+        app: nfs-server
+    spec:
+      serviceAccountName: nfs-server
+      containers:
+        - name: nfs-server
+          image: registry.k8s.io/volume-nfs:0.8
+          ports:
+            - name: nfs
+              containerPort: 2049
+            - name: mountd
+              containerPort: 20048
+            - name: rpcbind
+              containerPort: 111
+          securityContext:
+            privileged: false
+          volumeMounts:
+            - name: nfs-export
+              mountPath: /exports
+      volumes:
+        - name: nfs-export
+          persistentVolumeClaim:
+            claimName: nfs-backing-store
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-server
+  namespace: nfs-provisioner
+spec:
+  ports:
+    - name: nfs
+      port: 2049
+    - name: mountd
+      port: 20048
+    - name: rpcbind
+      port: 111
+  selector:
+    app: nfs-server
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-rwx-pv
+spec:
+  capacity:
+    storage: 80Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: nfs-server.nfs-provisioner.svc.cluster.local
+    path: /exports
+  persistentVolumeReclaimPolicy: Retain

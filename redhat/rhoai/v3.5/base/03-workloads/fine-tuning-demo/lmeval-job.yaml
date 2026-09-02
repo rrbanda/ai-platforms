@@ -21,8 +21,8 @@ spec:
     - name: dtype
       value: float16
   taskList:
-    - taskNames:
-        - arc_easy
+    taskNames:
+      - arc_easy
   batchSize: "8"
   logSamples: true
   allowOnline: true

@@ -1,0 +1,26 @@
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: fine-tuning-ogx
+  namespace: fine-tuning-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    app: ogx
+spec:
+  distribution:
+    name: rh
+  overrideConfig:
+    key: config.yaml
+    name: fine-tuning-ogx-config
+  workload:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    storage:
+      mountPath: /opt/app-root/src/.ogx
+      size: 5Gi

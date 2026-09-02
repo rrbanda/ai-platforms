@@ -23,8 +23,6 @@ spec:
           value: "4"
         - name: MKL_NUM_THREADS
           value: "4"
-        - name: VLLM_TLS_VERIFY
-          value: "false"
         - name: VLLM_API_TOKEN
           value: "fake"
     replicas: 1

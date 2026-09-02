@@ -41,18 +41,22 @@ data:
         - provider_id: vllm-sql-finetuned
           provider_type: remote::vllm
           config:
-            url: ${env.VLLM_SQL_FINETUNED_URL:=https://localhost:8000/v1}
+            base_url: ${env.VLLM_SQL_FINETUNED_URL:=}
             max_tokens: 4096
             api_token: ${env.VLLM_API_TOKEN:=fake}
-            tls_verify: ${env.VLLM_TLS_VERIFY:=false}
+            network:
+              tls:
+                verify: false
             refresh_models: true
         - provider_id: vllm-base
           provider_type: remote::vllm
           config:
-            url: ${env.VLLM_BASE_URL:=https://localhost:8001/v1}
+            base_url: ${env.VLLM_BASE_URL:=}
             max_tokens: 4096
             api_token: ${env.VLLM_API_TOKEN:=fake}
-            tls_verify: ${env.VLLM_TLS_VERIFY:=false}
+            network:
+              tls:
+                verify: false
             refresh_models: true
         - provider_id: sentence-transformers
           provider_type: inline::sentence-transformers

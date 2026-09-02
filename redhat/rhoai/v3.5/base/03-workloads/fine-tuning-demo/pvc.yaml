@@ -4,6 +4,7 @@ metadata:
   name: fine-tuning-shared
   namespace: fine-tuning-demo
 spec:
+  storageClassName: ""
   accessModes:
     - ReadWriteMany
   volumeName: nfs-rwx-pv

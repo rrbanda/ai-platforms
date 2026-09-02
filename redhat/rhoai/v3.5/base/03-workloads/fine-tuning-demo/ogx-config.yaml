@@ -14,7 +14,6 @@ data:
       - inference
       - files
       - file_processors
-      - responses
 
     providers:
       files:

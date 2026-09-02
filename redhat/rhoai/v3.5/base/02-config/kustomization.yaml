@@ -14,3 +14,4 @@ resources:
   - vector-stores-config.yaml
   - nfs-provisioner.yaml
   - model-catalog-source.yaml
+  - maas-sql-finetuned.yaml

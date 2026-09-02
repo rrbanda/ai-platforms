@@ -1,0 +1,30 @@
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSAuthPolicy
+metadata:
+  name: sql-finetuned-access
+  namespace: models-as-a-service
+spec:
+  modelRefs:
+    - name: qwen25-sql-finetuned
+      namespace: fine-tuning-demo
+  subjects:
+    groups:
+      - name: system:authenticated
+    users: []
+---
+apiVersion: maas.opendatahub.io/v1alpha1
+kind: MaaSSubscription
+metadata:
+  name: sql-finetuned-standard
+  namespace: models-as-a-service
+spec:
+  modelRefs:
+    - name: qwen25-sql-finetuned
+      namespace: fine-tuning-demo
+      tokenRateLimits:
+        - limit: 500000
+          window: 1h
+  owner:
+    groups:
+      - name: system:authenticated
+    users: []

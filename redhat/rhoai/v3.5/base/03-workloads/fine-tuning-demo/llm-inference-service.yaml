@@ -5,6 +5,7 @@ metadata:
   namespace: fine-tuning-demo
   annotations:
     opendatahub.io/model-type: generative
+    security.opendatahub.io/enable-auth: "true"
     openshift.io/display-name: "Qwen2.5-1.5B SQL Fine-Tuned (LoRA)"
     openshift.io/description: >-
       Qwen2.5-1.5B-Instruct fine-tuned for SQL generation via LoRA SFT.

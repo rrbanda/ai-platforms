@@ -13,6 +13,12 @@ spec:
     path: redhat/rhoai/v3.5/base/05-mcp-connect
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jsonPointers:
+        - /metadata/annotations
+        - /status
   syncPolicy:
     retry:
       limit: 10
@@ -24,3 +30,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

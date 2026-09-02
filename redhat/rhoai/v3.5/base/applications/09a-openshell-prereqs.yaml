@@ -13,6 +13,15 @@ spec:
     path: redhat/rhoai/v3.5/base/09-openshell
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+      jsonPointers:
+        - /metadata/annotations
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+      jsonPointers:
+        - /metadata/annotations
   syncPolicy:
     retry:
       limit: 5
@@ -23,3 +32,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true

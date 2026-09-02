@@ -13,6 +13,15 @@ spec:
     path: redhat/rhoai/v3.5/base/07-mcp-guardrails
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/metadata/annotations
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /metadata/annotations
   syncPolicy:
     retry:
       limit: 5
@@ -23,3 +32,4 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true

@@ -20,6 +20,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: openshell
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/template/metadata/annotations
+        - /spec/volumeClaimTemplates
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
   syncPolicy:
     retry:
       limit: 5
@@ -30,3 +40,4 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true

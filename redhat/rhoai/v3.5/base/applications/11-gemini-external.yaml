@@ -13,6 +13,11 @@ spec:
     path: redhat/rhoai/v3.5/base/03-workloads/gemini-external
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: maas.opendatahub.io
+      kind: MaaSSubscription
+      jsonPointers:
+        - /status
   syncPolicy:
     retry:
       limit: 10
@@ -23,3 +28,4 @@ spec:
     syncOptions:
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

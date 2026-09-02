@@ -19,6 +19,9 @@ spec:
       kind: Application
       jsonPointers:
         - /spec/source/path
+      jqPathExpressions:
+        - .status
+        - .operation
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

@@ -13,6 +13,15 @@ spec:
     path: redhat/rhoai/v3.5/base/04-mcp-infra
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /metadata/annotations
+    - group: mcp.openshift.io
+      kind: MCPServer
+      jsonPointers:
+        - /status
   syncPolicy:
     retry:
       limit: 10
@@ -24,3 +33,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

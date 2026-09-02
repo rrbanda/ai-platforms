@@ -10,9 +10,14 @@ spec:
   source:
     repoURL: https://github.com/rrbanda/ai-platforms.git
     targetRevision: main
-    path: redhat/rhoai/v3.5/overlays/afred-34-test/mcp-auth
+    path: redhat/rhoai/v3.5/overlays/sandbox1388/mcp-auth
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: operator.authorino.kuadrant.io
+      kind: Authorino
+      jsonPointers:
+        - /status
   syncPolicy:
     retry:
       limit: 5
@@ -23,3 +28,4 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true

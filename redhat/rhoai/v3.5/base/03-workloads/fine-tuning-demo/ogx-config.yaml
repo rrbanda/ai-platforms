@@ -67,10 +67,9 @@ data:
         - provider_id: faiss
           provider_type: inline::faiss
           config:
-            kvstore:
-              type: sqlite
+            persistence:
               namespace: vector_io
-              db_path: /opt/app-root/src/.ogx/faiss_store.db
+              backend: kv_default
 
     registered_resources:
       models:

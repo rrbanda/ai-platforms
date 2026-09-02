@@ -8,5 +8,4 @@ resources:
   - pvc.yaml
   - workbench.yaml
   - lmeval-job.yaml
-  - model-registry-job.yaml
   - llm-inference-service.yaml

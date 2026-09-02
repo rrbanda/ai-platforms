@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-catalog-sources
+  namespace: rhoai-model-registries
+  labels:
+    app: model-catalog
+    app.kubernetes.io/component: model-catalog
+    app.kubernetes.io/name: model-catalog
+    app.kubernetes.io/part-of: model-catalog
+    component: model-catalog
+data:
+  sources.yaml: |
+    catalogs:
+      - name: "Fine-Tuned Models"
+        id: "finetuned-models"
+        enabled: true
+        type: "yaml"
+        properties:
+          yamlCatalogPath: "/data/user-model-sources/finetuned-models.yaml"
+        labels:
+          - Fine-Tuned
+  finetuned-models.yaml: |
+    models:
+      - name: "qwen25-1.5b-sql-finetuned"
+        description: >-
+          Qwen2.5-1.5B-Instruct fine-tuned with LoRA SFT for SQL generation.
+          Trained on 5000 examples from sql-create-context dataset using
+          Training Hub and Kubeflow Trainer on RHOAI 3.5.
+        customProperties:
+          model_type:
+            metadataType: MetadataStringValue
+            string_value: "generative"
+          base_model:
+            metadataType: MetadataStringValue
+            string_value: "Qwen/Qwen2.5-1.5B-Instruct"
+          task:
+            metadataType: MetadataStringValue
+            string_value: "text-to-sql"
+          fine_tuning_method:
+            metadataType: MetadataStringValue
+            string_value: "LoRA SFT"
+          lora_rank:
+            metadataType: MetadataStringValue
+            string_value: "16"
+          lora_alpha:
+            metadataType: MetadataStringValue
+            string_value: "32"
+          training_examples:
+            metadataType: MetadataStringValue
+            string_value: "5000"
+          final_loss:
+            metadataType: MetadataStringValue
+            string_value: "0.64"
+          gpu:
+            metadataType: MetadataStringValue
+            string_value: "NVIDIA A10G 24GB"
+          direct_sql_output_rate:
+            metadataType: MetadataStringValue
+            string_value: "100%"
+          status:
+            metadataType: MetadataStringValue
+            string_value: "deployed"
+        artifacts:
+          - name: "lora-adapter-v1"
+            uri: "pvc://fine-tuning-shared/checkpoints"
+            description: "LoRA adapter weights (safetensors) on shared NFS PVC"

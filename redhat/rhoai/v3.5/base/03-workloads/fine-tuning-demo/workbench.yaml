@@ -7,6 +7,7 @@ metadata:
     notebooks.opendatahub.io/inject-oauth: "true"
     notebooks.opendatahub.io/last-image-selection: "training-hub-universal-cuda:3.5"
     notebooks.opendatahub.io/last-size-selection: "a10g-gpu-training"
+    kubeflow-resource-stopped: "2026-09-02T20:50:00Z"
     opendatahub.io/image-display-name: "Training Hub Universal CUDA"
     opendatahub.io/hardware-profile-name: a10g-gpu-training
     opendatahub.io/hardware-profile-namespace: redhat-ods-applications

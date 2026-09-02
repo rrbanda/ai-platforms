@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fine-tuning-shared
+  namespace: fine-tuning-demo
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeName: nfs-rwx-pv
+  resources:
+    requests:
+      storage: 50Gi

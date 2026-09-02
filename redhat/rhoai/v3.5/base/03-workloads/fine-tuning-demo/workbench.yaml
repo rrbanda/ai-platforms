@@ -1,0 +1,70 @@
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: fine-tuning-workbench
+  namespace: fine-tuning-demo
+  annotations:
+    notebooks.opendatahub.io/inject-oauth: "true"
+    opendatahub.io/image-display-name: "Training Hub Universal CUDA"
+    openshift.io/display-name: "Fine-Tuning Workbench"
+    openshift.io/description: >-
+      Workbench for LoRA fine-tuning demos with Training Hub, Kubeflow SDK,
+      and vLLM pre-installed. Targets an A10G GPU node.
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/odh-managed: "true"
+    app: fine-tuning-workbench
+spec:
+  template:
+    spec:
+      affinity: {}
+      enableServiceLinks: false
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A10G
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+      containers:
+        - name: fine-tuning-workbench
+          image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
+          resources:
+            requests:
+              cpu: "2"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "4"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+          env:
+            - name: NOTEBOOK_ARGS
+              value: '--ServerApp.port=8888 --ServerApp.token="" --ServerApp.password="" --ServerApp.base_url=/notebook/fine-tuning-demo/fine-tuning-workbench'
+            - name: JUPYTER_IMAGE
+              value: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
+          ports:
+            - containerPort: 8888
+              name: notebook-port
+              protocol: TCP
+          volumeMounts:
+            - name: fine-tuning-shared
+              mountPath: /opt/app-root/src/shared
+            - name: shm
+              mountPath: /dev/shm
+          livenessProbe:
+            httpGet:
+              path: /notebook/fine-tuning-demo/fine-tuning-workbench/api
+              port: notebook-port
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 1
+      volumes:
+        - name: fine-tuning-shared
+          persistentVolumeClaim:
+            claimName: fine-tuning-shared
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

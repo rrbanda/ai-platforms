@@ -42,6 +42,10 @@ data:
           config: {}
 
       inference:
+        - provider_id: sentence-transformers
+          provider_type: inline::sentence-transformers
+          config:
+            trust_remote_code: true
         - provider_id: vllm-sql-finetuned
           provider_type: remote::vllm
           config:
@@ -123,3 +127,15 @@ data:
         connectors:
           table_name: connectors
           backend: sql_default
+
+    registered_resources:
+      models:
+        - model_id: ibm-granite/granite-embedding-125m-english
+          provider_id: sentence-transformers
+          model_type: embedding
+
+    vector_stores:
+      default_provider_id: faiss
+      default_embedding_model:
+        provider_id: sentence-transformers
+        model_id: ibm-granite/granite-embedding-125m-english

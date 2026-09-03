@@ -14,7 +14,7 @@ config:
     - core
     - config
     - helm
-    - metrics
+    - prometheus
     - netedge
   denied_resources:
     - group: ""

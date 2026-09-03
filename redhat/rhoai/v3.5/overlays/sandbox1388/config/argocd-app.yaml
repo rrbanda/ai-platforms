@@ -14,6 +14,18 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: redhat-ods-applications
+  ignoreDifferences:
+    - group: security.openshift.io
+      kind: SecurityContextConstraints
+      jsonPointers:
+        - /allowPrivilegeEscalation
+        - /allowedCapabilities
+        - /defaultAddCapabilities
+        - /requiredDropCapabilities
+        - /priority
+        - /readOnlyRootFilesystem
+        - /groups
+        - /userNamespaceLevel
   syncPolicy:
     retry:
       limit: 10
@@ -25,3 +37,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

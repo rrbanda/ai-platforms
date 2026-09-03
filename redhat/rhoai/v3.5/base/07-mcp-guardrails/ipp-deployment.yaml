@@ -1,3 +1,55 @@
+# RBAC for the MCP payload processing service account.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-payload-processing
+  namespace: mcp-system
+  labels:
+    app: mcp-payload-processing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mcp-payload-processing
+  labels:
+    app: mcp-payload-processing
+rules:
+  - apiGroups:
+      - maas.opendatahub.io
+    resources:
+      - externalmodels
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - inference.opendatahub.io
+    resources:
+      - externalmodels
+      - externalproviders
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-payload-processing
+  labels:
+    app: mcp-payload-processing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mcp-payload-processing
+subjects:
+  - kind: ServiceAccount
+    name: mcp-payload-processing
+    namespace: mcp-system
+  - kind: ServiceAccount
+    name: default
+    namespace: mcp-system
+---
 # BBR payload processor for MCP Gateway guardrails enforcement.
 # Runs NeMo request/response guard plugins as ext_proc gRPC server.
 apiVersion: apps/v1

@@ -18,7 +18,7 @@ spec:
       kind: ConfigMap
       jsonPointers:
         - /metadata/annotations
-    - group: mcp.openshift.io
+    - group: mcp.x-k8s.io
       kind: MCPServer
       jsonPointers:
         - /status

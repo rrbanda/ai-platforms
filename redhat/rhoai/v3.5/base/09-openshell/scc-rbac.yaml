@@ -13,3 +13,42 @@ subjects:
   - kind: ServiceAccount
     name: openshell-sandbox
     namespace: openshell
+---
+# ClusterRole allowing the openshell supervisor to restart sandboxes and inspect pods.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: sandbox-restart
+  labels:
+    app.kubernetes.io/name: openshell
+    app.kubernetes.io/part-of: openshell
+rules:
+  - apiGroups:
+      - agents.x-k8s.io
+    resources:
+      - sandboxes
+    verbs:
+      - get
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+---
+# RoleBinding granting the privileged SCC to openshell-sandbox SA via cluster role.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: system:openshift:scc:privileged
+  namespace: openshell
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:privileged
+subjects:
+  - kind: ServiceAccount
+    name: openshell-sandbox
+    namespace: openshell

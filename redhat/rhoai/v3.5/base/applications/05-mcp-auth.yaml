@@ -18,6 +18,11 @@ spec:
       kind: Authorino
       jsonPointers:
         - /status
+        - /spec/healthz
+        - /spec/metrics
+        - /spec/tracing
+        - /spec/volumes
+        - /spec/listener/ports
   syncPolicy:
     retry:
       limit: 5

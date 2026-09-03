@@ -140,6 +140,12 @@ spec:
           rhcl:
             config:
               tlsEnabled: true
+  ignoreDifferences:
+    - group: operator.authorino.kuadrant.io
+      kind: Authorino
+      jsonPointers:
+        - /spec
+        - /status
   syncPolicy:
     retry:
       limit: 10

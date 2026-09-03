@@ -21,6 +21,18 @@ spec:
     server: https://kubernetes.default.svc
     namespace: openshell
   ignoreDifferences:
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+      jsonPointers:
+        - /metadata/annotations
+    - group: rbac.authorization.k8s.io
+      kind: Role
+      jsonPointers:
+        - /metadata/annotations
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+      jsonPointers:
+        - /metadata/annotations
     - group: apps
       kind: StatefulSet
       jsonPointers:

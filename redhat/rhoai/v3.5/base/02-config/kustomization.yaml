@@ -9,7 +9,6 @@ resources:
   - mcp-studio-config.yaml
   - evalhub.yaml
   - mlflow.yaml
-  - nemo-guardrails-config.yaml
   - nemo-guardrails.yaml
   - vector-stores-config.yaml
   - nfs-provisioner.yaml

@@ -26,6 +26,7 @@ spec:
         - /readOnlyRootFilesystem
         - /groups
         - /userNamespaceLevel
+        - /volumes
   syncPolicy:
     retry:
       limit: 10

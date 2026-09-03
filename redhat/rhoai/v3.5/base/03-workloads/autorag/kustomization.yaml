@@ -7,3 +7,5 @@ resources:
   - ogx-config.yaml
   - ogxserver.yaml
   - dspa.yaml
+  - s3-connection-sealed-secret.yaml
+  - llm-api-sealed-secret.yaml

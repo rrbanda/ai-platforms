@@ -99,15 +99,6 @@ data:
               namespace: message_batches
               backend: kv_default
 
-    registered_resources:
-      models:
-        - model_id: sql-lora
-          provider_id: vllm-sql-finetuned
-          model_type: llm
-        - model_id: qwen25-base
-          provider_id: vllm-base
-          model_type: llm
-
     storage:
       backends:
         kv_default:

@@ -98,6 +98,7 @@ spec:
   description: RHOAI application workloads (AutoRAG, MCP, inference, training)
   sourceRepos:
     - https://github.com/rrbanda/ai-platforms.git
+    - https://github.com/rrbanda/google-adk-ocp-agent.git
   destinations:
     - namespace: autorag
       server: https://kubernetes.default.svc

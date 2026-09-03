@@ -12,6 +12,7 @@ data:
     image_name: rh
     apis:
       - inference
+      - tool_runtime
       - responses
       - vector_io
       - files
@@ -57,6 +58,11 @@ data:
             network:
               tls:
                 verify: false
+
+      tool_runtime:
+        - provider_id: meta0
+          provider_type: inline::meta0
+          config: {}
 
       responses:
         - provider_id: builtin

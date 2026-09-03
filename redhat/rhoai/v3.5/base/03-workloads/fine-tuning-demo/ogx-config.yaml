@@ -50,7 +50,7 @@ data:
           provider_type: remote::vllm
           config:
             base_url: ${env.VLLM_SQL_FINETUNED_URL:=}
-            max_tokens: 2048
+            max_tokens: 1500
             api_token: ${env.VLLM_API_TOKEN:=fake}
             network:
               tls:
@@ -59,7 +59,7 @@ data:
           provider_type: remote::vllm
           config:
             base_url: ${env.VLLM_BASE_URL:=}
-            max_tokens: 2048
+            max_tokens: 1500
             api_token: ${env.VLLM_API_TOKEN:=fake}
             network:
               tls:

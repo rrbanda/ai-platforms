@@ -133,6 +133,8 @@ data:
         - model_id: ibm-granite/granite-embedding-125m-english
           provider_id: sentence-transformers
           model_type: embedding
+          metadata:
+            embedding_dimension: 768
 
     vector_stores:
       default_provider_id: faiss

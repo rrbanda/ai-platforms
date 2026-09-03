@@ -17,6 +17,8 @@ data:
       - vector_io
       - files
       - file_processors
+      - interactions
+      - messages
 
     providers:
       files:
@@ -67,7 +69,11 @@ data:
       responses:
         - provider_id: builtin
           provider_type: inline::builtin
-          config: {}
+          config:
+            persistence:
+              responses:
+                table_name: responses
+                backend: sql_default
 
       vector_io:
         - provider_id: faiss
@@ -75,6 +81,22 @@ data:
           config:
             persistence:
               namespace: vector_io
+              backend: kv_default
+
+      interactions:
+        - provider_id: builtin
+          provider_type: inline::builtin
+          config:
+            store:
+              table_name: interactions
+              backend: sql_default
+
+      messages:
+        - provider_id: builtin
+          provider_type: inline::builtin
+          config:
+            kvstore:
+              namespace: message_batches
               backend: kv_default
 
     registered_resources:
@@ -100,4 +122,13 @@ data:
           backend: kv_default
         inference:
           table_name: inference_store
+          backend: sql_default
+        conversations:
+          table_name: openai_conversations
+          backend: sql_default
+        prompts:
+          table_name: prompts
+          backend: sql_default
+        connectors:
+          table_name: connectors
           backend: sql_default

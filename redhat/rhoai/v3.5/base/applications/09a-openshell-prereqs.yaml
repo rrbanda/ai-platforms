@@ -31,5 +31,4 @@ spec:
         maxDuration: 5m
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
       - RespectIgnoreDifferences=true

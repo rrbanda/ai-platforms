@@ -4,16 +4,14 @@ metadata:
   name: fine-tuning-workbench
   namespace: fine-tuning-demo
   annotations:
-    notebooks.opendatahub.io/inject-oauth: "true"
     notebooks.opendatahub.io/last-image-selection: "training-hub-universal-cuda:3.5"
-    notebooks.opendatahub.io/last-size-selection: "a10g-gpu-training"
     opendatahub.io/image-display-name: "Training Hub Universal CUDA"
     opendatahub.io/hardware-profile-name: "default-profile"
     opendatahub.io/hardware-profile-namespace: "redhat-ods-applications"
     openshift.io/display-name: "Fine-Tuning Workbench"
     openshift.io/description: >-
       Workbench for LoRA fine-tuning demos with Training Hub, Kubeflow SDK,
-      and vLLM pre-installed. Targets an A10G GPU node.
+      and vLLM pre-installed.
   labels:
     opendatahub.io/dashboard: "true"
     opendatahub.io/odh-managed: "true"
@@ -35,6 +33,13 @@ spec:
             - containerPort: 8888
               name: notebook-port
               protocol: TCP
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
           volumeMounts:
             - name: fine-tuning-shared
               mountPath: /opt/app-root/src/shared

@@ -14,3 +14,4 @@ resources:
   - nfs-provisioner.yaml
   - model-catalog-source.yaml
   - maas-sql-finetuned.yaml
+  - model-registry-instance.yaml

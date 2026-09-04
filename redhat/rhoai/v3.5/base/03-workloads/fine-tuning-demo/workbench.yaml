@@ -4,6 +4,7 @@ metadata:
   name: fine-tuning-workbench
   namespace: fine-tuning-demo
   annotations:
+    notebooks.opendatahub.io/inject-oauth: "true"
     openshift.io/display-name: "Fine-Tuning Workbench"
     openshift.io/description: >-
       Workbench for LoRA fine-tuning demos with Training Hub, Kubeflow SDK,
@@ -113,3 +114,11 @@ spec:
               - key: ca-bundle.crt
                 path: ca-bundle.crt
             optional: true
+        - name: oauth-config
+          secret:
+            defaultMode: 420
+            secretName: fine-tuning-workbench-oauth-config
+        - name: tls-certificates
+          secret:
+            defaultMode: 420
+            secretName: fine-tuning-workbench-tls

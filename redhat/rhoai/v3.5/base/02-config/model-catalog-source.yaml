@@ -89,7 +89,7 @@ data:
             string_value: "deployed"
         artifacts:
           - name: "lora-adapter-v1"
-            uri: "pvc://fine-tuning-shared/checkpoints"
+            uri: "file:///mnt/shared/lora-output"
             description: "LoRA adapter weights (safetensors) on shared NFS PVC"
             createTimeSinceEpoch: "1725235200000"
             lastUpdateTimeSinceEpoch: "1725235200000"
@@ -133,7 +133,7 @@ data:
             string_value: "deployed"
         artifacts:
           - name: "base-model"
-            uri: "hf://Qwen/Qwen2.5-1.5B-Instruct"
+            uri: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct"
             description: "HuggingFace model hub (downloaded at runtime by vLLM)"
             createTimeSinceEpoch: "1725235200000"
             lastUpdateTimeSinceEpoch: "1725235200000"

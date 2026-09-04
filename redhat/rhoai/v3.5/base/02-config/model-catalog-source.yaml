@@ -22,12 +22,37 @@ data:
           - Fine-Tuned
           - Demo
   finetuned-models.yaml: |
+    source: SQL Demo
     models:
       - name: "qwen25-1.5b-sql-finetuned"
+        provider: "Custom (LoRA fine-tune)"
         description: >-
           Qwen2.5-1.5B-Instruct fine-tuned with LoRA SFT for SQL generation.
           Trained on 5000 examples from sql-create-context dataset using
           Training Hub and Kubeflow Trainer on RHOAI 3.5.
+        readme: |
+          # Qwen2.5-1.5B SQL Fine-Tuned (LoRA)
+
+          ## Overview
+          LoRA SFT adapter on Qwen2.5-1.5B-Instruct, trained for natural-language
+          to SQL conversion on the sql-create-context dataset (5000 examples).
+
+          ## Training Details
+          - **Method:** LoRA SFT (rank 16, alpha 32)
+          - **Base model:** Qwen/Qwen2.5-1.5B-Instruct
+          - **GPU:** NVIDIA A10G 24GB
+          - **Final loss:** 0.64
+
+          ## Deployment
+          Served via vLLM with the LoRA adapter loaded at runtime from a shared
+          PVC. Accessible through the MaaS gateway with OpenShift authentication.
+        language:
+          - en
+        license: apache-2.0
+        tasks:
+          - text-to-sql
+        createTimeSinceEpoch: "1725235200000"
+        lastUpdateTimeSinceEpoch: "1725235200000"
         customProperties:
           model_type:
             metadataType: MetadataStringValue
@@ -66,10 +91,30 @@ data:
           - name: "lora-adapter-v1"
             uri: "pvc://fine-tuning-shared/checkpoints"
             description: "LoRA adapter weights (safetensors) on shared NFS PVC"
+            createTimeSinceEpoch: "1725235200000"
+            lastUpdateTimeSinceEpoch: "1725235200000"
       - name: "qwen25-1.5b-base"
+        provider: "Qwen"
         description: >-
           Vanilla Qwen2.5-1.5B-Instruct (no fine-tuning). Deployed alongside
           the LoRA fine-tuned variant for A/B comparison in the GenAI Playground.
+        readme: |
+          # Qwen2.5-1.5B Base (Before Fine-Tuning)
+
+          ## Overview
+          Vanilla Qwen2.5-1.5B-Instruct without any fine-tuning. Deployed
+          side-by-side with the LoRA-tuned SQL variant for A/B comparison.
+
+          ## Deployment
+          Served via vLLM, downloading weights from HuggingFace at runtime.
+          Accessible through the MaaS gateway with OpenShift authentication.
+        language:
+          - en
+        license: apache-2.0
+        tasks:
+          - text-to-text
+        createTimeSinceEpoch: "1725235200000"
+        lastUpdateTimeSinceEpoch: "1725235200000"
         customProperties:
           model_type:
             metadataType: MetadataStringValue
@@ -90,3 +135,5 @@ data:
           - name: "base-model"
             uri: "hf://Qwen/Qwen2.5-1.5B-Instruct"
             description: "HuggingFace model hub (downloaded at runtime by vLLM)"
+            createTimeSinceEpoch: "1725235200000"
+            lastUpdateTimeSinceEpoch: "1725235200000"

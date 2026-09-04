@@ -6,6 +6,7 @@ resources:
   - rbac.yaml
   - hardware-profile.yaml
   - pvc.yaml
+  - workbench-pvc.yaml
   - workbench.yaml
   - lmeval-job.yaml
   - llm-inference-service.yaml

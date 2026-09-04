@@ -4,31 +4,34 @@ metadata:
   name: fine-tuning-workbench
   namespace: fine-tuning-demo
   annotations:
-    notebooks.opendatahub.io/last-image-selection: "training-hub-universal-cuda:3.5"
-    opendatahub.io/image-display-name: "Training Hub Universal CUDA"
-    opendatahub.io/hardware-profile-name: "default-profile"
-    opendatahub.io/hardware-profile-namespace: "redhat-ods-applications"
+    notebooks.opendatahub.io/inject-oauth: "true"
     openshift.io/display-name: "Fine-Tuning Workbench"
     openshift.io/description: >-
       Workbench for LoRA fine-tuning demos with Training Hub, Kubeflow SDK,
       and vLLM pre-installed.
+    opendatahub.io/image-display-name: "Training Hub Universal CUDA"
+    notebooks.opendatahub.io/last-image-selection: "training-hub-universal-cuda:3.5"
+    notebooks.opendatahub.io/last-size-selection: "Medium"
+    opendatahub.io/username: "kube:admin"
+    opendatahub.io/accelerator-name: ""
+    notebooks.opendatahub.io/oauth-logout-url: >-
+      https://rhods-dashboard-redhat-ods-applications.apps.ocp.qn6c5.sandbox1388.opentlc.com/projects/fine-tuning-demo?notebookLogout=fine-tuning-workbench
   labels:
+    app: fine-tuning-workbench
     opendatahub.io/dashboard: "true"
     opendatahub.io/odh-managed: "true"
-    app: fine-tuning-workbench
 spec:
   template:
     spec:
       affinity: {}
       enableServiceLinks: false
+      serviceAccountName: fine-tuning-workbench
       containers:
         - name: fine-tuning-workbench
-          image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
-          env:
-            - name: NOTEBOOK_ARGS
-              value: '--ServerApp.port=8888 --ServerApp.token="" --ServerApp.password="" --ServerApp.base_url=/notebook/fine-tuning-demo/fine-tuning-workbench'
-            - name: JUPYTER_IMAGE
-              value: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
+          image: >-
+            image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
+          imagePullPolicy: Always
+          workingDir: /opt/app-root/src
           ports:
             - containerPort: 8888
               name: notebook-port
@@ -40,11 +43,49 @@ spec:
             limits:
               cpu: "2"
               memory: "4Gi"
+          env:
+            - name: NOTEBOOK_ARGS
+              value: |-
+                --ServerApp.port=8888
+                --ServerApp.token=''
+                --ServerApp.password=''
+                --ServerApp.base_url=/notebook/fine-tuning-demo/fine-tuning-workbench
+                --ServerApp.quit_button=False
+                --ServerApp.tornado_settings={"user":"kube-3aadmin","hub_host":"https://rhods-dashboard-redhat-ods-applications.apps.ocp.qn6c5.sandbox1388.opentlc.com","hub_prefix":"/projects/fine-tuning-demo"}
+            - name: JUPYTER_IMAGE
+              value: >-
+                image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/training-hub-universal-cuda:3.5
+            - name: PIP_CERT
+              value: /etc/pki/tls/custom-certs/ca-bundle.crt
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/pki/tls/custom-certs/ca-bundle.crt
+            - name: SSL_CERT_FILE
+              value: /etc/pki/tls/custom-certs/ca-bundle.crt
+            - name: PIPELINES_SSL_SA_CERTS
+              value: /etc/pki/tls/custom-certs/ca-bundle.crt
+            - name: GIT_SSL_CAINFO
+              value: /etc/pki/tls/custom-certs/ca-bundle.crt
           volumeMounts:
+            - name: fine-tuning-workbench
+              mountPath: /opt/app-root/src
             - name: fine-tuning-shared
               mountPath: /opt/app-root/src/shared
             - name: shm
               mountPath: /dev/shm
+            - name: trusted-ca
+              mountPath: /etc/pki/tls/custom-certs/ca-bundle.crt
+              readOnly: true
+              subPath: ca-bundle.crt
+          readinessProbe:
+            httpGet:
+              path: /notebook/fine-tuning-demo/fine-tuning-workbench/api
+              port: notebook-port
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+            timeoutSeconds: 1
           livenessProbe:
             httpGet:
               path: /notebook/fine-tuning-demo/fine-tuning-workbench/api
@@ -53,8 +94,12 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 3
+            successThreshold: 1
             timeoutSeconds: 1
       volumes:
+        - name: fine-tuning-workbench
+          persistentVolumeClaim:
+            claimName: fine-tuning-workbench
         - name: fine-tuning-shared
           persistentVolumeClaim:
             claimName: fine-tuning-shared
@@ -62,3 +107,10 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 2Gi
+        - name: trusted-ca
+          configMap:
+            name: workbench-trusted-ca-bundle
+            items:
+              - key: ca-bundle.crt
+                path: ca-bundle.crt
+            optional: true

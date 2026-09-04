@@ -6,6 +6,7 @@ resources:
   - rbac.yaml
   - hardware-profile.yaml
   - pvc.yaml
+  - workbench-sa.yaml
   - workbench-pvc.yaml
   - workbench.yaml
   - lmeval-job.yaml

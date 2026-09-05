@@ -55,9 +55,11 @@ from components.evaluation.lm_eval import universal_llm_evaluator
 
 
 # =============================================================================
-# PVC Configuration — defaults to pre-existing NFS RWX PVC
-# Override via pipeline parameters for different namespaces/teams.
+# PVC Configuration — static PVC name for compile-time mount_pvc binding.
+# KFP mount_pvc requires the PVC name at compile time for reliable mounting.
+# To use a different PVC, change this constant and recompile (make pipeline).
 # =============================================================================
+PIPELINE_PVC_NAME = "fine-tuning-shared"
 PIPELINE_PVC_MOUNT = "/mnt/shared"
 PIPELINE_NAME = "finetuning-pipeline"
 
@@ -126,11 +128,6 @@ def download_base_model(
     ),
 )
 def finetuning_pipeline(
-    # =========================================================================
-    # INFRASTRUCTURE (per-namespace, overridable for multi-tenancy)
-    # =========================================================================
-    shared_pvc_name: str = "fine-tuning-shared",
-
     # =========================================================================
     # TECHNIQUE SELECTION
     # =========================================================================
@@ -278,7 +275,7 @@ def finetuning_pipeline(
     )
     dataset_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(dataset_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(dataset_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(dataset_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     kfp.kubernetes.use_secret_as_env(
         dataset_task,
@@ -308,7 +305,7 @@ def finetuning_pipeline(
     )
     quality_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(quality_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(quality_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 2: Model Download (pre-cache to PVC, idempotent)
@@ -320,7 +317,7 @@ def finetuning_pipeline(
     )
     model_download_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(model_download_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(model_download_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(model_download_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)
@@ -368,7 +365,7 @@ def finetuning_pipeline(
     training_task.after(model_download_task)
     training_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(training_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(training_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(training_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     kfp.kubernetes.use_secret_as_env(
         task=training_task,
@@ -410,7 +407,7 @@ def finetuning_pipeline(
     )
     eval_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(eval_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(eval_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(eval_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 4b: Holdout Evaluation via lm-eval (on the actual eval split)
@@ -434,6 +431,7 @@ def finetuning_pipeline(
     kfp.kubernetes.add_node_selector(
         holdout_eval_task, "nvidia.com/gpu.present", "true"
     )
+    kfp.kubernetes.mount_pvc(holdout_eval_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # HF token for all steps that may download gated models or datasets
     for _task in [dataset_task, model_download_task, training_task, eval_task, holdout_eval_task]:
@@ -476,7 +474,7 @@ def finetuning_pipeline(
     registry_task.after(holdout_eval_task)
     registry_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(registry_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(registry_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(registry_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
 
 if __name__ == "__main__":

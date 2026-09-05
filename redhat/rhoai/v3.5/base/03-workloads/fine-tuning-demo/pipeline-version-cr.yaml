@@ -3,11 +3,11 @@ kind: PipelineVersion
 metadata:
   labels:
     pipelines.kubeflow.org/pipeline: finetuning-pipeline
-  name: finetuning-pipeline-v2
+  name: finetuning-pipeline-v3
   namespace: fine-tuning-demo
 spec:
   description: 7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques. Includes data quality filter (dedup + quality scoring), model pre-caching, distributed training, benchmark evaluation with safety benchmarks via EvalHub + MLflow, holdout evaluation, and model registry with full provenance.
-  displayName: v2
+  displayName: v3
   pipelineName: finetuning-pipeline
   pipelineSpec:
     components:
@@ -1452,10 +1452,6 @@ spec:
             defaultValue: ''
             isOptional: true
             parameterType: STRING
-          shared_pvc_name:
-            defaultValue: fine-tuning-shared
-            isOptional: true
-            parameterType: STRING
           similarity_threshold:
             defaultValue: 0.85
             isOptional: true
@@ -1485,17 +1481,19 @@ spec:
           exec-data-quality-filter:
             imagePullPolicy: IfNotPresent
             pvcMount:
-            - componentInputParameter: shared_pvc_name
+            - constant: fine-tuning-shared
               mountPath: /mnt/shared
               pvcNameParameter:
-                componentInputParameter: shared_pvc_name
+                runtimeValue:
+                  constant: fine-tuning-shared
           exec-dataset-download:
             imagePullPolicy: IfNotPresent
             pvcMount:
-            - componentInputParameter: shared_pvc_name
+            - constant: fine-tuning-shared
               mountPath: /mnt/shared
               pvcNameParameter:
-                componentInputParameter: shared_pvc_name
+                runtimeValue:
+                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: AWS_ACCESS_KEY_ID
@@ -1518,10 +1516,11 @@ spec:
           exec-download-base-model:
             imagePullPolicy: IfNotPresent
             pvcMount:
-            - componentInputParameter: shared_pvc_name
+            - constant: fine-tuning-shared
               mountPath: /mnt/shared
               pvcNameParameter:
-                componentInputParameter: shared_pvc_name
+                runtimeValue:
+                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: HF_TOKEN
@@ -1534,10 +1533,11 @@ spec:
           exec-evalhub-evaluator-kserve:
             imagePullPolicy: IfNotPresent
             pvcMount:
-            - componentInputParameter: shared_pvc_name
+            - constant: fine-tuning-shared
               mountPath: /mnt/shared
               pvcNameParameter:
-                componentInputParameter: shared_pvc_name
+                runtimeValue:
+                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: HF_TOKEN
@@ -1550,17 +1550,19 @@ spec:
           exec-kubeflow-model-registry:
             imagePullPolicy: IfNotPresent
             pvcMount:
-            - componentInputParameter: shared_pvc_name
+            - constant: fine-tuning-shared
               mountPath: /mnt/shared
               pvcNameParameter:
-                componentInputParameter: shared_pvc_name
+                runtimeValue:
+                  constant: fine-tuning-shared
           exec-train-model:
             imagePullPolicy: IfNotPresent
             pvcMount:
-            - componentInputParameter: shared_pvc_name
+            - constant: fine-tuning-shared
               mountPath: /mnt/shared
               pvcNameParameter:
-                componentInputParameter: shared_pvc_name
+                runtimeValue:
+                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: KUBERNETES_SERVER_URL
@@ -1593,6 +1595,12 @@ spec:
             nodeSelector:
               labels:
                 nvidia.com/gpu.present: 'true'
+            pvcMount:
+            - constant: fine-tuning-shared
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                runtimeValue:
+                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: HF_TOKEN

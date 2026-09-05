@@ -52,7 +52,6 @@
 #    registry_port: int [Default: 8443.0]
 #    seed: int [Default: 42.0]
 #    sft_fsdp_sharding: str [Default: '']
-#    shared_pvc_name: str [Default: 'fine-tuning-shared']
 #    similarity_threshold: float [Default: 0.85]
 #    technique: str [Default: 'lora']
 #    train_split_ratio: float [Default: 0.9]
@@ -2882,10 +2881,6 @@ root:
         defaultValue: ''
         isOptional: true
         parameterType: STRING
-      shared_pvc_name:
-        defaultValue: fine-tuning-shared
-        isOptional: true
-        parameterType: STRING
       similarity_threshold:
         defaultValue: 0.85
         isOptional: true
@@ -2916,17 +2911,19 @@ platforms:
         exec-data-quality-filter:
           imagePullPolicy: IfNotPresent
           pvcMount:
-          - componentInputParameter: shared_pvc_name
+          - constant: fine-tuning-shared
             mountPath: /mnt/shared
             pvcNameParameter:
-              componentInputParameter: shared_pvc_name
+              runtimeValue:
+                constant: fine-tuning-shared
         exec-dataset-download:
           imagePullPolicy: IfNotPresent
           pvcMount:
-          - componentInputParameter: shared_pvc_name
+          - constant: fine-tuning-shared
             mountPath: /mnt/shared
             pvcNameParameter:
-              componentInputParameter: shared_pvc_name
+              runtimeValue:
+                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: AWS_ACCESS_KEY_ID
@@ -2949,10 +2946,11 @@ platforms:
         exec-download-base-model:
           imagePullPolicy: IfNotPresent
           pvcMount:
-          - componentInputParameter: shared_pvc_name
+          - constant: fine-tuning-shared
             mountPath: /mnt/shared
             pvcNameParameter:
-              componentInputParameter: shared_pvc_name
+              runtimeValue:
+                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: HF_TOKEN
@@ -2965,10 +2963,11 @@ platforms:
         exec-evalhub-evaluator-kserve:
           imagePullPolicy: IfNotPresent
           pvcMount:
-          - componentInputParameter: shared_pvc_name
+          - constant: fine-tuning-shared
             mountPath: /mnt/shared
             pvcNameParameter:
-              componentInputParameter: shared_pvc_name
+              runtimeValue:
+                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: HF_TOKEN
@@ -2981,17 +2980,19 @@ platforms:
         exec-kubeflow-model-registry:
           imagePullPolicy: IfNotPresent
           pvcMount:
-          - componentInputParameter: shared_pvc_name
+          - constant: fine-tuning-shared
             mountPath: /mnt/shared
             pvcNameParameter:
-              componentInputParameter: shared_pvc_name
+              runtimeValue:
+                constant: fine-tuning-shared
         exec-train-model:
           imagePullPolicy: IfNotPresent
           pvcMount:
-          - componentInputParameter: shared_pvc_name
+          - constant: fine-tuning-shared
             mountPath: /mnt/shared
             pvcNameParameter:
-              componentInputParameter: shared_pvc_name
+              runtimeValue:
+                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: KUBERNETES_SERVER_URL
@@ -3024,6 +3025,12 @@ platforms:
           nodeSelector:
             labels:
               nvidia.com/gpu.present: 'true'
+          pvcMount:
+          - constant: fine-tuning-shared
+            mountPath: /mnt/shared
+            pvcNameParameter:
+              runtimeValue:
+                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: HF_TOKEN

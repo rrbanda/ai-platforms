@@ -13,7 +13,7 @@ images:
     newTag: a268ab0
   - name: ghcr.io/amortized-ai/studio
     newName: image-registry.openshift-image-registry.svc:5000/amortized/amortized-studio
-    newTag: 430074b
+    newTag: 91eda56
 
 patches:
   - target:

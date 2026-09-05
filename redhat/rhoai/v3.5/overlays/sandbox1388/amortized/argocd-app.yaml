@@ -13,6 +13,13 @@ spec:
     path: redhat/rhoai/v3.5/overlays/sandbox1388/amortized
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    # K8s normalizes volumeClaimTemplates with extra fields; ignore to avoid
+    # perpetual OutOfSync on the postgres StatefulSet.
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
   syncPolicy:
     automated:
       selfHeal: true

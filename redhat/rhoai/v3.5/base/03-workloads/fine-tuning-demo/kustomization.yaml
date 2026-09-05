@@ -8,6 +8,8 @@ resources:
   - hardware-profile.yaml
   - pvc.yaml
   - dspa.yaml
+  - pipeline-cr.yaml
+  - pipeline-version-cr.yaml
   - workbench-sa.yaml
   - workbench-pvc.yaml
   - workbench.yaml

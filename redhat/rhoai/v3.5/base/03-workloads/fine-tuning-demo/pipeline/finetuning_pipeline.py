@@ -1,12 +1,14 @@
 """Fine-Tuning Pipeline for OpenShift AI.
 
-A single 4-phase KFP pipeline supporting multiple fine-tuning techniques
+A 6-phase KFP pipeline supporting multiple fine-tuning techniques
 (LoRA, SFT, OSFT, custom) via a `technique` parameter:
 
-  Phase 1: Dataset Download   -- S3/HF/HTTP -> chat-format JSONL + train/eval split
-  Phase 2: Unified Training   -- dispatches to LoRA/SFT/OSFT/custom via TrainingHub
-  Phase 3: Evaluation          -- EvalHub + ephemeral vLLM KServe + MLflow logging
-  Phase 4: Model Registry      -- register trained model with provenance metadata
+  Phase 1:  Dataset Download    -- S3/HF/HTTP -> chat-format JSONL, 90/10 train/eval split
+  Phase 2:  Model Download      -- Pre-cache base model to PVC (idempotent)
+  Phase 3:  Training            -- dispatches to LoRA/SFT/OSFT/custom via TrainingHub
+  Phase 4a: Benchmark Eval      -- EvalHub + ephemeral vLLM KServe + MLflow logging
+  Phase 4b: Holdout Eval        -- lm-eval on held-out eval split (exact_match, BLEU, ROUGE)
+  Phase 5:  Model Registry      -- register trained model with provenance + all eval metrics
 
 All RHOAI components used are GA as of 3.4:
   - Data Science Pipelines (KFP 2.16.0) + Argo Workflows (v3.7.3)
@@ -29,11 +31,8 @@ from kfp import dsl
 # ---------------------------------------------------------------------------
 # Import reusable components.
 #
-# At compile time, `pipelines-components` must be on PYTHONPATH:
-#   export PYTHONPATH=/path/to/pipelines-components:$PYTHONPATH
-#   python unified_finetuning_pipeline.py
-#
-# At runtime the compiled YAML is self-contained.
+# At compile time, `pipelines-components` must be on PYTHONPATH or set
+# PIPELINES_COMPONENTS_PATH. At runtime the compiled YAML is self-contained.
 # ---------------------------------------------------------------------------
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "local_components"))
 
@@ -50,6 +49,7 @@ from components.deployment.kubeflow_model_registry import (
     kubeflow_model_registry as model_registry,
 )
 from components.evaluation.evalhub.kserve import evalhub_evaluator_kserve
+from components.evaluation.lm_eval import universal_llm_evaluator
 
 
 # =============================================================================
@@ -61,12 +61,67 @@ PVC_ACCESS_MODES = ["ReadWriteMany"]
 PIPELINE_NAME = "finetuning-pipeline"
 
 
+# =============================================================================
+# Inline model download component (avoids kfp_components.utils.consts import)
+# =============================================================================
+@dsl.component(
+    base_image="quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4",
+    packages_to_install=["huggingface_hub>=0.20.0"],
+)
+def download_base_model(
+    model_name: str,
+    pvc_mount_path: str,
+) -> str:
+    """Pre-cache a HuggingFace model to the workspace PVC.
+
+    Idempotent: skips download if model already cached (sentinel file check).
+    This ensures the model is available on shared PVC for training and eval
+    without re-downloading on every pipeline run.
+
+    Args:
+        model_name: HuggingFace model ID (e.g. 'Qwen/Qwen2.5-1.5B-Instruct').
+        pvc_mount_path: Workspace PVC mount path.
+
+    Returns:
+        The sub-path on PVC where the model is cached.
+    """
+    import os
+
+    from huggingface_hub import snapshot_download
+
+    model_dir_name = model_name.replace("/", "--")
+    model_path = os.path.join(pvc_mount_path, "models", model_dir_name)
+    sentinel = os.path.join(model_path, ".download_complete")
+
+    if os.path.exists(sentinel):
+        file_count = sum(1 for _ in os.scandir(model_path) if _.is_file())
+        print(f"Model '{model_name}' already cached at {model_path} ({file_count} files). Skipping.")
+        return model_dir_name
+
+    print(f"Downloading model '{model_name}' to {model_path}...")
+    os.makedirs(model_path, exist_ok=True)
+    snapshot_download(
+        repo_id=model_name,
+        local_dir=model_path,
+        local_dir_use_symlinks=False,
+    )
+
+    with open(sentinel, "w") as f:
+        f.write(model_name)
+
+    file_count = sum(1 for _ in os.scandir(model_path) if _.is_file())
+    print(f"Model '{model_name}' downloaded ({file_count} files).")
+    return model_dir_name
+
+
 @dsl.pipeline(
     name=PIPELINE_NAME,
     description=(
         "Fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom "
-        "techniques. Select technique at run time. "
-        "Evaluates via EvalHub with MLflow tracking, registers to Model Registry."
+        "techniques. Includes dataset preparation with train/eval split, "
+        "model pre-caching, distributed training, benchmark evaluation "
+        "via EvalHub with MLflow, holdout evaluation on task-specific data, "
+        "and model registry with full provenance."
     ),
     pipeline_config=dsl.PipelineConfig(
         workspace=dsl.WorkspaceConfig(
@@ -91,11 +146,16 @@ def finetuning_pipeline(
     # =========================================================================
     dataset_uri: str = "hf://b-mc2/sql-create-context",
     dataset_subset: int = 5000,
+    train_split_ratio: float = 0.9,
 
     # =========================================================================
-    # PHASE 2: TRAINING -- Common
+    # PHASE 2: MODEL SELECTION
     # =========================================================================
     base_model: str = "Qwen/Qwen2.5-1.5B-Instruct",
+
+    # =========================================================================
+    # PHASE 3: TRAINING -- Common
+    # =========================================================================
     epochs: int = 2,
     learning_rate: float = 2e-4,
     effective_batch_size: int = 128,
@@ -113,9 +173,7 @@ def finetuning_pipeline(
     labels: str = "",
     annotations: str = "",
 
-    # =========================================================================
-    # PHASE 2: TRAINING -- LoRA-specific
-    # =========================================================================
+    # PHASE 3: TRAINING -- LoRA-specific
     lora_r: int = 16,
     lora_alpha: int = 32,
     lora_dropout: float = 0.0,
@@ -128,19 +186,15 @@ def finetuning_pipeline(
     lora_flash_attention: bool = True,
     lora_bf16: bool = True,
 
-    # =========================================================================
-    # PHASE 2: TRAINING -- SFT-specific
-    # =========================================================================
+    # PHASE 3: TRAINING -- SFT-specific
     sft_fsdp_sharding: str = "",
 
-    # =========================================================================
-    # PHASE 2: TRAINING -- OSFT-specific
-    # =========================================================================
+    # PHASE 3: TRAINING -- OSFT-specific
     osft_unfreeze_ratio: float = 0.1,
     osft_target_patterns: str = "",
 
     # =========================================================================
-    # PHASE 3: EVALUATION
+    # PHASE 4a: BENCHMARK EVALUATION (EvalHub + MLflow)
     # =========================================================================
     evalhub_url: str = "",
     evalhub_collection: str = "",
@@ -158,7 +212,14 @@ def finetuning_pipeline(
     eval_memory: str = "32Gi",
 
     # =========================================================================
-    # PHASE 4: MODEL REGISTRY
+    # PHASE 4b: HOLDOUT EVALUATION (lm-eval on task-specific eval split)
+    # =========================================================================
+    holdout_eval_tasks: list = ["arc_easy"],
+    holdout_eval_limit: int = 100,
+    holdout_eval_batch_size: str = "auto",
+
+    # =========================================================================
+    # PHASE 5: MODEL REGISTRY
     # =========================================================================
     registry_address: str = "",
     registry_port: int = 8080,
@@ -169,7 +230,7 @@ def finetuning_pipeline(
 ):
     """Fine-Tuning Pipeline.
 
-    A 4-phase pipeline that supports multiple fine-tuning techniques in a single
+    A 6-phase pipeline supporting multiple fine-tuning techniques in a single
     DAG. Select the technique at run time via the `technique` parameter.
 
     Techniques:
@@ -178,34 +239,25 @@ def finetuning_pipeline(
       - osft:   Orthogonal Subspace FT via mini-trainer (preserves base capabilities)
       - custom: Bring-your-own training code (plain PyTorch demo)
 
+    Evaluation:
+      - Phase 4a: EvalHub benchmarks (MMLU, ifeval, bbh) + MLflow experiment tracking
+      - Phase 4b: Holdout eval on the 10% eval split — measures task-specific
+        performance with exact_match, BLEU, ROUGE, perplexity, F1 overlap
+
     Prerequisites:
       - RHOAI 3.4+ with Data Science Pipelines, Kubeflow Trainer v2, KServe, TrustyAI
-      - EvalHub and MLflow deployed (for Phase 3)
+      - EvalHub and MLflow deployed (for Phase 4a)
       - Secrets: kubernetes-credentials, hf-token (optional), s3-secret (optional)
       - 50Gi ReadWriteMany NFS PVC (auto-provisioned by pipeline workspace)
-
-    Args:
-        technique: Training technique ("lora", "sft", "osft", "custom").
-        dataset_uri: Dataset location (hf://, s3://, https://).
-        dataset_subset: Limit to first N examples (0 = all).
-        base_model: Base model (HuggingFace ID or path).
-        epochs: Number of training epochs.
-        learning_rate: Learning rate.
-        lora_r: LoRA rank (4, 8, 16, 32, 64).
-        lora_alpha: LoRA scaling factor (typically 2x lora_r).
-        sft_fsdp_sharding: FSDP sharding strategy for SFT.
-        osft_unfreeze_ratio: OSFT unfreeze ratio (0.1=minimal, 0.5=strong).
-        evalhub_url: EvalHub API endpoint (empty = skip evaluation).
-        mlflow_experiment: MLflow experiment name (empty = disabled).
-        registry_address: Model Registry address (empty = skip registration).
+      - GPU nodes for training (Phase 3) and evaluation (Phases 4a, 4b)
     """
     # =========================================================================
-    # Phase 1: Dataset Download
+    # Phase 1: Dataset Download (90/10 train/eval split)
     # =========================================================================
     dataset_task = dataset_download(
         dataset_uri=dataset_uri,
         pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
-        train_split_ratio=1.0,
+        train_split_ratio=train_split_ratio,
         subset_count=dataset_subset,
         shared_log_file="pipeline_log.txt",
     )
@@ -223,7 +275,19 @@ def finetuning_pipeline(
     )
 
     # =========================================================================
-    # Phase 2: Unified Training
+    # Phase 2: Model Download (pre-cache to PVC, idempotent)
+    # Runs in parallel with Phase 1 — no dependency between them.
+    # =========================================================================
+    model_download_task = download_base_model(
+        model_name=base_model,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
+    )
+    model_download_task.set_caching_options(False)
+    kfp.kubernetes.set_image_pull_policy(model_download_task, "IfNotPresent")
+
+    # =========================================================================
+    # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)
+    # Depends on: Phase 1 (dataset) — model download handled internally by TrainJob
     # =========================================================================
     training_task = train_model(
         technique=technique,
@@ -264,6 +328,7 @@ def finetuning_pipeline(
         osft_unfreeze_rank_ratio=osft_unfreeze_ratio,
         osft_target_patterns=osft_target_patterns,
     )
+    training_task.after(model_download_task)
     training_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(training_task, "IfNotPresent")
 
@@ -285,7 +350,9 @@ def finetuning_pipeline(
     )
 
     # =========================================================================
-    # Phase 3: Evaluation via EvalHub (KServe vLLM + MLflow)
+    # Phase 4a: Benchmark Evaluation via EvalHub (KServe vLLM + MLflow)
+    #   Answers: "Is the model generally capable?" (MMLU, ifeval, bbh, etc.)
+    #   Results logged to MLflow experiment for cross-run comparison.
     # =========================================================================
     eval_task = evalhub_evaluator_kserve(
         pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
@@ -306,7 +373,31 @@ def finetuning_pipeline(
     eval_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(eval_task, "IfNotPresent")
 
-    for _task in [dataset_task, training_task, eval_task]:
+    # =========================================================================
+    # Phase 4b: Holdout Evaluation via lm-eval (on the actual eval split)
+    #   Answers: "Did the model learn the specific task?" (exact_match, BLEU,
+    #   ROUGE, perplexity, F1 on the held-out 10% of training data)
+    #   Also runs standard benchmarks for baseline comparison.
+    #   Includes unitxt for standard prompt formatting.
+    # =========================================================================
+    holdout_eval_task = universal_llm_evaluator(
+        model_artifact=training_task.outputs["output_model"],
+        eval_dataset=dataset_task.outputs["eval_dataset"],
+        task_names=holdout_eval_tasks,
+        batch_size=holdout_eval_batch_size,
+        limit=holdout_eval_limit,
+        log_samples=True,
+    )
+    holdout_eval_task.after(eval_task)
+    holdout_eval_task.set_caching_options(False)
+    kfp.kubernetes.set_image_pull_policy(holdout_eval_task, "IfNotPresent")
+    holdout_eval_task.set_gpu_limit("1")
+    kfp.kubernetes.add_node_selector(
+        holdout_eval_task, "nvidia.com/gpu.present", "true"
+    )
+
+    # HF token for all steps that may download gated models or datasets
+    for _task in [dataset_task, model_download_task, training_task, eval_task, holdout_eval_task]:
         kfp.kubernetes.use_secret_as_env(
             task=_task,
             secret_name="hf-token",
@@ -315,7 +406,12 @@ def finetuning_pipeline(
         )
 
     # =========================================================================
-    # Phase 4: Model Registry
+    # Phase 5: Model Registry
+    #   Registers the trained model with full provenance:
+    #   - Training hyperparameters + technique
+    #   - Benchmark eval scores (from Phase 4a)
+    #   - Holdout eval scores (from Phase 4b)
+    #   - Pipeline run ID and namespace
     # =========================================================================
     registry_task = model_registry(
         pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
@@ -337,6 +433,7 @@ def finetuning_pipeline(
         source_pipeline_run_name=dsl.PIPELINE_JOB_NAME_PLACEHOLDER,
         source_namespace="",
     )
+    registry_task.after(holdout_eval_task)
     registry_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(registry_task, "IfNotPresent")
 

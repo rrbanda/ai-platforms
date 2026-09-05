@@ -3,11 +3,11 @@ kind: PipelineVersion
 metadata:
   labels:
     pipelines.kubeflow.org/pipeline: finetuning-pipeline
-  name: finetuning-pipeline-v1
+  name: finetuning-pipeline-v2
   namespace: fine-tuning-demo
 spec:
   description: 7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques. Includes data quality filter (dedup + quality scoring), model pre-caching, distributed training, benchmark evaluation with safety benchmarks via EvalHub + MLflow, holdout evaluation, and model registry with full provenance.
-  displayName: v1
+  displayName: v2
   pipelineName: finetuning-pipeline
   pipelineSpec:
     components:

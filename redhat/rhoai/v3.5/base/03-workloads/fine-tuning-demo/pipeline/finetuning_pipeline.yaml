@@ -1,0 +1,2063 @@
+# PIPELINE DEFINITION
+# Name: finetuning-pipeline
+# Description: Fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques. Select technique at run time. Evaluates via EvalHub with MLflow tracking, registers to Model Registry.
+# Inputs:
+#    annotations: str [Default: '']
+#    base_model: str [Default: 'Qwen/Qwen2.5-1.5B-Instruct']
+#    cpu_per_worker: str [Default: '4']
+#    dataset_subset: int [Default: 5000.0]
+#    dataset_uri: str [Default: 'hf://b-mc2/sql-create-context']
+#    effective_batch_size: int [Default: 128.0]
+#    env_vars: str [Default: '']
+#    epochs: int [Default: 2.0]
+#    eval_cpu: str [Default: '2']
+#    eval_gpu_count: int [Default: 1.0]
+#    eval_memory: str [Default: '32Gi']
+#    eval_timeout: int [Default: 7200.0]
+#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}]]
+#    evalhub_collection: str [Default: '']
+#    evalhub_url: str [Default: '']
+#    gpu_per_worker: int [Default: 1.0]
+#    labels: str [Default: '']
+#    learning_rate: float [Default: 0.0002]
+#    lora_alpha: int [Default: 32.0]
+#    lora_bf16: bool [Default: True]
+#    lora_dropout: float [Default: 0.0]
+#    lora_flash_attention: bool [Default: True]
+#    lora_grad_accum_steps: int [Default: 1.0]
+#    lora_load_in_4bit: bool [Default: True]
+#    lora_load_in_8bit: bool [Default: False]
+#    lora_micro_batch_size: int [Default: 2.0]
+#    lora_r: int [Default: 16.0]
+#    lora_sample_packing: bool [Default: False]
+#    lora_target_modules: str [Default: '']
+#    lr_scheduler: str [Default: 'cosine']
+#    max_seq_len: int [Default: 8192.0]
+#    max_tokens_per_gpu: int [Default: 32000.0]
+#    memory_per_worker: str [Default: '32Gi']
+#    mlflow_experiment: str [Default: '']
+#    num_workers: int [Default: 1.0]
+#    osft_target_patterns: str [Default: '']
+#    osft_unfreeze_ratio: float [Default: 0.1]
+#    registry_address: str [Default: '']
+#    registry_author: str [Default: 'pipeline']
+#    registry_description: str [Default: '']
+#    registry_model_name: str [Default: 'finetuned-model']
+#    registry_model_version: str [Default: '1.0.0']
+#    registry_port: int [Default: 8080.0]
+#    seed: int [Default: 42.0]
+#    sft_fsdp_sharding: str [Default: '']
+#    technique: str [Default: 'lora']
+#    training_runtime: str [Default: 'training-hub']
+#    use_liger: bool [Default: True]
+components:
+  comp-dataset-download:
+    executorLabel: exec-dataset-download
+    inputDefinitions:
+      parameters:
+        dataset_uri:
+          description: Dataset URI (hf://, s3://, https://, pvc:// or absolute path)
+          parameterType: STRING
+        pvc_mount_path:
+          description: Path where the shared PVC is mounted
+          parameterType: STRING
+        shared_log_file:
+          defaultValue: pipeline_log.txt
+          description: Name of the shared log file
+          isOptional: true
+          parameterType: STRING
+        subset_count:
+          defaultValue: 0.0
+          description: Number of examples to use (0 = use all)
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        train_split_ratio:
+          defaultValue: 0.9
+          description: Train/eval split (0.9 = 90%/10%, 1.0 = no split, all for training)
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+    outputDefinitions:
+      artifacts:
+        eval_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-evalhub-evaluator-kserve:
+    executorLabel: exec-evalhub-evaluator-kserve
+    inputDefinitions:
+      artifacts:
+        model_artifact:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+          description: Model artifact from upstream training step.
+          isOptional: true
+      parameters:
+        base_model_name:
+          defaultValue: ''
+          description: HF model ID for tokenizer resolution.
+          isOptional: true
+          parameterType: STRING
+        benchmarks:
+          defaultValue: []
+          description: 'List of benchmark specs [{"provider_id": "...", "id": "..."}].'
+          isOptional: true
+          parameterType: LIST
+        collection_id:
+          defaultValue: ''
+          description: Eval Hub collection ID (alternative to benchmarks list).
+          isOptional: true
+          parameterType: STRING
+        cpu:
+          defaultValue: '2'
+          description: CPU request/limit for the predictor (e.g. "2").
+          isOptional: true
+          parameterType: STRING
+        evalhub_auth_token:
+          defaultValue: ''
+          description: Bearer token for Eval Hub auth.
+          isOptional: true
+          parameterType: STRING
+        evalhub_job_name:
+          defaultValue: pipeline-eval
+          description: Evaluation job name in Eval Hub.
+          isOptional: true
+          parameterType: STRING
+        evalhub_model_name:
+          defaultValue: finetuned-model
+          description: Display name for the model in Eval Hub.
+          isOptional: true
+          parameterType: STRING
+        evalhub_poll_interval:
+          defaultValue: 30.0
+          description: Seconds between eval status polls.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        evalhub_tenant:
+          defaultValue: ''
+          description: Eval Hub tenant / namespace header (X-Tenant).
+          isOptional: true
+          parameterType: STRING
+        evalhub_timeout:
+          defaultValue: 7200.0
+          description: Max seconds to wait for evaluation to complete.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        evalhub_url:
+          description: Eval Hub API endpoint (empty = skip evaluation).
+          parameterType: STRING
+        gpu_count:
+          defaultValue: 1.0
+          description: Number of GPUs for the InferenceService predictor.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        isvc_ready_timeout:
+          defaultValue: 600.0
+          description: Max seconds to wait for InferenceService readiness.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        memory:
+          defaultValue: 8Gi
+          description: Pod memory request/limit for the predictor (e.g. "8Gi", "32Gi").
+          isOptional: true
+          parameterType: STRING
+        mlflow_experiment_name:
+          defaultValue: ''
+          description: MLflow experiment name (non-empty enables MLflow).
+          isOptional: true
+          parameterType: STRING
+        model_path:
+          description: Local filesystem path to model directory (if no artifact).
+          isOptional: true
+          parameterType: STRING
+        pvc_mount_path:
+          defaultValue: ''
+          description: Workspace PVC mount path (triggers KFP PVC mount).
+          isOptional: true
+          parameterType: STRING
+        runtime_image:
+          defaultValue: registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:ad06abf3bb5235ebb5b2df84cd1b9fd09e823f0ff2eebfc82bb4590275ccfe0b
+          description: Container image for the ServingRuntime (RHOAI vLLM default).
+          isOptional: true
+          parameterType: STRING
+        trust_remote_code:
+          defaultValue: false
+          description: Pass --trust-remote-code to vLLM (enables arbitrary code from
+            model repos).
+          isOptional: true
+          parameterType: BOOLEAN
+        verify_tls:
+          defaultValue: false
+          description: Verify TLS certificates for Eval Hub API calls (False for self-signed
+            certs).
+          isOptional: true
+          parameterType: BOOLEAN
+    outputDefinitions:
+      artifacts:
+        output_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        output_results:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-kubeflow-model-registry:
+    executorLabel: exec-kubeflow-model-registry
+    inputDefinitions:
+      artifacts:
+        eval_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+          description: Evaluation metrics from lm-eval.
+          isOptional: true
+        eval_results:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Full evaluation results JSON artifact.
+          isOptional: true
+        input_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+          description: Training metrics.
+          isOptional: true
+        input_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+          description: Model artifact from training step.
+          isOptional: true
+      parameters:
+        author:
+          defaultValue: pipeline
+          description: Author name for the model registration.
+          isOptional: true
+          parameterType: STRING
+        model_description:
+          defaultValue: ''
+          description: Optional description for the model.
+          isOptional: true
+          parameterType: STRING
+        model_format_name:
+          defaultValue: pytorch
+          description: Model format name (e.g. "pytorch", "onnx").
+          isOptional: true
+          parameterType: STRING
+        model_format_version:
+          defaultValue: '1.0'
+          description: Model format version.
+          isOptional: true
+          parameterType: STRING
+        model_name:
+          defaultValue: fine-tuned-model
+          description: Name for the registered model.
+          isOptional: true
+          parameterType: STRING
+        model_version:
+          defaultValue: 1.0.0
+          description: Version string for the model (e.g. "1.0.0").
+          isOptional: true
+          parameterType: STRING
+        pvc_mount_path:
+          description: PVC mount path for workspace storage.
+          parameterType: STRING
+        registry_address:
+          defaultValue: ''
+          description: Model Registry server address (hostname or IP).
+          isOptional: true
+          parameterType: STRING
+        registry_port:
+          defaultValue: 8080.0
+          description: 'Model Registry server port (default: 8080).'
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        shared_log_file:
+          defaultValue: pipeline_log.txt
+          description: Filename for shared pipeline log.
+          isOptional: true
+          parameterType: STRING
+        source_namespace:
+          defaultValue: ''
+          description: Namespace where pipeline runs (auto-detected if empty).
+          isOptional: true
+          parameterType: STRING
+        source_pipeline_name:
+          defaultValue: ''
+          description: Name of the source KFP pipeline.
+          isOptional: true
+          parameterType: STRING
+        source_pipeline_run_id:
+          defaultValue: ''
+          description: Unique ID of the pipeline run.
+          isOptional: true
+          parameterType: STRING
+        source_pipeline_run_name:
+          defaultValue: ''
+          description: Display name of the pipeline run.
+          isOptional: true
+          parameterType: STRING
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+  comp-train-model:
+    executorLabel: exec-train-model
+    inputDefinitions:
+      artifacts:
+        dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+          isOptional: true
+      parameters:
+        kubernetes_config:
+          isOptional: true
+          parameterType: TASK_CONFIG
+        lora_alpha:
+          defaultValue: 32.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_bf16:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_dropout:
+          defaultValue: 0.0
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+        lora_enable_model_splitting:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_flash_attention:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_fp16:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_gradient_accumulation_steps:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_load_in_4bit:
+          defaultValue: true
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_load_in_8bit:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_logging_steps:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_micro_batch_size:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_r:
+          defaultValue: 16.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_sample_packing:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_save_steps:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_save_total_limit:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        lora_target_modules:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        lora_tf32:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_use_dora:
+          isOptional: true
+          parameterType: BOOLEAN
+        lora_use_rslora:
+          isOptional: true
+          parameterType: BOOLEAN
+        osft_fsdp_sharding_strategy:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        osft_lr_scheduler_kwargs:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        osft_memory_efficient_init:
+          isOptional: true
+          parameterType: BOOLEAN
+        osft_save_final_checkpoint:
+          isOptional: true
+          parameterType: BOOLEAN
+        osft_target_patterns:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        osft_unfreeze_rank_ratio:
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+        osft_unmask_messages:
+          isOptional: true
+          parameterType: BOOLEAN
+        osft_use_processed_dataset:
+          isOptional: true
+          parameterType: BOOLEAN
+        pvc_path:
+          parameterType: STRING
+        sft_accelerate_full_state_at_epoch:
+          isOptional: true
+          parameterType: BOOLEAN
+        sft_fsdp_sharding_strategy:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        sft_save_samples:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        technique:
+          parameterType: STRING
+        training_base_model:
+          defaultValue: Qwen/Qwen2.5-1.5B-Instruct
+          isOptional: true
+          parameterType: STRING
+        training_checkpoint_at_epoch:
+          isOptional: true
+          parameterType: BOOLEAN
+        training_data_output_dir:
+          isOptional: true
+          parameterType: STRING
+        training_dataset_type:
+          isOptional: true
+          parameterType: STRING
+        training_effective_batch_size:
+          defaultValue: 128.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_envs:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        training_field_input:
+          isOptional: true
+          parameterType: STRING
+        training_field_instruction:
+          isOptional: true
+          parameterType: STRING
+        training_field_messages:
+          isOptional: true
+          parameterType: STRING
+        training_field_output:
+          isOptional: true
+          parameterType: STRING
+        training_learning_rate:
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+        training_lr_scheduler:
+          isOptional: true
+          parameterType: STRING
+        training_lr_warmup_steps:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_max_seq_len:
+          defaultValue: 8192.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_max_tokens_per_gpu:
+          defaultValue: 32000.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_metadata_annotations:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        training_metadata_labels:
+          defaultValue: ''
+          isOptional: true
+          parameterType: STRING
+        training_num_epochs:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_resource_cpu_per_worker:
+          defaultValue: '4'
+          isOptional: true
+          parameterType: STRING
+        training_resource_gpu_per_worker:
+          defaultValue: 1.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_resource_memory_per_worker:
+          defaultValue: 32Gi
+          isOptional: true
+          parameterType: STRING
+        training_resource_num_procs_per_worker:
+          defaultValue: auto
+          isOptional: true
+          parameterType: STRING
+        training_resource_num_workers:
+          defaultValue: 1.0
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_runtime:
+          defaultValue: training-hub
+          isOptional: true
+          parameterType: STRING
+        training_seed:
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        training_use_liger:
+          isOptional: true
+          parameterType: BOOLEAN
+    outputDefinitions:
+      artifacts:
+        output_loss_chart:
+          artifactType:
+            schemaTitle: system.HTML
+            schemaVersion: 0.0.1
+        output_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        output_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+      parameters:
+        Output:
+          parameterType: STRING
+    taskConfigPassthroughs:
+    - field: RESOURCES
+    - field: KUBERNETES_TOLERATIONS
+    - field: KUBERNETES_NODE_SELECTOR
+    - field: KUBERNETES_AFFINITY
+    - applyToTask: true
+      field: ENV
+    - applyToTask: true
+      field: KUBERNETES_VOLUMES
+deploymentSpec:
+  executors:
+    exec-dataset-download:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - dataset_download
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'datasets>=2.14.0'\
+          \ 'huggingface-hub>=0.20.0' 's3fs>=2023.1.0'  &&  python3 -m pip install\
+          \ --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef dataset_download(\n    train_dataset: dsl.Output[dsl.Dataset],\n\
+          \    eval_dataset: dsl.Output[dsl.Dataset],\n    dataset_uri: str,\n   \
+          \ pvc_mount_path: str,\n    train_split_ratio: float = 0.9,  # 1.0 = no\
+          \ eval split (all data for training)\n    subset_count: int = 0,\n    shared_log_file:\
+          \ str = \"pipeline_log.txt\",\n):\n    \"\"\"Download and prepare datasets\
+          \ from multiple sources.\n\n    Validates that datasets follow chat template\
+          \ format (messages/conversations with role/content).\n\n    Args:\n    \
+          \    train_dataset: Output artifact for training dataset (JSONL format)\n\
+          \        eval_dataset: Output artifact for evaluation dataset (JSONL format)\n\
+          \        dataset_uri: Dataset URI (hf://, s3://, https://, pvc:// or absolute\
+          \ path)\n        pvc_mount_path: Path where the shared PVC is mounted\n\
+          \        train_split_ratio: Train/eval split (0.9 = 90%/10%, 1.0 = no split,\
+          \ all for training)\n        subset_count: Number of examples to use (0\
+          \ = use all)\n        shared_log_file: Name of the shared log file\n   \
+          \ \"\"\"\n    import os\n\n    from datasets import Dataset, load_dataset\n\
+          \n    # Prefer HF_TOKEN from the environment (typically injected via the\
+          \ `hf-token` Kubernetes secret).\n    # This keeps authentication configuration\
+          \ in Kubernetes secrets instead of pipeline parameters.\n    hf_token =\
+          \ (os.environ.get(\"HF_TOKEN\") or \"\").strip()\n\n    def log_message(msg:\
+          \ str):\n        \"\"\"Log message to console and shared log file.\"\"\"\
+          \n        print(msg)\n        log_path = os.path.join(pvc_mount_path, shared_log_file)\n\
+          \        with open(log_path, \"a\") as f:\n            f.write(msg + \"\\\
+          n\")\n\n    def parse_uri(uri: str) -> tuple[str, str]:\n        \"\"\"\
+          Parse dataset URI to determine source type and path.\n\n        Args:\n\
+          \            uri: Dataset URI with scheme. Supported formats:\n        \
+          \        - HuggingFace: hf://dataset-name or dataset-name\n            \
+          \    - S3/MinIO: s3://bucket/path/to/file.jsonl\n                - HTTP/HTTPS:\
+          \ http://... or https://... (e.g., MinIO shared links)\n               \
+          \ - Local/PVC: pvc://path/to/file.jsonl or /absolute/path/to/file.jsonl\n\
+          \n        Returns:\n            Tuple of (source_type, path) where source_type\
+          \ is 'hf', 's3', 'http', or 'local'\n        \"\"\"\n        uri = uri.strip()\n\
+          \n        # Check for explicit schemes\n        if uri.startswith(\"http://\"\
+          ) or uri.startswith(\"https://\"):\n            return (\"http\", uri)\n\
+          \        elif uri.startswith(\"hf://\"):\n            return (\"hf\", uri[5:])\n\
+          \        elif uri.startswith(\"s3://\"):\n            return (\"s3\", uri[5:])\n\
+          \        elif uri.startswith(\"pvc://\"):\n            return (\"local\"\
+          , uri[6:])\n        elif uri.startswith(\"/\"):\n            return (\"\
+          local\", uri)\n        else:\n            # Default to HuggingFace if no\
+          \ scheme\n            return (\"hf\", uri)\n\n    def validate_chat_format_dataset(dataset:\
+          \ Dataset) -> bool:\n        \"\"\"Validate that dataset follows chat template\
+          \ format.\n\n        Expected format:\n        - Each entry should have\
+          \ 'messages' or 'conversations' field\n        - Messages should be a list\
+          \ of dicts with 'role' and 'content'\n        - Roles should be from: 'system',\
+          \ 'user', 'assistant', 'function', 'tool'\n        \"\"\"\n        if len(dataset)\
+          \ == 0:\n            raise ValueError(\"Dataset is empty\")\n\n        valid_roles\
+          \ = {\"system\", \"user\", \"assistant\", \"function\", \"tool\"}\n\n  \
+          \      # Check first 100 examples (or fewer if dataset is smaller)\n   \
+          \     num_to_check = min(100, len(dataset))\n\n        for i in range(num_to_check):\n\
+          \            item = dataset[i]\n\n            # Check for common chat format\
+          \ fields\n            if \"messages\" in item:\n                messages\
+          \ = item[\"messages\"]\n            elif \"conversations\" in item:\n  \
+          \              messages = item[\"conversations\"]\n            else:\n \
+          \               raise ValueError(\n                    f\"Item {i} missing\
+          \ 'messages' or 'conversations' field. Found keys: {list(item.keys())}\"\
+          \n                )\n\n            if not isinstance(messages, list):\n\
+          \                raise ValueError(f\"Item {i}: messages must be a list\"\
+          )\n\n            for j, msg in enumerate(messages):\n                if\
+          \ not isinstance(msg, dict):\n                    raise ValueError(f\"Item\
+          \ {i}, message {j}: must be a dict\")\n\n                if \"role\" not\
+          \ in msg or \"content\" not in msg:\n                    raise ValueError(f\"\
+          Item {i}, message {j}: must have 'role' and 'content' fields\")\n\n    \
+          \            if msg[\"role\"] not in valid_roles:\n                    raise\
+          \ ValueError(\n                        f\"Item {i}, message {j}: invalid\
+          \ role '{msg['role']}'. Must be one of {valid_roles}\"\n               \
+          \     )\n\n        log_message(f\"Dataset validated: {len(dataset)} examples\
+          \ in chat format\")\n        return True\n\n    def split_hf_id_and_config(dataset_path:\
+          \ str) -> tuple[str, str | None]:\n        \"\"\"Split an HF dataset identifier\
+          \ into (id, config) if a config suffix is provided.\n\n        Examples:\n\
+          \            \"LipengCS/Table-GPT:All\" -> (\"LipengCS/Table-GPT\", \"All\"\
+          )\n            \"bigcode/the-stack-dedup-python\" -> (\"bigcode/the-stack-dedup-python\"\
+          , None)\n        \"\"\"\n        if \":\" in dataset_path:\n           \
+          \ base, cfg = dataset_path.split(\":\", 1)\n            return base, (cfg\
+          \ or None)\n        return dataset_path, None\n\n    def download_from_huggingface(dataset_path:\
+          \ str) -> Dataset:\n        \"\"\"Download dataset from HuggingFace.\"\"\
+          \"\n        ds_id, ds_config = split_hf_id_and_config(dataset_path)\n  \
+          \      if ds_config:\n            log_message(f\"Downloading from HuggingFace:\
+          \ {ds_id} (config: {ds_config})\")\n        else:\n            log_message(f\"\
+          Downloading from HuggingFace: {ds_id}\")\n\n        # Set up authentication\
+          \ if token provided via environment\n        if hf_token:\n            log_message(\"\
+          Using HF_TOKEN from environment for Hugging Face authentication\")\n   \
+          \     else:\n            import logging as _logging\n\n            pretty_id\
+          \ = f\"{ds_id}:{ds_config}\" if ds_config else ds_id\n            _logging.warning(\n\
+          \                \"HF_TOKEN is not set; attempting to download Hugging Face\
+          \ dataset \"\n                f\"'{pretty_id}' without authentication. \"\
+          \n                \"Only public, non-gated datasets can be downloaded. \"\
+          \n                \"If you need access to gated datasets, configure the\
+          \ 'hf-token' Kubernetes \"\n                \"secret so HF_TOKEN is available\
+          \ to the component.\"\n            )\n\n        # Try to load with \"train\"\
+          \ split first\n        load_kwargs = {\n            \"path\": ds_id,\n \
+          \           \"split\": \"train\",\n        }\n        if ds_config:\n  \
+          \          load_kwargs[\"name\"] = ds_config\n\n        if hf_token:\n \
+          \           load_kwargs[\"token\"] = hf_token\n\n        try:\n        \
+          \    dataset = load_dataset(**load_kwargs)\n            log_message(f\"\
+          Downloaded {len(dataset)} examples from HuggingFace (split: train)\")\n\
+          \            return dataset\n\n        except ValueError as e:\n       \
+          \     # If \"train\" split doesn't exist, try to find an alternative\n \
+          \           if \"Unknown split\" in str(e):\n                log_message(\"\
+          'train' split not found, attempting to detect available splits...\")\n\n\
+          \                # Load dataset info without specifying split\n        \
+          \        try:\n                    load_kwargs_no_split = {\"path\": ds_id}\n\
+          \                    if ds_config:\n                        load_kwargs_no_split[\"\
+          name\"] = ds_config\n                    if hf_token:\n                \
+          \        load_kwargs_no_split[\"token\"] = hf_token\n\n                \
+          \    # Load all splits\n                    dataset_dict = load_dataset(**load_kwargs_no_split)\n\
+          \n                    # Try common training split names in order of preference\n\
+          \                    preferred_splits = [\"train_sft\", \"train_gen\", \"\
+          train\", \"training\"]\n\n                    for split_name in preferred_splits:\n\
+          \                        if split_name in dataset_dict:\n              \
+          \              log_message(f\"Using split: {split_name}\")\n           \
+          \                 dataset = dataset_dict[split_name]\n                 \
+          \           log_message(f\"Downloaded {len(dataset)} examples from HuggingFace\
+          \ (split: {split_name})\")\n                            return dataset\n\
+          \n                    # If none of the preferred splits found, use the first\
+          \ available split\n                    available_splits = list(dataset_dict.keys())\n\
+          \                    if available_splits:\n                        first_split\
+          \ = available_splits[0]\n                        log_message(f\"Using first\
+          \ available split: {first_split}\")\n                        dataset = dataset_dict[first_split]\n\
+          \                        log_message(f\"Downloaded {len(dataset)} examples\
+          \ from HuggingFace (split: {first_split})\")\n                        return\
+          \ dataset\n                    else:\n                        raise ValueError(\"\
+          No splits found in dataset\")\n\n                except Exception as inner_e:\n\
+          \                    log_message(f\"Error detecting splits: {str(inner_e)}\"\
+          )\n                    raise\n            else:\n                log_message(f\"\
+          Error loading dataset: {str(e)}\")\n                raise\n        except\
+          \ Exception as e:\n            log_message(f\"Error loading dataset: {str(e)}\"\
+          )\n            raise\n\n    def download_from_s3(s3_path: str) -> Dataset:\n\
+          \        \"\"\"Download dataset from AWS S3 using datasets library native\
+          \ S3 support.\"\"\"\n        log_message(f\"Loading from AWS S3: s3://{s3_path}\"\
+          )\n\n        # Get credentials from Kubernetes secret (environment variables)\n\
+          \        access_key = (os.environ.get(\"AWS_ACCESS_KEY_ID\") or \"\").strip()\n\
+          \        secret_key = (os.environ.get(\"AWS_SECRET_ACCESS_KEY\") or \"\"\
+          ).strip()\n\n        # Validate that credentials are present and consistent\n\
+          \        if (access_key and not secret_key) or (secret_key and not access_key):\n\
+          \            raise ValueError(\n                \"S3 credentials misconfigured:\
+          \ AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must either \"\n         \
+          \       \"both be set and non-empty, or both be unset. Check the 's3-secret'\
+          \ Kubernetes secret.\"\n            )\n        if not access_key and not\
+          \ secret_key:\n            raise ValueError(\n                \"S3 credentials\
+          \ missing: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be provided\
+          \ via \"\n                \"the 's3-secret' Kubernetes secret when using\
+          \ s3:// dataset URIs.\"\n            )\n\n        # Build storage_options\
+          \ for datasets library\n        storage_options = {}\n\n        # Add credentials\
+          \ if available (otherwise uses default AWS credential chain)\n        if\
+          \ access_key and secret_key:\n            storage_options[\"key\"] = access_key\n\
+          \            storage_options[\"secret\"] = secret_key\n            log_message(\"\
+          Using S3 credentials from Kubernetes secret\")\n        else:\n        \
+          \    log_message(\"No credentials found, using default AWS credential chain\
+          \ (IAM role, etc.)\")\n\n        # Load dataset directly from S3 (no temp\
+          \ file needed)\n        dataset = load_dataset(\"json\", data_files=f\"\
+          s3://{s3_path}\", storage_options=storage_options, split=\"train\")\n\n\
+          \        log_message(f\"Loaded {len(dataset)} examples from AWS S3\")\n\
+          \        return dataset\n\n    def download_from_http(http_url: str) ->\
+          \ Dataset:\n        \"\"\"Download dataset from HTTP/HTTPS URL (e.g., MinIO\
+          \ shared links).\"\"\"\n        log_message(f\"Loading from HTTP: {http_url}\"\
+          )\n\n        # Load dataset directly from HTTP URL using datasets library\n\
+          \        dataset = load_dataset(\"json\", data_files=http_url, split=\"\
+          train\")\n\n        log_message(f\"Loaded {len(dataset)} examples from HTTP\"\
+          )\n        return dataset\n\n    def load_from_local(file_path: str) ->\
+          \ Dataset:\n        \"\"\"Load dataset from local/PVC file path.\"\"\"\n\
+          \        log_message(f\"Loading from local path: {file_path}\")\n\n    \
+          \    # If relative path, make it relative to pvc_mount_path\n        if\
+          \ not file_path.startswith(\"/\"):\n            file_path = os.path.join(pvc_mount_path,\
+          \ file_path)\n\n        if not os.path.exists(file_path):\n            raise\
+          \ FileNotFoundError(f\"Dataset file not found: {file_path}\")\n\n      \
+          \  # Load using datasets library (supports .json and .jsonl)\n        if\
+          \ file_path.endswith(\".jsonl\") or file_path.endswith(\".json\"):\n   \
+          \         dataset = load_dataset(\"json\", data_files=file_path, split=\"\
+          train\")\n            log_message(f\"Loaded {len(dataset)} examples from\
+          \ local file\")\n            return dataset\n        else:\n           \
+          \ raise ValueError(f\"Unsupported file format: {file_path}. Expected .json\
+          \ or .jsonl\")\n\n    # =========================================================================\n\
+          \    # Main execution\n    # =========================================================================\n\
+          \n    log_message(\"=\" * 60)\n    log_message(\"Dataset Download Component\
+          \ Started\")\n    log_message(\"=\" * 60)\n    log_message(f\"Dataset URI:\
+          \ {dataset_uri}\")\n    log_message(f\"Train/Eval split: {train_split_ratio:.0%}/{1\
+          \ - train_split_ratio:.0%}\")\n    log_message(f\"Subset count: {subset_count\
+          \ if subset_count > 0 else 'all (no limit)'}\")\n\n    try:\n        # Parse\
+          \ URI and determine source\n        source_type, source_path = parse_uri(dataset_uri)\n\
+          \        log_message(f\"Source type: {source_type}\")\n        log_message(f\"\
+          Source path: {source_path}\")\n\n        # Download/load dataset based on\
+          \ source\n        if source_type == \"hf\":\n            dataset = download_from_huggingface(source_path)\n\
+          \        elif source_type == \"s3\":\n            dataset = download_from_s3(source_path)\n\
+          \        elif source_type == \"http\":\n            dataset = download_from_http(source_path)\n\
+          \        elif source_type == \"local\":\n            dataset = load_from_local(source_path)\n\
+          \        else:\n            raise ValueError(f\"Unknown source type: {source_type}\"\
+          )\n\n        # Apply subset if specified\n        if subset_count and subset_count\
+          \ > 0:\n            import random\n\n            original_size = len(dataset)\n\
+          \            if subset_count < original_size:\n                log_message(f\"\
+          Applying subset: {subset_count} of {original_size} examples\")\n       \
+          \         random.seed(42)  # For reproducibility\n                subset_indices\
+          \ = random.sample(range(original_size), subset_count)\n                dataset\
+          \ = dataset.select(subset_indices)\n                log_message(f\"Subset\
+          \ applied: {len(dataset)} examples selected\")\n            else:\n    \
+          \            log_message(f\"Subset count ({subset_count}) >= dataset size\
+          \ ({original_size}), using all examples\")\n\n        # Validate chat template\
+          \ format\n        log_message(\"Validating chat template format...\")\n\
+          \        validate_chat_format_dataset(dataset)\n\n        # Split dataset\
+          \ (or use all for training if ratio is 1.0)\n        log_message(f\"Splitting\
+          \ dataset with {len(dataset)} examples...\")\n\n        if train_split_ratio\
+          \ >= 1.0:\n            # No split - use all data for training, create empty\
+          \ eval\n            log_message(\"train_split_ratio=1.0: Using all data\
+          \ for training (no eval split)\")\n            train_ds = dataset\n    \
+          \        eval_ds = Dataset.from_dict({k: [] for k in dataset.features.keys()})\n\
+          \            log_message(f\"No split: {len(train_ds)} train, 0 eval (eval\
+          \ dataset will be empty)\")\n        else:\n            split_dataset =\
+          \ dataset.train_test_split(test_size=1 - train_split_ratio, seed=42)\n \
+          \           train_ds = split_dataset[\"train\"]\n            eval_ds = split_dataset[\"\
+          test\"]\n            log_message(f\"Split complete: {len(train_ds)} train,\
+          \ {len(eval_ds)} eval\")\n\n        # Save datasets as JSONL files to KFP\
+          \ artifacts\n        log_message(f\"Saving train dataset to {train_dataset.path}\"\
+          )\n        train_ds.to_json(train_dataset.path, orient=\"records\", lines=True)\n\
+          \n        log_message(f\"Saving eval dataset to {eval_dataset.path}\")\n\
+          \        eval_ds.to_json(eval_dataset.path, orient=\"records\", lines=True)\n\
+          \n        # Also save to shared PVC for next pipeline step\n        pvc_dataset_dir\
+          \ = os.path.join(pvc_mount_path, \"datasets\")\n        os.makedirs(pvc_dataset_dir,\
+          \ exist_ok=True)\n\n        pvc_train_path = os.path.join(pvc_dataset_dir,\
+          \ \"train.jsonl\")\n        pvc_eval_path = os.path.join(pvc_dataset_dir,\
+          \ \"eval.jsonl\")\n\n        log_message(f\"Saving train dataset to PVC:\
+          \ {pvc_train_path}\")\n        train_ds.to_json(pvc_train_path, orient=\"\
+          records\", lines=True)\n\n        log_message(f\"Saving eval dataset to\
+          \ PVC: {pvc_eval_path}\")\n        eval_ds.to_json(pvc_eval_path, orient=\"\
+          records\", lines=True)\n\n        # Save metadata\n        train_dataset.metadata\
+          \ = {\n            \"dataset_uri\": dataset_uri,\n            \"num_examples\"\
+          : len(train_ds),\n            \"split\": \"train\",\n            \"train_split_ratio\"\
+          : train_split_ratio,\n            \"artifact_path\": train_dataset.path,\n\
+          \            \"pvc_path\": pvc_train_path,\n        }\n\n        eval_dataset.metadata\
+          \ = {\n            \"dataset_uri\": dataset_uri,\n            \"num_examples\"\
+          : len(eval_ds),\n            \"split\": \"eval\",\n            \"train_split_ratio\"\
+          : train_split_ratio,\n            \"artifact_path\": eval_dataset.path,\n\
+          \            \"pvc_path\": pvc_eval_path,\n        }\n\n        log_message(\"\
+          =\" * 60)\n        log_message(\"Dataset Download Component Completed Successfully\"\
+          )\n        log_message(f\"  Train: {len(train_ds)} examples\")\n       \
+          \ log_message(f\"    - KFP Artifact: {train_dataset.path}\")\n        log_message(f\"\
+          \    - PVC: {pvc_train_path}\")\n        log_message(f\"  Eval: {len(eval_ds)}\
+          \ examples\")\n        log_message(f\"    - KFP Artifact: {eval_dataset.path}\"\
+          )\n        log_message(f\"    - PVC: {pvc_eval_path}\")\n        log_message(\"\
+          =\" * 60)\n\n    except Exception as e:\n        error_msg = f\"ERROR in\
+          \ dataset download: {str(e)}\"\n        log_message(error_msg)\n       \
+          \ raise\n\n"
+        image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+    exec-evalhub-evaluator-kserve:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - evalhub_evaluator_kserve
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location --index-url https://pypi.org/simple\
+          \ --trusted-host https://pypi.org/simple 'requests'  &&  python3 -m pip\
+          \ install --quiet --no-warn-script-location --index-url https://pypi.org/simple\
+          \ --trusted-host https://pypi.org/simple 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef evalhub_evaluator_kserve(\n    output_metrics: dsl.Output[dsl.Metrics],\n\
+          \    output_results: dsl.Output[dsl.Artifact],\n    # --- Eval Hub connection\
+          \ ---\n    evalhub_url: str,\n    # --- Benchmarks (one of these must be\
+          \ provided) ---\n    benchmarks: list = [],\n    collection_id: str = \"\
+          \",\n    # --- Optional ---\n    pvc_mount_path: str = \"\",\n    model_artifact:\
+          \ dsl.Input[dsl.Model] = None,\n    model_path: str = None,\n    evalhub_tenant:\
+          \ str = \"\",\n    evalhub_auth_token: str = \"\",\n    evalhub_model_name:\
+          \ str = \"finetuned-model\",\n    base_model_name: str = \"\",\n    evalhub_job_name:\
+          \ str = \"pipeline-eval\",\n    evalhub_timeout: int = 7200,\n    evalhub_poll_interval:\
+          \ int = 30,\n    mlflow_experiment_name: str = \"\",\n    # --- KServe model\
+          \ serving ---\n    gpu_count: int = 1,\n    memory: str = \"8Gi\",\n   \
+          \ cpu: str = \"2\",\n    runtime_image: str = (  # noqa: E501\n        \"\
+          registry.redhat.io/rhaii/vllm-cuda-rhel9@sha256:ad06abf3bb5235ebb5b2df84cd1b9fd09e823f0ff2eebfc82bb4590275ccfe0b\"\
+          \n    ),\n    trust_remote_code: bool = False,\n    verify_tls: bool = False,\n\
+          \    isvc_ready_timeout: int = 600,\n):\n    \"\"\"Evaluate a model via\
+          \ Eval Hub with a KServe InferenceService.\n\n    Creates a KServe ServingRuntime\
+          \ + InferenceService (matching the RHOAI\n    dashboard deployment pattern)\
+          \ to serve the fine-tuned model from the\n    workspace PVC. The InferenceService\
+          \ URL is submitted to Eval Hub for\n    benchmark evaluation. Both resources\
+          \ are cleaned up after completion.\n\n    Args:\n        output_metrics:\
+          \ KFP Metrics artifact for evaluation scores.\n        output_results: KFP\
+          \ Artifact for full evaluation results JSON.\n        evalhub_url: Eval\
+          \ Hub API endpoint (empty = skip evaluation).\n        benchmarks: List\
+          \ of benchmark specs [{\"provider_id\": \"...\", \"id\": \"...\"}].\n  \
+          \      collection_id: Eval Hub collection ID (alternative to benchmarks\
+          \ list).\n        pvc_mount_path: Workspace PVC mount path (triggers KFP\
+          \ PVC mount).\n        model_artifact: Model artifact from upstream training\
+          \ step.\n        model_path: Local filesystem path to model directory (if\
+          \ no artifact).\n        evalhub_tenant: Eval Hub tenant / namespace header\
+          \ (X-Tenant).\n        evalhub_auth_token: Bearer token for Eval Hub auth.\n\
+          \        evalhub_model_name: Display name for the model in Eval Hub.\n \
+          \       base_model_name: HF model ID for tokenizer resolution.\n       \
+          \ evalhub_job_name: Evaluation job name in Eval Hub.\n        evalhub_timeout:\
+          \ Max seconds to wait for evaluation to complete.\n        evalhub_poll_interval:\
+          \ Seconds between eval status polls.\n        mlflow_experiment_name: MLflow\
+          \ experiment name (non-empty enables MLflow).\n        gpu_count: Number\
+          \ of GPUs for the InferenceService predictor.\n        memory: Pod memory\
+          \ request/limit for the predictor (e.g. \"8Gi\", \"32Gi\").\n        cpu:\
+          \ CPU request/limit for the predictor (e.g. \"2\").\n        runtime_image:\
+          \ Container image for the ServingRuntime (RHOAI vLLM default).\n       \
+          \ trust_remote_code: Pass --trust-remote-code to vLLM (enables arbitrary\
+          \ code from model repos).\n        verify_tls: Verify TLS certificates for\
+          \ Eval Hub API calls (False for self-signed certs).\n        isvc_ready_timeout:\
+          \ Max seconds to wait for InferenceService readiness.\n    \"\"\"\n    import\
+          \ json\n    import logging\n    import os\n    import time\n    import uuid\n\
+          \n    import requests\n\n    logging.basicConfig(level=logging.INFO, format=\"\
+          %(asctime)s [%(levelname)s] %(message)s\")\n    logger = logging.getLogger(\"\
+          evalhub-kserve\")\n\n    # =========================================================================\n\
+          \    # Kubernetes API helpers (shared with standalone variant)\n    # =========================================================================\n\
+          \    K8S_API = \"https://kubernetes.default.svc\"\n    SA_TOKEN_PATH = \"\
+          /var/run/secrets/kubernetes.io/serviceaccount/token\"\n    SA_CA_PATH =\
+          \ \"/var/run/secrets/kubernetes.io/serviceaccount/ca.crt\"\n    SA_NS_PATH\
+          \ = \"/var/run/secrets/kubernetes.io/serviceaccount/namespace\"\n\n    def\
+          \ _read_sa_token():\n        with open(SA_TOKEN_PATH) as f:\n          \
+          \  return f.read().strip()\n\n    def _read_namespace():\n        with open(SA_NS_PATH)\
+          \ as f:\n            return f.read().strip()\n\n    def _k8s_api(method,\
+          \ path, body=None):\n        url = f\"{K8S_API}{path}\"\n        headers\
+          \ = {\n            \"Authorization\": f\"Bearer {_read_sa_token()}\",\n\
+          \            \"Content-Type\": \"application/json\",\n        }\n      \
+          \  resp = requests.request(\n            method,\n            url,\n   \
+          \         headers=headers,\n            json=body,\n            verify=SA_CA_PATH,\n\
+          \            timeout=30,\n        )\n        if resp.status_code >= 400:\n\
+          \            logger.error(f\"K8s API {method} {path} -> {resp.status_code}:\
+          \ {resp.text[:500]}\")\n        return resp\n\n    def _get_own_pod(namespace):\n\
+          \        hostname = os.environ.get(\"HOSTNAME\", \"\")\n        if not hostname:\n\
+          \            import socket\n\n            hostname = socket.gethostname()\n\
+          \        resp = _k8s_api(\"GET\", f\"/api/v1/namespaces/{namespace}/pods/{hostname}\"\
+          )\n        if resp.status_code == 200:\n            return resp.json()\n\
+          \        # HOSTNAME is truncated at 63 chars (DNS label limit). List pods\
+          \ and match by prefix.\n        logger.info(f\"Pod {hostname} not found\
+          \ directly (name truncated?), searching by prefix...\")\n        resp =\
+          \ _k8s_api(\"GET\", f\"/api/v1/namespaces/{namespace}/pods?limit=500\")\n\
+          \        resp.raise_for_status()\n        for pod in resp.json().get(\"\
+          items\", []):\n            pod_name = pod[\"metadata\"][\"name\"]\n    \
+          \        if pod_name.startswith(hostname):\n                logger.info(f\"\
+          Found pod by prefix match: {pod_name}\")\n                return pod\n \
+          \       raise RuntimeError(f\"Could not find own pod. Hostname={hostname}\"\
+          )\n\n    def _find_workspace_pvc(pod_spec, model_path):\n        volumes\
+          \ = pod_spec.get(\"spec\", {}).get(\"volumes\", [])\n        pvc_volumes\
+          \ = {}\n        for v in volumes:\n            pvc = v.get(\"persistentVolumeClaim\"\
+          , {})\n            if pvc.get(\"claimName\"):\n                pvc_volumes[v[\"\
+          name\"]] = pvc[\"claimName\"]\n\n        containers = pod_spec.get(\"spec\"\
+          , {}).get(\"containers\", [])\n        for c in containers:\n          \
+          \  for vm in c.get(\"volumeMounts\", []):\n                vol_name = vm[\"\
+          name\"]\n                mount_path = vm[\"mountPath\"]\n              \
+          \  normalized_mount = mount_path.rstrip(\"/\") + \"/\"\n               \
+          \ if vol_name in pvc_volumes and (model_path + \"/\").startswith(normalized_mount):\n\
+          \                    return pvc_volumes[vol_name], mount_path\n\n      \
+          \  raise RuntimeError(f\"Could not find workspace PVC for model path {model_path}.\
+          \ PVC volumes: {pvc_volumes}\")\n\n    # =========================================================================\n\
+          \    # KServe resource helpers\n    # =========================================================================\n\
+          \    KSERVE_SR_API = \"/apis/serving.kserve.io/v1alpha1\"\n    KSERVE_ISVC_API\
+          \ = \"/apis/serving.kserve.io/v1beta1\"\n\n    def _create_serving_runtime(namespace,\
+          \ name, image, served_model_name, enable_trust_remote_code=False):\n   \
+          \     vllm_args = [\n            \"--port=8080\",\n            \"--model=/mnt/models\"\
+          ,\n            f\"--served-model-name={served_model_name}\",\n        ]\n\
+          \        if enable_trust_remote_code:\n            vllm_args.append(\"--trust-remote-code\"\
+          )\n        sr = {\n            \"apiVersion\": \"serving.kserve.io/v1alpha1\"\
+          ,\n            \"kind\": \"ServingRuntime\",\n            \"metadata\":\
+          \ {\n                \"name\": name,\n                \"namespace\": namespace,\n\
+          \                \"annotations\": {\n                    \"opendatahub.io/apiProtocol\"\
+          : \"REST\",\n                    \"opendatahub.io/template-name\": \"vllm-cuda-runtime-template\"\
+          ,\n                    \"opendatahub.io/template-display-name\": \"vLLM\
+          \ NVIDIA GPU ServingRuntime for KServe\",\n                    \"openshift.io/display-name\"\
+          : f\"EvalHub vLLM Runtime {name}\",\n                },\n              \
+          \  \"labels\": {\n                    \"opendatahub.io/dashboard\": \"true\"\
+          ,\n                },\n            },\n            \"spec\": {\n       \
+          \         \"annotations\": {\n                    \"prometheus.io/path\"\
+          : \"/metrics\",\n                    \"prometheus.io/port\": \"8080\",\n\
+          \                },\n                \"containers\": [\n               \
+          \     {\n                        \"name\": \"kserve-container\",\n     \
+          \                   \"image\": image,\n                        \"command\"\
+          : [\"python\", \"-m\", \"vllm.entrypoints.openai.api_server\"],\n      \
+          \                  \"args\": vllm_args,\n                        \"env\"\
+          : [\n                            {\"name\": \"HF_HOME\", \"value\": \"/tmp/hf_home\"\
+          },\n                        ],\n                        \"ports\": [{\"\
+          containerPort\": 8080, \"protocol\": \"TCP\"}],\n                    }\n\
+          \                ],\n                \"multiModel\": False,\n          \
+          \      \"supportedModelFormats\": [\n                    {\"autoSelect\"\
+          : True, \"name\": \"vLLM\"},\n                ],\n            },\n     \
+          \   }\n        path = f\"{KSERVE_SR_API}/namespaces/{namespace}/servingruntimes\"\
+          \n        resp = _k8s_api(\"POST\", path, sr)\n        resp.raise_for_status()\n\
+          \        logger.info(f\"Created ServingRuntime {name}\")\n        return\
+          \ resp.json()\n\n    def _create_inference_service(namespace, name, runtime_name,\
+          \ pvc_name, model_relative_path, n_gpu, mem, n_cpu):\n        storage_uri\
+          \ = f\"pvc://{pvc_name}/{model_relative_path}\"\n\n        isvc = {\n  \
+          \          \"apiVersion\": \"serving.kserve.io/v1beta1\",\n            \"\
+          kind\": \"InferenceService\",\n            \"metadata\": {\n           \
+          \     \"name\": name,\n                \"namespace\": namespace,\n     \
+          \           \"annotations\": {\n                    \"serving.kserve.io/deploymentMode\"\
+          : \"Standard\",\n                    \"security.opendatahub.io/enable-auth\"\
+          : \"false\",\n                    \"openshift.io/display-name\": f\"EvalHub\
+          \ Model {name}\",\n                },\n                \"labels\": {\n \
+          \                   \"opendatahub.io/dashboard\": \"true\",\n          \
+          \      },\n            },\n            \"spec\": {\n                \"predictor\"\
+          : {\n                    \"maxReplicas\": 1,\n                    \"minReplicas\"\
+          : 1,\n                    \"model\": {\n                        \"modelFormat\"\
+          : {\"name\": \"vLLM\"},\n                        \"runtime\": runtime_name,\n\
+          \                        \"storageUri\": storage_uri,\n                \
+          \        \"resources\": {\n                            \"limits\": {\n \
+          \                               \"nvidia.com/gpu\": str(n_gpu),\n      \
+          \                          \"cpu\": n_cpu,\n                           \
+          \     \"memory\": mem,\n                            },\n               \
+          \             \"requests\": {\n                                \"nvidia.com/gpu\"\
+          : str(n_gpu),\n                                \"cpu\": n_cpu,\n       \
+          \                         \"memory\": mem,\n                           \
+          \ },\n                        },\n                    },\n             \
+          \       \"timeout\": 30,\n                },\n            },\n        }\n\
+          \        path = f\"{KSERVE_ISVC_API}/namespaces/{namespace}/inferenceservices\"\
+          \n        resp = _k8s_api(\"POST\", path, isvc)\n        resp.raise_for_status()\n\
+          \        logger.info(f\"Created InferenceService {name} (storageUri={storage_uri})\"\
+          )\n        return resp.json()\n\n    def _wait_for_isvc_ready(namespace,\
+          \ name, timeout_s=600):\n        start = time.time()\n        path = f\"\
+          {KSERVE_ISVC_API}/namespaces/{namespace}/inferenceservices/{name}\"\n  \
+          \      logger.info(f\"Waiting for InferenceService {name} to be Ready (timeout:\
+          \ {timeout_s}s)...\")\n        while time.time() - start < timeout_s:\n\
+          \            resp = _k8s_api(\"GET\", path)\n            if resp.status_code\
+          \ == 200:\n                isvc = resp.json()\n                conditions\
+          \ = isvc.get(\"status\", {}).get(\"conditions\", [])\n                for\
+          \ c in conditions:\n                    if c.get(\"type\") == \"Ready\"\
+          \ and c.get(\"status\") == \"True\":\n                        duration =\
+          \ time.time() - start\n                        logger.info(f\"InferenceService\
+          \ {name} ready in {duration:.1f}s\")\n                        return duration\n\
+          \                reasons = [f\"{c['type']}={c.get('status', '?')}({c.get('reason',\
+          \ '')})\" for c in conditions]\n                logger.info(f\"  ISVC conditions:\
+          \ {', '.join(reasons) if reasons else 'none yet'}\")\n            time.sleep(15)\n\
+          \        raise TimeoutError(f\"InferenceService {name} did not become Ready\
+          \ within {timeout_s}s\")\n\n    def _get_isvc_url(namespace, name):\n  \
+          \      \"\"\"Get the model URL from the ISVC status.address.url field.\"\
+          \"\"\n        path = f\"{KSERVE_ISVC_API}/namespaces/{namespace}/inferenceservices/{name}\"\
+          \n        resp = _k8s_api(\"GET\", path)\n        if resp.status_code ==\
+          \ 200:\n            isvc = resp.json()\n            address_url = isvc.get(\"\
+          status\", {}).get(\"address\", {}).get(\"url\", \"\")\n            if address_url:\n\
+          \                url = address_url.rstrip(\"/\") + \"/v1\"\n           \
+          \     logger.info(f\"ISVC address URL: {address_url}\")\n              \
+          \  logger.info(f\"Model URL: {url}\")\n                return url\n    \
+          \        status_url = isvc.get(\"status\", {}).get(\"url\", \"\")\n    \
+          \        if status_url:\n                url = status_url.rstrip(\"/\")\
+          \ + \":8080/v1\"\n                logger.info(f\"ISVC status URL: {status_url},\
+          \ using port 8080\")\n                logger.info(f\"Model URL: {url}\"\
+          )\n                return url\n        fallback = f\"http://{name}-predictor.{namespace}.svc.cluster.local:8080/v1\"\
+          \n        logger.warning(f\"Could not read ISVC status, falling back to:\
+          \ {fallback}\")\n        return fallback\n\n    def _cleanup_kserve(namespace,\
+          \ sr_name, isvc_name):\n        logger.info(f\"Cleaning up InferenceService\
+          \ {isvc_name} and ServingRuntime {sr_name}\")\n        for kind, api, name\
+          \ in [\n            (\"InferenceService\", KSERVE_ISVC_API, isvc_name),\n\
+          \            (\"ServingRuntime\", KSERVE_SR_API, sr_name),\n        ]:\n\
+          \            resp = _k8s_api(\"DELETE\", f\"{api}/namespaces/{namespace}/{kind.lower()}s/{name}\"\
+          )\n            if resp.status_code >= 400 and resp.status_code != 404:\n\
+          \                logger.warning(f\"Failed to delete {kind} {name}: {resp.status_code}\
+          \ {resp.text[:200]}\")\n            else:\n                logger.info(f\"\
+          Deleted {kind} {name}\")\n        logger.info(f\"Cleanup complete for {isvc_name}\
+          \ / {sr_name}\")\n\n    # =========================================================================\n\
+          \    # 0. Check if evaluation should run\n    # =========================================================================\n\
+          \    if not evalhub_url or not evalhub_url.strip():\n        logger.info(\"\
+          Eval Hub URL not provided \u2014 skipping evaluation.\")\n        output_metrics.metadata[\"\
+          evalhub_state\"] = \"skipped\"\n        output_metrics.metadata[\"evalhub_url\"\
+          ] = \"\"\n        results_path = os.path.join(output_results.path, \"eval_results.json\"\
+          )\n        os.makedirs(os.path.dirname(results_path), exist_ok=True)\n \
+          \       with open(results_path, \"w\") as f:\n            json.dump({\"\
+          state\": \"skipped\", \"reason\": \"evalhub_url not provided\"}, f)\n  \
+          \      output_results.metadata[\"evalhub_state\"] = \"skipped\"\n      \
+          \  return\n\n    # =========================================================================\n\
+          \    # 1. Resolve model path\n    # =========================================================================\n\
+          \    final_model_path = None\n\n    if model_artifact is not None:\n   \
+          \     pvc_dir = model_artifact.metadata.get(\"pvc_model_dir\", \"\")\n \
+          \       if pvc_dir and os.path.isdir(pvc_dir):\n            final_model_path\
+          \ = pvc_dir\n            logger.info(f\"Using model from PVC: {final_model_path}\"\
+          )\n        elif os.path.isdir(model_artifact.path):\n            final_model_path\
+          \ = model_artifact.path\n            logger.info(f\"Using model from artifact\
+          \ path: {final_model_path}\")\n\n    if final_model_path is None and model_path:\n\
+          \        final_model_path = model_path\n        logger.info(f\"Using model_path:\
+          \ {final_model_path}\")\n\n    if final_model_path is None:\n        raise\
+          \ ValueError(\"No model provided. Supply model_artifact or model_path.\"\
+          )\n\n    config_json = os.path.join(final_model_path, \"config.json\")\n\
+          \    if os.path.isdir(final_model_path) and not os.path.exists(config_json):\n\
+          \        raise FileNotFoundError(f\"Model directory exists but missing config.json:\
+          \ {final_model_path}\")\n\n    # =========================================================================\n\
+          \    # 2. Deploy model via KServe (ServingRuntime + InferenceService)\n\
+          \    # =========================================================================\n\
+          \    resolved_model_name = base_model_name if base_model_name else evalhub_model_name\n\
+          \    namespace = _read_namespace()\n    short_id = uuid.uuid4().hex[:8]\n\
+          \    sr_name = f\"evalhub-rt-{short_id}\"\n    isvc_name = f\"evalhub-isvc-{short_id}\"\
+          \n\n    logger.info(f\"Namespace: {namespace}\")\n    logger.info(f\"ServingRuntime:\
+          \ {sr_name}\")\n    logger.info(f\"InferenceService: {isvc_name}\")\n  \
+          \  logger.info(f\"Model path: {final_model_path}\")\n    logger.info(f\"\
+          Runtime image: {runtime_image}\")\n    logger.info(f\"Resources: {gpu_count}\
+          \ GPU(s), {cpu} CPU, {memory} memory\")\n\n    pod_spec = _get_own_pod(namespace)\n\
+          \    workspace_pvc_name, workspace_mount = _find_workspace_pvc(pod_spec,\
+          \ final_model_path)\n    logger.info(f\"Workspace PVC: {workspace_pvc_name}\
+          \ mounted at {workspace_mount}\")\n\n    model_relative_path = final_model_path\n\
+          \    if final_model_path.startswith(workspace_mount):\n        model_relative_path\
+          \ = final_model_path[len(workspace_mount) :].lstrip(\"/\")\n    logger.info(f\"\
+          Model relative path in PVC: {model_relative_path}\")\n    logger.info(f\"\
+          storageUri will be: pvc://{workspace_pvc_name}/{model_relative_path}\")\n\
+          \n    _create_serving_runtime(namespace, sr_name, runtime_image, resolved_model_name,\
+          \ trust_remote_code)\n\n    try:\n        _create_inference_service(\n \
+          \           namespace=namespace,\n            name=isvc_name,\n        \
+          \    runtime_name=sr_name,\n            pvc_name=workspace_pvc_name,\n \
+          \           model_relative_path=model_relative_path,\n            n_gpu=gpu_count,\n\
+          \            mem=memory,\n            n_cpu=cpu,\n        )\n\n        isvc_startup_duration\
+          \ = _wait_for_isvc_ready(namespace, isvc_name, timeout_s=isvc_ready_timeout)\n\
+          \n        model_url = _get_isvc_url(namespace, isvc_name)\n        logger.info(f\"\
+          KServe model serving at {model_url}\")\n\n        # =====================================================================\n\
+          \        # 3. Submit evaluation job to Eval Hub\n        # =====================================================================\n\
+          \        headers = {\"Content-Type\": \"application/json\", \"Accept\":\
+          \ \"application/json\"}\n\n        auth_token = evalhub_auth_token\n   \
+          \     if not auth_token:\n            if os.path.exists(SA_TOKEN_PATH):\n\
+          \                auth_token = _read_sa_token()\n                logger.info(\"\
+          Using pod ServiceAccount token for Eval Hub auth\")\n        if auth_token:\n\
+          \            headers[\"Authorization\"] = f\"Bearer {auth_token}\"\n\n \
+          \       tenant = evalhub_tenant\n        if not tenant:\n            tenant\
+          \ = namespace\n            logger.info(f\"Using namespace as tenant: {tenant}\"\
+          )\n        headers[\"X-Tenant\"] = tenant\n\n        model_spec = {\n  \
+          \          \"url\": model_url,\n            \"name\": resolved_model_name,\n\
+          \        }\n        logger.info(f\"Model name for Eval Hub: {resolved_model_name}\"\
+          )\n\n        eval_config = {\n            \"name\": evalhub_job_name,\n\
+          \            \"model\": model_spec,\n        }\n        if mlflow_experiment_name.strip():\n\
+          \            eval_config[\"experiment\"] = {\"name\": mlflow_experiment_name.strip()}\n\
+          \            logger.info(f\"MLflow enabled (experiment: {mlflow_experiment_name.strip()})\"\
+          )\n        else:\n            logger.info(\"MLflow disabled (no mlflow_experiment_name\
+          \ provided)\")\n\n        cleaned_collection = collection_id.strip().strip('\"\
+          ').strip(\"'\") if collection_id else \"\"\n        if cleaned_collection:\n\
+          \            eval_config[\"collection\"] = {\"id\": cleaned_collection}\n\
+          \        elif benchmarks:\n            parsed = benchmarks if isinstance(benchmarks,\
+          \ list) else json.loads(benchmarks)\n            eval_config[\"benchmarks\"\
+          ] = parsed\n        else:\n            raise ValueError(\"Provide either\
+          \ 'benchmarks' list or 'collection_id'.\")\n\n        submit_url = f\"{evalhub_url.rstrip('/')}/api/v1/evaluations/jobs\"\
+          \n        logger.info(f\"Submitting evaluation job to {submit_url}\")\n\
+          \        logger.info(f\"Config: {json.dumps(eval_config, indent=2)}\")\n\
+          \n        resp = requests.post(submit_url, json=eval_config, headers=headers,\
+          \ timeout=30, verify=verify_tls)\n        if resp.status_code not in (200,\
+          \ 201, 202):\n            raise RuntimeError(f\"Eval Hub returned {resp.status_code}:\
+          \ {resp.text}\")\n\n        job = resp.json()\n        job_id = job[\"resource\"\
+          ][\"id\"]\n        logger.info(f\"Evaluation job created: {job_id}\")\n\n\
+          \        # =====================================================================\n\
+          \        # 4. Poll for completion\n        # =====================================================================\n\
+          \        job_url = f\"{evalhub_url.rstrip('/')}/api/v1/evaluations/jobs/{job_id}\"\
+          \n        terminal_states = {\"completed\", \"failed\", \"cancelled\", \"\
+          partially_failed\"}\n        poll_start = time.time()\n\n        while time.time()\
+          \ - poll_start < evalhub_timeout:\n            time.sleep(evalhub_poll_interval)\n\
+          \n            try:\n                resp = requests.get(job_url, headers=headers,\
+          \ timeout=30, verify=verify_tls)\n                if resp.status_code !=\
+          \ 200:\n                    logger.warning(f\"Poll returned {resp.status_code},\
+          \ retrying...\")\n                    continue\n\n                job =\
+          \ resp.json()\n                state = job.get(\"status\", {}).get(\"state\"\
+          , \"unknown\")\n                benchmark_statuses = job.get(\"status\"\
+          , {}).get(\"benchmarks\", [])\n                completed_count = sum(1 for\
+          \ b in benchmark_statuses if b.get(\"status\") in terminal_states)\n   \
+          \             total_count = len(benchmark_statuses)\n\n                logger.info(f\"\
+          Job {job_id}: state={state}, benchmarks={completed_count}/{total_count}\"\
+          )\n\n                if state in terminal_states:\n                    logger.info(f\"\
+          Evaluation reached terminal state: {state}\")\n                    break\n\
+          \            except requests.RequestException as e:\n                logger.warning(f\"\
+          Poll error: {e}, retrying...\")\n        else:\n            logger.error(f\"\
+          Evaluation timed out after {evalhub_timeout}s\")\n            try:\n   \
+          \             cancel_url = f\"{evalhub_url.rstrip('/')}/api/v1/evaluations/jobs/{job_id}\"\
+          \n                requests.delete(cancel_url, headers=headers, timeout=10,\
+          \ verify=verify_tls)\n                logger.info(f\"Cancelled job {job_id}\"\
+          )\n            except Exception:\n                pass\n            raise\
+          \ TimeoutError(f\"Evaluation did not complete within {evalhub_timeout}s\"\
+          )\n\n        # =====================================================================\n\
+          \        # 5. Process results\n        # =====================================================================\n\
+          \        final_state = job.get(\"status\", {}).get(\"state\", \"unknown\"\
+          )\n        results = job.get(\"results\", {})\n        mlflow_experiment_url\
+          \ = results.get(\"mlflow_experiment_url\", \"\")\n        benchmark_results\
+          \ = results.get(\"benchmarks\", [])\n        test_result = results.get(\"\
+          test\", {})\n\n        logger.info(\"=\" * 60)\n        logger.info(\"EVALUATION\
+          \ RESULTS\")\n        logger.info(\"=\" * 60)\n        logger.info(f\" \
+          \ State: {final_state}\")\n        if mlflow_experiment_url:\n         \
+          \   logger.info(f\"  MLflow: {mlflow_experiment_url}\")\n        if test_result:\n\
+          \            logger.info(f\"  Overall pass: {test_result.get('pass', 'N/A')}\"\
+          )\n            logger.info(f\"  Overall score: {test_result.get('score',\
+          \ 'N/A')}\")\n\n        output_metrics.metadata[\"evalhub_job_id\"] = job_id\n\
+          \        output_metrics.metadata[\"evalhub_state\"] = final_state\n    \
+          \    output_metrics.metadata[\"evalhub_url\"] = evalhub_url\n        output_metrics.metadata[\"\
+          model_name\"] = evalhub_model_name\n        output_metrics.metadata[\"model_path\"\
+          ] = str(final_model_path)\n        output_metrics.metadata[\"serving_method\"\
+          ] = \"kserve\"\n        output_metrics.metadata[\"isvc_name\"] = isvc_name\n\
+          \        output_metrics.metadata[\"isvc_startup_seconds\"] = round(isvc_startup_duration,\
+          \ 1)\n        if mlflow_experiment_name.strip():\n            output_metrics.metadata[\"\
+          mlflow_experiment_name\"] = mlflow_experiment_name.strip()\n\n        if\
+          \ mlflow_experiment_url:\n            output_metrics.metadata[\"mlflow_experiment_url\"\
+          ] = mlflow_experiment_url\n\n        if test_result:\n            if \"\
+          pass\" in test_result:\n                output_metrics.log_metric(\"eval_pass\"\
+          , 1.0 if test_result[\"pass\"] else 0.0)\n            if \"score\" in test_result\
+          \ and test_result[\"score\"] is not None:\n                output_metrics.log_metric(\"\
+          eval_overall_score\", float(test_result[\"score\"]))\n\n        for br in\
+          \ benchmark_results:\n            bench_id = br.get(\"id\", \"unknown\"\
+          )\n            provider_id = br.get(\"provider_id\", \"unknown\")\n    \
+          \        prefix = f\"{provider_id}/{bench_id}\"\n            metrics = br.get(\"\
+          metrics\", {})\n            for metric_name, metric_value in metrics.items():\n\
+          \                if isinstance(metric_value, (int, float)):\n          \
+          \          output_metrics.log_metric(f\"{prefix}/{metric_name}\", float(metric_value))\n\
+          \                    logger.info(f\"  {prefix}/{metric_name}: {metric_value}\"\
+          )\n\n            bench_test = br.get(\"test\", {})\n            if bench_test\
+          \ and \"pass\" in bench_test:\n                output_metrics.log_metric(f\"\
+          {prefix}/pass\", 1.0 if bench_test[\"pass\"] else 0.0)\n\n        results_data\
+          \ = {\n            \"job_id\": job_id,\n            \"state\": final_state,\n\
+          \            \"mlflow_experiment_url\": mlflow_experiment_url,\n       \
+          \     \"results\": results,\n            \"config\": eval_config,\n    \
+          \        \"model_url\": model_url,\n            \"serving_method\": \"kserve\"\
+          ,\n            \"isvc_name\": isvc_name,\n            \"isvc_startup_seconds\"\
+          : round(isvc_startup_duration, 1),\n        }\n\n        results_path =\
+          \ os.path.join(output_results.path, \"eval_results.json\")\n        os.makedirs(os.path.dirname(results_path),\
+          \ exist_ok=True)\n        with open(results_path, \"w\") as f:\n       \
+          \     json.dump(results_data, f, indent=2, default=str)\n        logger.info(f\"\
+          Results written to {results_path}\")\n\n        output_results.metadata[\"\
+          evalhub_job_id\"] = job_id\n        output_results.metadata[\"evalhub_state\"\
+          ] = final_state\n        if mlflow_experiment_url:\n            output_results.metadata[\"\
+          mlflow_experiment_url\"] = mlflow_experiment_url\n\n        if final_state\
+          \ == \"failed\":\n            msg = job.get(\"status\", {}).get(\"message\"\
+          , {})\n            error_text = msg.get(\"text\", \"Unknown error\") if\
+          \ isinstance(msg, dict) else str(msg)\n            raise RuntimeError(f\"\
+          Evaluation failed: {error_text}\")\n\n    finally:\n        _cleanup_kserve(namespace,\
+          \ sr_name, isvc_name)\n\n    logger.info(\"Eval Hub evaluation (KServe)\
+          \ complete.\")\n\n"
+        image: registry.access.redhat.com/ubi9/python-311:latest
+    exec-kubeflow-model-registry:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - kubeflow_model_registry
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'model-registry==0.3.4'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef kubeflow_model_registry(\n    pvc_mount_path: str,\n    input_model:\
+          \ dsl.Input[dsl.Model] = None,\n    input_metrics: dsl.Input[dsl.Metrics]\
+          \ = None,\n    eval_metrics: dsl.Input[dsl.Metrics] = None,\n    eval_results:\
+          \ dsl.Input[dsl.Artifact] = None,\n    registry_address: str = \"\",\n \
+          \   registry_port: int = 8080,\n    model_name: str = \"fine-tuned-model\"\
+          ,\n    model_version: str = \"1.0.0\",\n    model_format_name: str = \"\
+          pytorch\",\n    model_format_version: str = \"1.0\",\n    model_description:\
+          \ str = \"\",\n    author: str = \"pipeline\",\n    shared_log_file: str\
+          \ = \"pipeline_log.txt\",\n    # -------------------------------------------------------------------------\n\
+          \    # PROVENANCE / LINEAGE FIELDS (auto-populated from KFP placeholders)\n\
+          \    # -------------------------------------------------------------------------\n\
+          \    source_pipeline_name: str = \"\",\n    source_pipeline_run_id: str\
+          \ = \"\",\n    source_pipeline_run_name: str = \"\",\n    source_namespace:\
+          \ str = \"\",\n) -> str:\n    \"\"\"Register model to Kubeflow Model Registry\
+          \ with full provenance tracking.\n\n    Uses the upstream model artifact\
+          \ (input_model) produced by training,\n    or falls back to PVC path if\
+          \ no artifact is provided.\n\n    Args:\n        pvc_mount_path: PVC mount\
+          \ path for workspace storage.\n        input_model: Model artifact from\
+          \ training step.\n        input_metrics: Training metrics.\n        eval_metrics:\
+          \ Evaluation metrics from lm-eval.\n        eval_results: Full evaluation\
+          \ results JSON artifact.\n        registry_address: Model Registry server\
+          \ address (hostname or IP).\n        registry_port: Model Registry server\
+          \ port (default: 8080).\n        model_name: Name for the registered model.\n\
+          \        model_version: Version string for the model (e.g. \"1.0.0\").\n\
+          \        model_format_name: Model format name (e.g. \"pytorch\", \"onnx\"\
+          ).\n        model_format_version: Model format version.\n        model_description:\
+          \ Optional description for the model.\n        author: Author name for the\
+          \ model registration.\n        shared_log_file: Filename for shared pipeline\
+          \ log.\n        source_pipeline_name: Name of the source KFP pipeline.\n\
+          \        source_pipeline_run_id: Unique ID of the pipeline run.\n      \
+          \  source_pipeline_run_name: Display name of the pipeline run.\n       \
+          \ source_namespace: Namespace where pipeline runs (auto-detected if empty).\n\
+          \    \"\"\"\n    import os\n\n    from model_registry import ModelRegistry\n\
+          \    from model_registry.exceptions import StoreError\n\n    print(\"=\"\
+          \ * 60)\n    print(\"MODEL REGISTRY COMPONENT\")\n    print(\"=\" * 60)\n\
+          \n    # Derive model URI from upstream artifact; use user-provided name\
+          \ (prioritize user input)\n    resolved_model_name = model_name  # User's\
+          \ parameter takes precedence\n    model_uri = \"\"\n    base_model_name\
+          \ = None\n    if input_model:\n        meta = getattr(input_model, \"metadata\"\
+          , {}) or {}\n        base_model_name = meta.get(\"model_name\")  # e.g.,\
+          \ \"Qwen/Qwen2.5-1.5B-Instruct\"\n        # Only use metadata name if user\
+          \ didn't provide one (kept default)\n        if model_name == \"fine-tuned-model\"\
+          \ and base_model_name:\n            resolved_model_name = base_model_name\n\
+          \        model_uri = meta.get(\"artifact_path\") or getattr(input_model,\
+          \ \"path\", \"\") or model_uri\n        if not model_uri:\n            model_uri\
+          \ = f\"pvc://{pvc_mount_path}/final_model\"\n    else:\n        model_uri\
+          \ = f\"pvc://{pvc_mount_path}/final_model\"\n\n    print(f\"\\n  Model Name:\
+          \ {resolved_model_name}\")\n    if base_model_name:\n        print(f\" \
+          \ Base Model: {base_model_name}\")\n    print(f\"  Model Version: {model_version}\"\
+          )\n    print(f\"  Model URI: {model_uri}\")\n    print(f\"  Registry: {registry_address}:{registry_port}\"\
+          )\n\n    # Register to Model Registry\n    model_id = \"SKIPPED\"\n    if\
+          \ registry_address:\n        print(\"\\n[Registering to Model Registry...]\"\
+          )\n\n        # Ensure address has scheme for client URL building\n     \
+          \   server_addr = registry_address\n        if not server_addr.startswith(\"\
+          http://\") and not server_addr.startswith(\"https://\"):\n            server_addr\
+          \ = f\"http://{server_addr}\"\n        # Create client (HTTP/insecure)\n\
+          \        client = ModelRegistry(\n            server_address=server_addr,\n\
+          \            port=registry_port,\n            author=author,\n         \
+          \   is_secure=False,  # HTTP\n        )\n\n        # Collect metrics into\
+          \ metadata if provided\n        version_metadata = {}\n        eval_summary\
+          \ = {}\n        try:\n            # -------------------------------------------------------------------------\n\
+          \            # PROVENANCE (logged here, passed as direct params to register_model)\n\
+          \            # -------------------------------------------------------------------------\n\
+          \            # Auto-detect namespace if not provided\n            resolved_namespace\
+          \ = source_namespace\n            if not resolved_namespace:\n         \
+          \       try:\n                    with open(\"/var/run/secrets/kubernetes.io/serviceaccount/namespace\"\
+          , \"r\") as f:\n                        resolved_namespace = f.read().strip()\n\
+          \                        print(f\"\\n  Auto-detected namespace: {resolved_namespace}\"\
+          )\n                except Exception:\n                    resolved_namespace\
+          \ = \"\"\n\n            print(\"\\n  Provenance:\")\n            print(\"\
+          \    - Source Kind: kfp\")\n            print(\"    - Source Class: pipelinerun\"\
+          )\n            if source_pipeline_name:\n                version_metadata[\"\
+          pipeline_name\"] = source_pipeline_name\n                print(f\"    -\
+          \ Pipeline Name: {source_pipeline_name}\")\n            if source_pipeline_run_id:\n\
+          \                print(f\"    - Run ID: {source_pipeline_run_id}\")\n  \
+          \          if source_pipeline_run_name:\n                print(f\"    -\
+          \ Run Name: {source_pipeline_run_name} (used for UI link text)\")\n    \
+          \        if resolved_namespace:\n                print(f\"    - Namespace:\
+          \ {resolved_namespace}\")\n\n            # Add base model info\n       \
+          \     if base_model_name:\n                version_metadata[\"base_model\"\
+          ] = base_model_name\n\n            # Add training metrics (hyperparameters)\n\
+          \            if input_metrics and getattr(input_metrics, \"metadata\", None):\n\
+          \                print(\"\\n  Training Hyperparameters:\")\n           \
+          \     for k, v in input_metrics.metadata.items():\n                    if\
+          \ k not in (\"display_name\", \"store_session_info\"):\n               \
+          \         version_metadata[f\"training_{k}\"] = str(v)\n               \
+          \         print(f\"    - {k}: {v}\")\n\n            # Add evaluation metrics\n\
+          \            if eval_metrics and getattr(eval_metrics, \"metadata\", None):\n\
+          \                print(\"\\n  Evaluation Metrics:\")\n                for\
+          \ k, v in eval_metrics.metadata.items():\n                    if k not in\
+          \ (\"display_name\", \"store_session_info\"):\n                        version_metadata[f\"\
+          eval_{k}\"] = str(v)\n                        # Extract primary accuracy\
+          \ metrics for summary\n                        if \"_acc,\" in k or \"_acc_norm,\"\
+          \ in k:\n                            if \"stderr\" not in k:\n         \
+          \                       eval_summary[k] = v\n                          \
+          \      print(f\"    - {k}: {v:.4f}\" if isinstance(v, float) else f\"  \
+          \  - {k}: {v}\")\n\n                # Print eval config\n              \
+          \  eval_tasks = eval_metrics.metadata.get(\"eval_tasks\", \"\")\n      \
+          \          eval_duration = eval_metrics.metadata.get(\"eval_duration_seconds\"\
+          , \"\")\n                if eval_tasks:\n                    print(f\" \
+          \   - Tasks: {eval_tasks}\")\n                if eval_duration:\n      \
+          \              print(f\"    - Duration: {eval_duration}s\")\n\n        \
+          \    # Add summary of best metrics\n            if eval_summary:\n     \
+          \           # Find the best accuracy metric\n                best_metric\
+          \ = max(eval_summary.items(), key=lambda x: x[1] if isinstance(x[1], (int,\
+          \ float)) else 0)\n                version_metadata[\"eval_best_metric\"\
+          ] = best_metric[0]\n                version_metadata[\"eval_best_score\"\
+          ] = str(best_metric[1])\n                print(\n                    f\"\
+          \\n  Best Eval Score: {best_metric[0]} = {best_metric[1]:.4f}\"\n      \
+          \              if isinstance(best_metric[1], float)\n                  \
+          \  else f\"\\n  Best: {best_metric}\"\n                )\n\n           \
+          \ print(f\"\\n  Total metadata keys: {len(version_metadata)}\")\n      \
+          \  except Exception as e:\n            print(f\"  Warning: Could not extract\
+          \ metrics: {e}\")\n            version_metadata = {}\n\n        try:\n \
+          \           registered_model = client.register_model(\n                name=resolved_model_name,\n\
+          \                uri=model_uri,\n                version=model_version,\n\
+          \                model_format_name=model_format_name,\n                model_format_version=model_format_version,\n\
+          \                author=author,\n                owner=author,\n       \
+          \         description=model_description or f\"Registered via pipeline -\
+          \ {model_version}\",\n                # Provenance (direct params in SDK\
+          \ 0.3.4+)\n                model_source_kind=\"kfp\",\n                model_source_class=\"\
+          pipelinerun\",\n                model_source_name=source_pipeline_run_name\
+          \ or source_pipeline_name or None,\n                model_source_id=source_pipeline_run_id\
+          \ or None,\n                model_source_group=resolved_namespace or None,\n\
+          \                # Additional metadata (training/eval metrics, run name,\
+          \ etc.)\n                metadata=version_metadata or None,\n          \
+          \  )\n            model_id = registered_model.id\n            print(f\"\
+          \  Registered model: {registered_model.name} (ID: {model_id})\")\n     \
+          \   except StoreError as e:\n            msg = str(e)\n            if \"\
+          already exists\" in msg.lower():\n                print(f\"  Model version\
+          \ already exists; skipping create. Details: {msg}\")\n                model_id\
+          \ = f\"{resolved_model_name}:{model_version}\"\n            else:\n    \
+          \            raise\n\n    # Write to shared log\n    log_path = os.path.join(pvc_mount_path,\
+          \ shared_log_file)\n    with open(log_path, \"a\") as f:\n        f.write(f\"\
+          Model Registry: {model_name} v{model_version} (ID: {model_id})\\n\")\n \
+          \   print(f\"\\n[Log written to {log_path}]\")\n\n    print(\"\\n\" + \"\
+          =\" * 60)\n    print(f\"COMPLETE - Model ID: {model_id}\")\n    print(\"\
+          =\" * 60)\n\n    return str(model_id)\n\n"
+        image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+    exec-train-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kubernetes'\
+          \ 'olot' 'matplotlib'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\n__KFP_EMBEDDED_ARCHIVE_B64 = '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'\n\
+          \nimport base64 as __kfp_b64\nimport io as __kfp_io\nimport os as __kfp_os\n\
+          import sys as __kfp_sys\nimport tarfile as __kfp_tarfile\nimport tempfile\
+          \ as __kfp_tempfile\n\n# Extract embedded archive at import time to ensure\
+          \ sys.path and globals are set\n__kfp_tmpdir = __kfp_tempfile.TemporaryDirectory()\n\
+          __KFP_EMBEDDED_ASSET_DIR = __kfp_tmpdir.name\ntry:\n    __kfp_bytes = __kfp_b64.b64decode(__KFP_EMBEDDED_ARCHIVE_B64.encode('ascii'))\n\
+          \    with __kfp_tarfile.open(fileobj=__kfp_io.BytesIO(__kfp_bytes), mode='r:gz')\
+          \ as __kfp_tar:\n        __kfp_tar.extractall(path=__KFP_EMBEDDED_ASSET_DIR)\n\
+          except Exception as __kfp_e:\n    raise RuntimeError(f'Failed to extract\
+          \ embedded archive: {__kfp_e}')\n\n# Always prepend the extracted directory\
+          \ to sys.path for import resolution\nif __KFP_EMBEDDED_ASSET_DIR not in\
+          \ __kfp_sys.path:\n    __kfp_sys.path.insert(0, __KFP_EMBEDDED_ASSET_DIR)\n\
+          \n\n\n\ndef train_model(\n    technique: str,\n    pvc_path: str,\n    output_model:\
+          \ dsl.Output[dsl.Model],\n    output_metrics: dsl.Output[dsl.Metrics],\n\
+          \    output_loss_chart: dsl.Output[dsl.HTML],\n    dataset: dsl.Input[dsl.Dataset]\
+          \ = None,\n    # -- Common parameters (all techniques) --\n    training_base_model:\
+          \ str = \"Qwen/Qwen2.5-1.5B-Instruct\",\n    training_effective_batch_size:\
+          \ int = 128,\n    training_max_tokens_per_gpu: int = 32000,\n    training_max_seq_len:\
+          \ int = 8192,\n    training_learning_rate: Optional[float] = None,\n   \
+          \ training_lr_warmup_steps: Optional[int] = None,\n    training_checkpoint_at_epoch:\
+          \ Optional[bool] = None,\n    training_num_epochs: Optional[int] = None,\n\
+          \    training_data_output_dir: Optional[str] = None,\n    training_envs:\
+          \ str = \"\",\n    training_resource_cpu_per_worker: str = \"4\",\n    training_resource_gpu_per_worker:\
+          \ int = 1,\n    training_resource_memory_per_worker: str = \"32Gi\",\n \
+          \   training_resource_num_procs_per_worker: str = \"auto\",\n    training_resource_num_workers:\
+          \ int = 1,\n    training_metadata_labels: str = \"\",\n    training_metadata_annotations:\
+          \ str = \"\",\n    training_seed: Optional[int] = None,\n    training_use_liger:\
+          \ Optional[bool] = None,\n    training_lr_scheduler: Optional[str] = None,\n\
+          \    training_runtime: str = \"training-hub\",\n    training_dataset_type:\
+          \ Optional[str] = None,\n    training_field_messages: Optional[str] = None,\n\
+          \    training_field_instruction: Optional[str] = None,\n    training_field_input:\
+          \ Optional[str] = None,\n    training_field_output: Optional[str] = None,\n\
+          \    # -- LoRA-specific (ignored when technique != \"lora\") --\n    lora_r:\
+          \ int = 16,\n    lora_alpha: int = 32,\n    lora_dropout: float = 0.0,\n\
+          \    lora_target_modules: str = \"\",\n    lora_use_rslora: Optional[bool]\
+          \ = None,\n    lora_use_dora: Optional[bool] = None,\n    lora_load_in_4bit:\
+          \ Optional[bool] = True,\n    lora_load_in_8bit: Optional[bool] = None,\n\
+          \    lora_sample_packing: Optional[bool] = None,\n    lora_micro_batch_size:\
+          \ Optional[int] = None,\n    lora_gradient_accumulation_steps: Optional[int]\
+          \ = None,\n    lora_flash_attention: Optional[bool] = None,\n    lora_bf16:\
+          \ Optional[bool] = None,\n    lora_fp16: Optional[bool] = None,\n    lora_tf32:\
+          \ Optional[bool] = None,\n    lora_save_steps: Optional[int] = None,\n \
+          \   lora_logging_steps: Optional[int] = None,\n    lora_save_total_limit:\
+          \ Optional[int] = None,\n    lora_enable_model_splitting: Optional[bool]\
+          \ = None,\n    # -- SFT-specific (ignored when technique != \"sft\") --\n\
+          \    sft_save_samples: Optional[int] = None,\n    sft_accelerate_full_state_at_epoch:\
+          \ Optional[bool] = None,\n    sft_fsdp_sharding_strategy: str = \"\",\n\
+          \    # -- OSFT-specific (ignored when technique != \"osft\") --\n    osft_unfreeze_rank_ratio:\
+          \ Optional[float] = None,\n    osft_memory_efficient_init: Optional[bool]\
+          \ = None,\n    osft_target_patterns: str = \"\",\n    osft_unmask_messages:\
+          \ Optional[bool] = None,\n    osft_use_processed_dataset: Optional[bool]\
+          \ = None,\n    osft_lr_scheduler_kwargs: str = \"\",\n    osft_save_final_checkpoint:\
+          \ Optional[bool] = None,\n    osft_fsdp_sharding_strategy: str = \"\",\n\
+          \    # -- KFP passthrough --\n    kubernetes_config: dsl.TaskConfig = None,\n\
+          ) -> str:\n    \"\"\"Unified fine-tuning: dispatches to LoRA, SFT, OSFT,\
+          \ or custom technique.\n\n    Args:\n        technique: Training technique\
+          \ (\"lora\", \"sft\", \"osft\", \"custom\").\n        pvc_path: Workspace\
+          \ PVC root path (use dsl.WORKSPACE_PATH_PLACEHOLDER).\n        training_base_model:\
+          \ Base model (HuggingFace ID or local path).\n        training_runtime:\
+          \ ClusterTrainingRuntime name.\n        See technique modules for technique-specific\
+          \ parameter docs.\n    \"\"\"\n    import os\n    from typing import Dict\n\
+          \n    from data import download_oci_model, prepare_jsonl, resolve_dataset\n\
+          \    from output import persist_model, plot_training_loss\n    from setup\
+          \ import configure_env, create_logger, init_k8s, parse_kv, setup_hf_token\n\
+          \    from techniques import get_technique_module\n    from training import\
+          \ compute_nproc, select_runtime, wait_for_training_job\n\n    log = create_logger(\"\
+          unified_train_model\")\n    technique = technique.strip().lower()\n    log.info(f\"\
+          Technique: {technique} | Model: {training_base_model} | PVC: {pvc_path}\"\
+          )\n\n    tech = get_technique_module(technique)\n\n    # =====================================================================\n\
+          \    # Phase A: Environment and dataset setup\n    # =====================================================================\n\
+          \    _api = init_k8s(log)\n\n    cache = os.path.join(pvc_path, \".cache\"\
+          , \"huggingface\")\n    default_env: Dict[str, str] = {\n        \"XDG_CACHE_HOME\"\
+          : \"/tmp\",\n        \"TRITON_CACHE_DIR\": \"/tmp/.triton\",\n        \"\
+          HF_HOME\": \"/tmp/.cache/huggingface\",\n        \"HF_DATASETS_CACHE\":\
+          \ os.path.join(cache, \"datasets\"),\n        \"TRANSFORMERS_CACHE\": os.path.join(cache,\
+          \ \"transformers\"),\n        \"NCCL_DEBUG\": \"INFO\",\n        \"PYTHONUNBUFFERED\"\
+          : \"1\",\n    }\n\n    merged_env = configure_env(training_envs, default_env,\
+          \ log)\n    setup_hf_token(merged_env, training_base_model, log)\n\n   \
+          \ ds_dir = os.path.join(pvc_path, \"dataset\", \"train\")\n    os.makedirs(ds_dir,\
+          \ exist_ok=True)\n    resolve_dataset(dataset, ds_dir, log)\n\n    jsonl\
+          \ = os.path.join(ds_dir, \"train.jsonl\")\n    prepare_jsonl(ds_dir, jsonl,\
+          \ log)\n\n    resolved = training_base_model\n    if isinstance(training_base_model,\
+          \ str) and training_base_model.startswith(\"oci://\"):\n        resolved\
+          \ = download_oci_model(training_base_model, pvc_path, log)\n\n    ckpt_dir\
+          \ = os.path.join(pvc_path, \"checkpoints\")\n    os.makedirs(ckpt_dir, exist_ok=True)\n\
+          \    data_path = jsonl if os.path.exists(jsonl) else ds_dir\n\n    # =====================================================================\n\
+          \    # Phase B: Build common + technique-specific params\n    # =====================================================================\n\
+          \    np_val, nn_val = compute_nproc(\n        training_resource_gpu_per_worker,\n\
+          \        training_resource_num_procs_per_worker,\n        num_workers=training_resource_num_workers,\n\
+          \        single_node=tech.IS_SINGLE_NODE,\n    )\n\n    params: Dict = {\n\
+          \        \"model_path\": resolved,\n        \"data_path\": data_path,\n\
+          \        \"effective_batch_size\": int(training_effective_batch_size or\
+          \ 128),\n        \"max_tokens_per_gpu\": int(training_max_tokens_per_gpu),\n\
+          \        \"max_seq_len\": int(training_max_seq_len or 8192),\n        \"\
+          learning_rate\": float(training_learning_rate or tech.DEFAULT_LR),\n   \
+          \     \"ckpt_output_dir\": ckpt_dir,\n        \"data_output_dir\": training_data_output_dir\
+          \ or os.path.join(ckpt_dir, \"_internal_data_processing\"),\n        \"\
+          warmup_steps\": int(training_lr_warmup_steps) if training_lr_warmup_steps\
+          \ is not None else 10,\n        \"checkpoint_at_epoch\": bool(training_checkpoint_at_epoch)\
+          \ if training_checkpoint_at_epoch is not None else False,\n        \"num_epochs\"\
+          : int(training_num_epochs) if training_num_epochs else tech.DEFAULT_EPOCHS,\n\
+          \        \"nproc_per_node\": np_val,\n        \"nnodes\": nn_val,\n    }\n\
+          \n    if training_lr_scheduler:\n        params[\"lr_scheduler\"] = training_lr_scheduler\n\
+          \    if training_use_liger is not None:\n        params[\"use_liger\"] =\
+          \ bool(training_use_liger)\n    if training_seed is not None:\n        params[\"\
+          seed\"] = int(training_seed)\n    for field, key in [\n        (training_dataset_type,\
+          \ \"dataset_type\"),\n        (training_field_messages, \"field_messages\"\
+          ),\n        (training_field_instruction, \"field_instruction\"),\n     \
+          \   (training_field_input, \"field_input\"),\n        (training_field_output,\
+          \ \"field_output\"),\n    ]:\n        if field:\n            params[key]\
+          \ = field\n\n    tech.build_params(params, **{k: v for k, v in locals().items()\
+          \ if k.startswith((\"lora_\", \"sft_\", \"osft_\"))})\n    log.info(f\"\
+          Training params ({technique}): {sorted(params.keys())}\")\n\n    # =====================================================================\n\
+          \    # Phase C: Submit TrainJob\n    # =====================================================================\n\
+          \    from kubeflow.common.types import KubernetesBackendConfig\n    from\
+          \ kubeflow.trainer import TrainerClient\n    from kubeflow.trainer.options.kubernetes\
+          \ import (\n        ContainerOverride,\n        PodSpecOverride,\n     \
+          \   PodTemplateOverride,\n        PodTemplateOverrides,\n    )\n    from\
+          \ kubeflow.trainer.rhai import TrainingHubAlgorithms, TrainingHubTrainer\n\
+          \n    if _api is None:\n        raise RuntimeError(\"K8s API not initialized\"\
+          )\n\n    client = TrainerClient(KubernetesBackendConfig(client_configuration=_api.configuration))\n\
+          \    runtime = select_runtime(client, log, runtime_name=training_runtime)\n\
+          \    algorithm = getattr(TrainingHubAlgorithms, tech.ALGORITHM_NAME)\n\n\
+          \    vols, vmts = [], []\n    if kubernetes_config and getattr(kubernetes_config,\
+          \ \"volumes\", None):\n        vols.extend(kubernetes_config.volumes)\n\
+          \    if kubernetes_config and getattr(kubernetes_config, \"volume_mounts\"\
+          , None):\n        vmts.extend(kubernetes_config.volume_mounts)\n\n    resources\
+          \ = {\n        \"nvidia.com/gpu\": training_resource_gpu_per_worker,\n \
+          \       \"memory\": training_resource_memory_per_worker,\n        \"cpu\"\
+          : int(training_resource_cpu_per_worker),\n    }\n\n    job = client.train(\n\
+          \        trainer=TrainingHubTrainer(\n            func=tech.train_func,\n\
+          \            func_args=params,\n            algorithm=algorithm,\n     \
+          \       packages_to_install=[],\n            env=dict(merged_env),\n   \
+          \         resources_per_node=resources,\n        ),\n        options=[\n\
+          \            PodTemplateOverrides(\n                PodTemplateOverride(\n\
+          \                    target_jobs=[\"node\"],\n                    metadata=(\n\
+          \                        {\"labels\": parse_kv(training_metadata_labels),\
+          \ \"annotations\": parse_kv(training_metadata_annotations)}\n          \
+          \              if (training_metadata_labels or training_metadata_annotations)\n\
+          \                        else None\n                    ),\n           \
+          \         spec=PodSpecOverride(\n                        volumes=vols,\n\
+          \                        containers=[ContainerOverride(name=\"node\", volume_mounts=vmts)],\n\
+          \                    ),\n                )\n            )\n        ],\n\
+          \        runtime=runtime,\n    )\n    log.info(f\"Job submitted: {job}\"\
+          )\n    wait_for_training_job(client, job, log)\n\n    # =====================================================================\n\
+          \    # Phase D: Metrics and model persistence\n    # =====================================================================\n\
+          \    output_metrics.log_metric(\"technique\", technique)\n    output_metrics.log_metric(\"\
+          num_epochs\", float(params.get(\"num_epochs\", 1)))\n    output_metrics.log_metric(\"\
+          effective_batch_size\", float(params.get(\"effective_batch_size\", 128)))\n\
+          \    output_metrics.log_metric(\"learning_rate\", float(params.get(\"learning_rate\"\
+          , 2e-4)))\n    output_metrics.log_metric(\"max_seq_len\", float(params.get(\"\
+          max_seq_len\", 8192)))\n    output_metrics.log_metric(\"num_workers\", float(nn_val))\n\
+          \    output_metrics.log_metric(\"gpu_per_worker\", float(training_resource_gpu_per_worker))\n\
+          \n    tech.log_metrics(output_metrics, params)\n\n    plot_training_loss([],\
+          \ output_loss_chart.path)\n    persist_model(ckpt_dir, pvc_path, training_base_model,\
+          \ output_model, log)\n\n    return f\"{technique} training completed\"\n\
+          \n"
+        image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+pipelineInfo:
+  description: Fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques.
+    Select technique at run time. Evaluates via EvalHub with MLflow tracking, registers
+    to Model Registry.
+  name: finetuning-pipeline
+root:
+  dag:
+    tasks:
+      dataset-download:
+        cachingOptions: {}
+        componentRef:
+          name: comp-dataset-download
+        inputs:
+          parameters:
+            dataset_uri:
+              componentInputParameter: dataset_uri
+            pvc_mount_path:
+              runtimeValue:
+                constant: '{{$.workspace_path}}'
+            shared_log_file:
+              runtimeValue:
+                constant: pipeline_log.txt
+            subset_count:
+              componentInputParameter: dataset_subset
+            train_split_ratio:
+              runtimeValue:
+                constant: 1.0
+        taskInfo:
+          name: dataset-download
+      evalhub-evaluator-kserve:
+        cachingOptions: {}
+        componentRef:
+          name: comp-evalhub-evaluator-kserve
+        dependentTasks:
+        - train-model
+        inputs:
+          artifacts:
+            model_artifact:
+              taskOutputArtifact:
+                outputArtifactKey: output_model
+                producerTask: train-model
+          parameters:
+            base_model_name:
+              componentInputParameter: base_model
+            benchmarks:
+              componentInputParameter: evalhub_benchmarks
+            collection_id:
+              componentInputParameter: evalhub_collection
+            cpu:
+              componentInputParameter: eval_cpu
+            evalhub_job_name:
+              runtimeValue:
+                constant: finetuning-pipeline-eval
+            evalhub_model_name:
+              runtimeValue:
+                constant: finetuned-model
+            evalhub_poll_interval:
+              runtimeValue:
+                constant: 30.0
+            evalhub_timeout:
+              componentInputParameter: eval_timeout
+            evalhub_url:
+              componentInputParameter: evalhub_url
+            gpu_count:
+              componentInputParameter: eval_gpu_count
+            memory:
+              componentInputParameter: eval_memory
+            mlflow_experiment_name:
+              componentInputParameter: mlflow_experiment
+            pvc_mount_path:
+              runtimeValue:
+                constant: '{{$.workspace_path}}'
+        taskInfo:
+          name: evalhub-evaluator-kserve
+      kubeflow-model-registry:
+        cachingOptions: {}
+        componentRef:
+          name: comp-kubeflow-model-registry
+        dependentTasks:
+        - evalhub-evaluator-kserve
+        - train-model
+        inputs:
+          artifacts:
+            eval_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: output_metrics
+                producerTask: evalhub-evaluator-kserve
+            eval_results:
+              taskOutputArtifact:
+                outputArtifactKey: output_results
+                producerTask: evalhub-evaluator-kserve
+            input_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: output_metrics
+                producerTask: train-model
+            input_model:
+              taskOutputArtifact:
+                outputArtifactKey: output_model
+                producerTask: train-model
+          parameters:
+            author:
+              componentInputParameter: registry_author
+            model_description:
+              componentInputParameter: registry_description
+            model_format_name:
+              runtimeValue:
+                constant: pytorch
+            model_format_version:
+              runtimeValue:
+                constant: '1.0'
+            model_name:
+              componentInputParameter: registry_model_name
+            model_version:
+              componentInputParameter: registry_model_version
+            pvc_mount_path:
+              runtimeValue:
+                constant: '{{$.workspace_path}}'
+            registry_address:
+              componentInputParameter: registry_address
+            registry_port:
+              componentInputParameter: registry_port
+            shared_log_file:
+              runtimeValue:
+                constant: pipeline_log.txt
+            source_namespace:
+              runtimeValue:
+                constant: ''
+            source_pipeline_name:
+              runtimeValue:
+                constant: finetuning-pipeline
+            source_pipeline_run_id:
+              runtimeValue:
+                constant: '{{$.pipeline_job_uuid}}'
+            source_pipeline_run_name:
+              runtimeValue:
+                constant: '{{$.pipeline_job_name}}'
+        taskInfo:
+          name: kubeflow-model-registry
+      train-model:
+        cachingOptions: {}
+        componentRef:
+          name: comp-train-model
+        dependentTasks:
+        - dataset-download
+        inputs:
+          artifacts:
+            dataset:
+              taskOutputArtifact:
+                outputArtifactKey: train_dataset
+                producerTask: dataset-download
+          parameters:
+            lora_alpha:
+              componentInputParameter: lora_alpha
+            lora_bf16:
+              componentInputParameter: lora_bf16
+            lora_dropout:
+              componentInputParameter: lora_dropout
+            lora_flash_attention:
+              componentInputParameter: lora_flash_attention
+            lora_gradient_accumulation_steps:
+              componentInputParameter: lora_grad_accum_steps
+            lora_load_in_4bit:
+              componentInputParameter: lora_load_in_4bit
+            lora_load_in_8bit:
+              componentInputParameter: lora_load_in_8bit
+            lora_micro_batch_size:
+              componentInputParameter: lora_micro_batch_size
+            lora_r:
+              componentInputParameter: lora_r
+            lora_sample_packing:
+              componentInputParameter: lora_sample_packing
+            lora_target_modules:
+              componentInputParameter: lora_target_modules
+            osft_target_patterns:
+              componentInputParameter: osft_target_patterns
+            osft_unfreeze_rank_ratio:
+              componentInputParameter: osft_unfreeze_ratio
+            pvc_path:
+              runtimeValue:
+                constant: '{{$.workspace_path}}'
+            sft_fsdp_sharding_strategy:
+              componentInputParameter: sft_fsdp_sharding
+            technique:
+              componentInputParameter: technique
+            training_base_model:
+              componentInputParameter: base_model
+            training_effective_batch_size:
+              componentInputParameter: effective_batch_size
+            training_envs:
+              componentInputParameter: env_vars
+            training_learning_rate:
+              componentInputParameter: learning_rate
+            training_lr_scheduler:
+              componentInputParameter: lr_scheduler
+            training_max_seq_len:
+              componentInputParameter: max_seq_len
+            training_max_tokens_per_gpu:
+              componentInputParameter: max_tokens_per_gpu
+            training_metadata_annotations:
+              componentInputParameter: annotations
+            training_metadata_labels:
+              componentInputParameter: labels
+            training_num_epochs:
+              componentInputParameter: epochs
+            training_resource_cpu_per_worker:
+              componentInputParameter: cpu_per_worker
+            training_resource_gpu_per_worker:
+              componentInputParameter: gpu_per_worker
+            training_resource_memory_per_worker:
+              componentInputParameter: memory_per_worker
+            training_resource_num_workers:
+              componentInputParameter: num_workers
+            training_runtime:
+              componentInputParameter: training_runtime
+            training_seed:
+              componentInputParameter: seed
+            training_use_liger:
+              componentInputParameter: use_liger
+        taskInfo:
+          name: train-model
+  inputDefinitions:
+    parameters:
+      annotations:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      base_model:
+        defaultValue: Qwen/Qwen2.5-1.5B-Instruct
+        description: Base model (HuggingFace ID or path).
+        isOptional: true
+        parameterType: STRING
+      cpu_per_worker:
+        defaultValue: '4'
+        isOptional: true
+        parameterType: STRING
+      dataset_subset:
+        defaultValue: 5000.0
+        description: Limit to first N examples (0 = all).
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      dataset_uri:
+        defaultValue: hf://b-mc2/sql-create-context
+        description: Dataset location (hf://, s3://, https://).
+        isOptional: true
+        parameterType: STRING
+      effective_batch_size:
+        defaultValue: 128.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      env_vars:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      epochs:
+        defaultValue: 2.0
+        description: Number of training epochs.
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      eval_cpu:
+        defaultValue: '2'
+        isOptional: true
+        parameterType: STRING
+      eval_gpu_count:
+        defaultValue: 1.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      eval_memory:
+        defaultValue: 32Gi
+        isOptional: true
+        parameterType: STRING
+      eval_timeout:
+        defaultValue: 7200.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      evalhub_benchmarks:
+        defaultValue:
+        - id: leaderboard_ifeval
+          provider_id: lm_evaluation_harness
+        - id: leaderboard_bbh
+          provider_id: lm_evaluation_harness
+        - id: leaderboard_mmlu_pro
+          provider_id: lm_evaluation_harness
+        - id: leaderboard_musr
+          provider_id: lm_evaluation_harness
+        - id: leaderboard_math_hard
+          provider_id: lm_evaluation_harness
+        isOptional: true
+        parameterType: LIST
+      evalhub_collection:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      evalhub_url:
+        defaultValue: ''
+        description: EvalHub API endpoint (empty = skip evaluation).
+        isOptional: true
+        parameterType: STRING
+      gpu_per_worker:
+        defaultValue: 1.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      labels:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      learning_rate:
+        defaultValue: 0.0002
+        description: Learning rate.
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      lora_alpha:
+        defaultValue: 32.0
+        description: LoRA scaling factor (typically 2x lora_r).
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      lora_bf16:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
+      lora_dropout:
+        defaultValue: 0.0
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      lora_flash_attention:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
+      lora_grad_accum_steps:
+        defaultValue: 1.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      lora_load_in_4bit:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
+      lora_load_in_8bit:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
+      lora_micro_batch_size:
+        defaultValue: 2.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      lora_r:
+        defaultValue: 16.0
+        description: LoRA rank (4, 8, 16, 32, 64).
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      lora_sample_packing:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
+      lora_target_modules:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      lr_scheduler:
+        defaultValue: cosine
+        isOptional: true
+        parameterType: STRING
+      max_seq_len:
+        defaultValue: 8192.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      max_tokens_per_gpu:
+        defaultValue: 32000.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      memory_per_worker:
+        defaultValue: 32Gi
+        isOptional: true
+        parameterType: STRING
+      mlflow_experiment:
+        defaultValue: ''
+        description: MLflow experiment name (empty = disabled).
+        isOptional: true
+        parameterType: STRING
+      num_workers:
+        defaultValue: 1.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      osft_target_patterns:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      osft_unfreeze_ratio:
+        defaultValue: 0.1
+        description: OSFT unfreeze ratio (0.1=minimal, 0.5=strong).
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+      registry_address:
+        defaultValue: ''
+        description: Model Registry address (empty = skip registration).
+        isOptional: true
+        parameterType: STRING
+      registry_author:
+        defaultValue: pipeline
+        isOptional: true
+        parameterType: STRING
+      registry_description:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
+      registry_model_name:
+        defaultValue: finetuned-model
+        isOptional: true
+        parameterType: STRING
+      registry_model_version:
+        defaultValue: 1.0.0
+        isOptional: true
+        parameterType: STRING
+      registry_port:
+        defaultValue: 8080.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      seed:
+        defaultValue: 42.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      sft_fsdp_sharding:
+        defaultValue: ''
+        description: FSDP sharding strategy for SFT.
+        isOptional: true
+        parameterType: STRING
+      technique:
+        defaultValue: lora
+        description: Training technique ("lora", "sft", "osft", "custom").
+        isOptional: true
+        parameterType: STRING
+      training_runtime:
+        defaultValue: training-hub
+        isOptional: true
+        parameterType: STRING
+      use_liger:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.17.0
+---
+platforms:
+  kubernetes:
+    deploymentSpec:
+      executors:
+        exec-dataset-download:
+          imagePullPolicy: IfNotPresent
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: AWS_ACCESS_KEY_ID
+              secretKey: AWS_ACCESS_KEY_ID
+            - envVar: AWS_SECRET_ACCESS_KEY
+              secretKey: AWS_SECRET_ACCESS_KEY
+            optional: true
+            secretName: s3-secret
+            secretNameParameter:
+              runtimeValue:
+                constant: s3-secret
+          - keyToEnv:
+            - envVar: HF_TOKEN
+              secretKey: HF_TOKEN
+            optional: true
+            secretName: hf-token
+            secretNameParameter:
+              runtimeValue:
+                constant: hf-token
+        exec-evalhub-evaluator-kserve:
+          imagePullPolicy: IfNotPresent
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: HF_TOKEN
+              secretKey: HF_TOKEN
+            optional: true
+            secretName: hf-token
+            secretNameParameter:
+              runtimeValue:
+                constant: hf-token
+        exec-kubeflow-model-registry:
+          imagePullPolicy: IfNotPresent
+        exec-train-model:
+          imagePullPolicy: IfNotPresent
+          secretAsEnv:
+          - keyToEnv:
+            - envVar: KUBERNETES_SERVER_URL
+              secretKey: KUBERNETES_SERVER_URL
+            - envVar: KUBERNETES_AUTH_TOKEN
+              secretKey: KUBERNETES_AUTH_TOKEN
+            optional: false
+            secretName: kubernetes-credentials
+            secretNameParameter:
+              runtimeValue:
+                constant: kubernetes-credentials
+          - keyToEnv:
+            - envVar: OCI_PULL_SECRET_MODEL_DOWNLOAD
+              secretKey: OCI_PULL_SECRET_MODEL_DOWNLOAD
+            optional: true
+            secretName: oci-pull-secret-model-download
+            secretNameParameter:
+              runtimeValue:
+                constant: oci-pull-secret-model-download
+          - keyToEnv:
+            - envVar: HF_TOKEN
+              secretKey: HF_TOKEN
+            optional: true
+            secretName: hf-token
+            secretNameParameter:
+              runtimeValue:
+                constant: hf-token
+    pipelineConfig:
+      workspace:
+        kubernetes:
+          pvcSpecPatch:
+            accessModes:
+            - ReadWriteMany
+            storageClassName: nfs-csi
+        size: 50Gi

@@ -4,14 +4,19 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - rbac.yaml
+  - pipeline-rbac.yaml
   - hardware-profile.yaml
   - pvc.yaml
+  - dspa.yaml
   - workbench-sa.yaml
   - workbench-pvc.yaml
   - workbench.yaml
   - lmeval-job.yaml
-  - llm-inference-service.yaml
-  - llm-inference-service-base.yaml
-  - maas-model-ref.yaml
+  # LLMInferenceService resources commented out — the pipeline demo uses
+  # ephemeral KServe serving for evaluation (Phase 3), not static deployments.
+  # Uncomment to restore the notebook-based A/B comparison demo.
+  # - llm-inference-service.yaml
+  # - llm-inference-service-base.yaml
+  # - maas-model-ref.yaml
   - ogx-config.yaml
   - ogx-server.yaml

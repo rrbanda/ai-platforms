@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: hf-token
+  namespace: fine-tuning-demo
+spec:
+  encryptedData:
+    HF_TOKEN: AgCWzPrPPyryzgDiL3CgbNEduMl8/SAEn21jxGm3tYKIKYLWSoA5a3fnS4QaqIl0E6IyNAWkx9PWu8GdEEvDqvFPeD3hdJFP+NM8Iw36UMeK5Dl8lB5Tv7D57+K110aIYEiThHslb4dUGdbtNYjDTKL52FGmQoEr56TAtyOPAB0RK05FfMrz16CfjWRcNp+9iXkL3HdsOzZeIv5WUR7tR793QvImhXV7UGZB/ewG8JkvQqO1VCVv13Ugh29aang/3Se1St6/S/a28ZjrqFmhLS5SZ+3W3bg3M9BQvAfN5Ad/cfMX2iUBIx4wpGj/bt+GWguxK7Gq7Gm19w0k/BVNTyphUsvg4Hn2fl93eWnXECLdqF+3169o+Ibp0wTOaZAz8zDVekfu5RLzfYb9tBfkL5TZl8ENSAfd++Z/lSN77ZgskA1uaqStiV70XNUW36P4u7XT0Fa0uwz5L2zRUnXWaDH0IP+lGwODjXKColgNVHHgvI9jcC5W9mfYUSejta9iSyqow2BRW2gR79hLtDfsskx89ZmJMiRHqxQxI1Tub70Hl6I6EV2lVUUu5iHpuYJa2dvJxw3DufPumLe8bq2qCvSfmodrHPqSRm7GLhOvD5VZO7Sik4UOb3MXevWphFqsPaRpnw1L/RtPkMNdOrONP7dZUJoFk8KOwfcYj4Nkgp5LQf6e6anJw3yxo85acJsIKyI=
+  template:
+    metadata:
+      name: hf-token
+      namespace: fine-tuning-demo

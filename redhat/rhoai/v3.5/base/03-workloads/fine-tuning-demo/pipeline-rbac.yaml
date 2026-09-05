@@ -1,0 +1,56 @@
+# Pipeline RBAC
+#
+# Grants the pipeline ServiceAccount permissions to:
+# - Submit and manage Kubeflow Trainer v2 TrainJobs
+# - Create/delete KServe InferenceServices for ephemeral eval serving
+# - Create/delete KServe ServingRuntimes for eval
+# - Submit TrustyAI LMEvalJobs
+# - Read pods, logs, configmaps for monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fine-tuning-pipeline-runner
+  labels:
+    app: fine-tuning-pipeline
+rules:
+  # Kubeflow Trainer v2
+  - apiGroups: ["trainer.kubeflow.org"]
+    resources: ["clustertrainingruntimes", "trainingruntimes", "trainjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # TrustyAI LMEval
+  - apiGroups: ["trustyai.opendatahub.io"]
+    resources: ["lmevaljobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # KServe InferenceServices (for EvalHub ephemeral serving)
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["inferenceservices", "servingruntimes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Core resources
+  - apiGroups: [""]
+    resources: ["configmaps", "pods", "pods/log", "services", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fine-tuning-pipeline-runner
+  labels:
+    app: fine-tuning-pipeline
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: ds-pipeline-dspa
+    namespace: fine-tuning-demo
+roleRef:
+  kind: ClusterRole
+  name: fine-tuning-pipeline-runner
+  apiGroup: rbac.authorization.k8s.io

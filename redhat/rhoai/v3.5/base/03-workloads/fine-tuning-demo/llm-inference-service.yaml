@@ -18,7 +18,7 @@ spec:
   model:
     name: qwen25-sql-finetuned
     uri: hf://Qwen/Qwen2.5-1.5B-Instruct
-  replicas: 1
+  replicas: 0
   router:
     gateway:
       refs:

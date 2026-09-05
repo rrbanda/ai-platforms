@@ -12,11 +12,8 @@ resources:
   - workbench-pvc.yaml
   - workbench.yaml
   - lmeval-job.yaml
-  # LLMInferenceService resources commented out — the pipeline demo uses
-  # ephemeral KServe serving for evaluation (Phase 3), not static deployments.
-  # Uncomment to restore the notebook-based A/B comparison demo.
-  # - llm-inference-service.yaml
-  # - llm-inference-service-base.yaml
-  # - maas-model-ref.yaml
+  - llm-inference-service.yaml
+  - llm-inference-service-base.yaml
+  - maas-model-ref.yaml
   - ogx-config.yaml
   - ogx-server.yaml

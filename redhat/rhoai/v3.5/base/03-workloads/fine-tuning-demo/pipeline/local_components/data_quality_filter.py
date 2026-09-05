@@ -20,7 +20,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4",
-    packages_to_install=["sdg-hub>=0.7.0,<1.0"],
+    packages_to_install=["sdg-hub>=0.7.0,<1.0", "requests"],
 )
 def data_quality_filter(
     output_dataset: dsl.Output[dsl.Dataset],
@@ -34,12 +34,22 @@ def data_quality_filter(
     max_repetition_ratio: float = 0.5,
     export_to_pvc: bool = True,
     shared_log_file: str = "pipeline_log.txt",
+    # -- Optional LLM Judge for hallucination detection --
+    enable_llm_judge: bool = False,
+    llm_judge_endpoint: str = "",
 ):
     """Clean and deduplicate an instruction-tuning dataset.
 
     Performs exact and near-duplicate removal, quality scoring, and
     format validation on chat-format JSONL data. Built on the SDG Hub
     framework (Red Hat supported).
+
+    Optional LLM Judge:
+      When enable_llm_judge=True, each example is scored by an LLM
+      for answer quality and factual grounding. Requires an OpenAI-compatible
+      endpoint (e.g., vLLM on KServe). Examples scoring below threshold
+      are flagged or removed. Useful for synthetic/generated training data.
+      For expert-curated data, leave disabled (default).
 
     Args:
         output_dataset: Cleaned dataset artifact (JSONL).
@@ -48,12 +58,14 @@ def data_quality_filter(
         input_pvc_path: Path to input JSONL on PVC (alternative to artifact).
         pvc_mount_path: PVC mount path for exports.
         similarity_threshold: Fuzzy dedup threshold (0.0-1.0). Higher = stricter.
-            0.85 catches near-duplicates while preserving distinct variations.
         min_assistant_tokens: Minimum word count for assistant response.
         min_user_tokens: Minimum word count for user prompt.
         max_repetition_ratio: Max ratio of repeated words in assistant response.
         export_to_pvc: Whether to save cleaned dataset to PVC.
         shared_log_file: Pipeline log file name.
+        enable_llm_judge: Enable LLM-based quality scoring (requires endpoint).
+        llm_judge_endpoint: OpenAI-compatible API endpoint for the judge model
+            (e.g., http://vllm-judge.namespace.svc.cluster.local:8000/v1).
     """
     import hashlib
     import json
@@ -223,6 +235,75 @@ def data_quality_filter(
     log_message(f"Quality filter: {quality_rejected} low-quality removed, {len(clean_data)} remaining")
 
     # =====================================================================
+    # Step 6 (optional): LLM Judge — hallucination and quality grading
+    # When enabled, scores each example using an LLM endpoint. Useful for
+    # synthetic/generated data where factual grounding matters.
+    # Uses SDG Hub's LLM integration pattern.
+    # =====================================================================
+    llm_judge_rejected = 0
+    if enable_llm_judge and llm_judge_endpoint:
+        log_message(f"LLM Judge enabled — endpoint: {llm_judge_endpoint}")
+        try:
+            import requests
+
+            judge_system_prompt = (
+                "You are a training data quality judge. Score the following "
+                "instruction-response pair from 1-10 based on:\n"
+                "- Relevance: Does the response answer the question?\n"
+                "- Accuracy: Is the response factually correct?\n"
+                "- Completeness: Is the response complete?\n"
+                "- Clarity: Is the response clear and well-structured?\n\n"
+                "Respond with ONLY a single integer score (1-10). "
+                "Score 1-4 = reject, 5-6 = marginal, 7-10 = good."
+            )
+
+            judged_data = []
+            for i, row in enumerate(clean_data):
+                prompt = extract_user_prompt(row)
+                response = extract_assistant_response(row)
+
+                judge_messages = [
+                    {"role": "system", "content": judge_system_prompt},
+                    {"role": "user", "content": f"Instruction: {prompt}\n\nResponse: {response}"},
+                ]
+
+                try:
+                    resp = requests.post(
+                        f"{llm_judge_endpoint.rstrip('/')}/chat/completions",
+                        json={
+                            "model": "judge",
+                            "messages": judge_messages,
+                            "max_tokens": 5,
+                            "temperature": 0.0,
+                        },
+                        timeout=30,
+                    )
+                    score_text = resp.json()["choices"][0]["message"]["content"].strip()
+                    score = int("".join(c for c in score_text if c.isdigit())[:2] or "5")
+                except Exception:
+                    score = 5
+
+                if score >= 5:
+                    judged_data.append(row)
+                else:
+                    llm_judge_rejected += 1
+
+                if (i + 1) % 100 == 0:
+                    log_message(f"  LLM Judge progress: {i + 1}/{len(clean_data)}")
+
+            clean_data = judged_data
+            log_message(f"LLM Judge: {llm_judge_rejected} rejected (score < 5), {len(clean_data)} remaining")
+
+        except ImportError:
+            log_message("LLM Judge: 'requests' not available, skipping")
+        except Exception as e:
+            log_message(f"LLM Judge: error ({e}), continuing without judge")
+    elif enable_llm_judge and not llm_judge_endpoint:
+        log_message("LLM Judge: enabled but no endpoint provided — skipping")
+    else:
+        log_message("LLM Judge: disabled (default for expert-curated data)")
+
+    # =====================================================================
     # Output
     # =====================================================================
     total_output = len(clean_data)
@@ -256,6 +337,8 @@ def data_quality_filter(
     output_metrics.log_metric("exact_duplicates", exact_dupes)
     output_metrics.log_metric("near_duplicates", near_dupes)
     output_metrics.log_metric("quality_rejected", quality_rejected)
+    output_metrics.log_metric("llm_judge_rejected", llm_judge_rejected)
+    output_metrics.log_metric("llm_judge_enabled", 1 if (enable_llm_judge and llm_judge_endpoint) else 0)
     output_metrics.log_metric("execution_seconds", round(elapsed, 2))
 
     log_message("")
@@ -266,6 +349,7 @@ def data_quality_filter(
     log_message(f"  Exact duplicates: {exact_dupes:,}")
     log_message(f"  Near-duplicates:  {near_dupes:,}")
     log_message(f"  Quality rejected: {quality_rejected:,}")
+    log_message(f"  LLM judge:        {llm_judge_rejected:,}" if enable_llm_judge else "  LLM judge:        disabled")
     log_message(f"  Output:           {total_output:,} examples ({total_removed:,} removed, {round(total_removed / max(total_input, 1) * 100, 1)}%)")
     log_message(f"  Time:             {elapsed:.1f}s")
     log_message("=" * 60)

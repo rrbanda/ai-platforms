@@ -8,13 +8,14 @@
 #    dataset_subset: int [Default: 5000.0]
 #    dataset_uri: str [Default: 'hf://b-mc2/sql-create-context']
 #    effective_batch_size: int [Default: 128.0]
+#    enable_llm_judge: bool [Default: False]
 #    env_vars: str [Default: '']
 #    epochs: int [Default: 2.0]
 #    eval_cpu: str [Default: '2']
 #    eval_gpu_count: int [Default: 1.0]
 #    eval_memory: str [Default: '32Gi']
 #    eval_timeout: int [Default: 7200.0]
-#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}, {'id': 'truthfulqa_mc1', 'provider_id': 'lm_evaluation_harness'}, {'id': 'toxigen', 'provider_id': 'lm_evaluation_harness'}, {'id': 'ethics_cm', 'provider_id': 'lm_evaluation_harness'}]]
+#    evalhub_benchmarks: list [Default: [{'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_ifeval'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_bbh'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_mmlu_pro'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_musr'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_math_hard'}, {'provider_id': 'lm_evaluation_harness', 'id': 'truthfulqa_mc1'}, {'provider_id': 'lm_evaluation_harness', 'id': 'toxigen'}, {'provider_id': 'lm_evaluation_harness', 'id': 'ethics_cm'}]]
 #    evalhub_collection: str [Default: '']
 #    evalhub_url: str [Default: 'https://evalhub.redhat-ods-applications.svc.cluster.local:8443']
 #    gpu_per_worker: int [Default: 1.0]
@@ -23,6 +24,7 @@
 #    holdout_eval_tasks: list [Default: ['arc_easy']]
 #    labels: str [Default: '']
 #    learning_rate: float [Default: 0.0002]
+#    llm_judge_endpoint: str [Default: '']
 #    lora_alpha: int [Default: 32.0]
 #    lora_bf16: bool [Default: True]
 #    lora_dropout: float [Default: 0.0]
@@ -51,6 +53,7 @@
 #    seed: int [Default: 42.0]
 #    sft_fsdp_sharding: str [Default: '']
 #    shared_pvc_name: str [Default: 'fine-tuning-shared']
+#    similarity_threshold: float [Default: 0.85]
 #    technique: str [Default: 'lora']
 #    train_split_ratio: float [Default: 0.9]
 #    training_runtime: str [Default: 'training-hub']
@@ -67,6 +70,11 @@ components:
           description: Input dataset artifact from upstream component.
           isOptional: true
       parameters:
+        enable_llm_judge:
+          defaultValue: false
+          description: Enable LLM-based quality scoring (requires endpoint).
+          isOptional: true
+          parameterType: BOOLEAN
         export_to_pvc:
           defaultValue: true
           description: Whether to save cleaned dataset to PVC.
@@ -75,6 +83,13 @@ components:
         input_pvc_path:
           defaultValue: ''
           description: Path to input JSONL on PVC (alternative to artifact).
+          isOptional: true
+          parameterType: STRING
+        llm_judge_endpoint:
+          defaultValue: ''
+          description: 'OpenAI-compatible API endpoint for the judge model
+
+            (e.g., http://vllm-judge.namespace.svc.cluster.local:8000/v1).'
           isOptional: true
           parameterType: STRING
         max_repetition_ratio:
@@ -104,9 +119,7 @@ components:
           parameterType: STRING
         similarity_threshold:
           defaultValue: 0.85
-          description: 'Fuzzy dedup threshold (0.0-1.0). Higher = stricter.
-
-            0.85 catches near-duplicates while preserving distinct variations.'
+          description: Fuzzy dedup threshold (0.0-1.0). Higher = stricter.
           isOptional: true
           parameterType: NUMBER_DOUBLE
     outputDefinitions:
@@ -710,9 +723,9 @@ deploymentSpec:
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'sdg-hub>=0.7.0,<1.0'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -730,24 +743,33 @@ deploymentSpec:
           \",\n    similarity_threshold: float = 0.85,\n    min_assistant_tokens:\
           \ int = 5,\n    min_user_tokens: int = 3,\n    max_repetition_ratio: float\
           \ = 0.5,\n    export_to_pvc: bool = True,\n    shared_log_file: str = \"\
-          pipeline_log.txt\",\n):\n    \"\"\"Clean and deduplicate an instruction-tuning\
-          \ dataset.\n\n    Performs exact and near-duplicate removal, quality scoring,\
-          \ and\n    format validation on chat-format JSONL data. Built on the SDG\
-          \ Hub\n    framework (Red Hat supported).\n\n    Args:\n        output_dataset:\
+          pipeline_log.txt\",\n    # -- Optional LLM Judge for hallucination detection\
+          \ --\n    enable_llm_judge: bool = False,\n    llm_judge_endpoint: str =\
+          \ \"\",\n):\n    \"\"\"Clean and deduplicate an instruction-tuning dataset.\n\
+          \n    Performs exact and near-duplicate removal, quality scoring, and\n\
+          \    format validation on chat-format JSONL data. Built on the SDG Hub\n\
+          \    framework (Red Hat supported).\n\n    Optional LLM Judge:\n      When\
+          \ enable_llm_judge=True, each example is scored by an LLM\n      for answer\
+          \ quality and factual grounding. Requires an OpenAI-compatible\n      endpoint\
+          \ (e.g., vLLM on KServe). Examples scoring below threshold\n      are flagged\
+          \ or removed. Useful for synthetic/generated training data.\n      For expert-curated\
+          \ data, leave disabled (default).\n\n    Args:\n        output_dataset:\
           \ Cleaned dataset artifact (JSONL).\n        output_metrics: Quality metrics\
           \ (rows before/after, duplicates found, etc.).\n        input_dataset: Input\
           \ dataset artifact from upstream component.\n        input_pvc_path: Path\
           \ to input JSONL on PVC (alternative to artifact).\n        pvc_mount_path:\
           \ PVC mount path for exports.\n        similarity_threshold: Fuzzy dedup\
-          \ threshold (0.0-1.0). Higher = stricter.\n            0.85 catches near-duplicates\
-          \ while preserving distinct variations.\n        min_assistant_tokens: Minimum\
-          \ word count for assistant response.\n        min_user_tokens: Minimum word\
-          \ count for user prompt.\n        max_repetition_ratio: Max ratio of repeated\
-          \ words in assistant response.\n        export_to_pvc: Whether to save cleaned\
-          \ dataset to PVC.\n        shared_log_file: Pipeline log file name.\n  \
-          \  \"\"\"\n    import hashlib\n    import json\n    import logging\n   \
-          \ import os\n    import time\n    from difflib import SequenceMatcher\n\n\
-          \    import pandas as pd\n\n    logging.basicConfig(\n        level=logging.INFO,\n\
+          \ threshold (0.0-1.0). Higher = stricter.\n        min_assistant_tokens:\
+          \ Minimum word count for assistant response.\n        min_user_tokens: Minimum\
+          \ word count for user prompt.\n        max_repetition_ratio: Max ratio of\
+          \ repeated words in assistant response.\n        export_to_pvc: Whether\
+          \ to save cleaned dataset to PVC.\n        shared_log_file: Pipeline log\
+          \ file name.\n        enable_llm_judge: Enable LLM-based quality scoring\
+          \ (requires endpoint).\n        llm_judge_endpoint: OpenAI-compatible API\
+          \ endpoint for the judge model\n            (e.g., http://vllm-judge.namespace.svc.cluster.local:8000/v1).\n\
+          \    \"\"\"\n    import hashlib\n    import json\n    import logging\n \
+          \   import os\n    import time\n    from difflib import SequenceMatcher\n\
+          \n    import pandas as pd\n\n    logging.basicConfig(\n        level=logging.INFO,\n\
           \        format=\"%(asctime)s - %(levelname)s - %(message)s\",\n    )\n\
           \    log = logging.getLogger(\"data_quality\")\n\n    start_time = time.time()\n\
           \n    def log_message(msg: str):\n        log.info(msg)\n        if pvc_mount_path\
@@ -830,6 +852,49 @@ deploymentSpec:
           \   quality_rejected += 1\n                continue\n\n        clean_data.append(row)\n\
           \n    log_message(f\"Quality filter: {quality_rejected} low-quality removed,\
           \ {len(clean_data)} remaining\")\n\n    # =====================================================================\n\
+          \    # Step 6 (optional): LLM Judge \u2014 hallucination and quality grading\n\
+          \    # When enabled, scores each example using an LLM endpoint. Useful for\n\
+          \    # synthetic/generated data where factual grounding matters.\n    #\
+          \ Uses SDG Hub's LLM integration pattern.\n    # =====================================================================\n\
+          \    llm_judge_rejected = 0\n    if enable_llm_judge and llm_judge_endpoint:\n\
+          \        log_message(f\"LLM Judge enabled \u2014 endpoint: {llm_judge_endpoint}\"\
+          )\n        try:\n            import requests\n\n            judge_system_prompt\
+          \ = (\n                \"You are a training data quality judge. Score the\
+          \ following \"\n                \"instruction-response pair from 1-10 based\
+          \ on:\\n\"\n                \"- Relevance: Does the response answer the\
+          \ question?\\n\"\n                \"- Accuracy: Is the response factually\
+          \ correct?\\n\"\n                \"- Completeness: Is the response complete?\\\
+          n\"\n                \"- Clarity: Is the response clear and well-structured?\\\
+          n\\n\"\n                \"Respond with ONLY a single integer score (1-10).\
+          \ \"\n                \"Score 1-4 = reject, 5-6 = marginal, 7-10 = good.\"\
+          \n            )\n\n            judged_data = []\n            for i, row\
+          \ in enumerate(clean_data):\n                prompt = extract_user_prompt(row)\n\
+          \                response = extract_assistant_response(row)\n\n        \
+          \        judge_messages = [\n                    {\"role\": \"system\",\
+          \ \"content\": judge_system_prompt},\n                    {\"role\": \"\
+          user\", \"content\": f\"Instruction: {prompt}\\n\\nResponse: {response}\"\
+          },\n                ]\n\n                try:\n                    resp\
+          \ = requests.post(\n                        f\"{llm_judge_endpoint.rstrip('/')}/chat/completions\"\
+          ,\n                        json={\n                            \"model\"\
+          : \"judge\",\n                            \"messages\": judge_messages,\n\
+          \                            \"max_tokens\": 5,\n                      \
+          \      \"temperature\": 0.0,\n                        },\n             \
+          \           timeout=30,\n                    )\n                    score_text\
+          \ = resp.json()[\"choices\"][0][\"message\"][\"content\"].strip()\n    \
+          \                score = int(\"\".join(c for c in score_text if c.isdigit())[:2]\
+          \ or \"5\")\n                except Exception:\n                    score\
+          \ = 5\n\n                if score >= 5:\n                    judged_data.append(row)\n\
+          \                else:\n                    llm_judge_rejected += 1\n\n\
+          \                if (i + 1) % 100 == 0:\n                    log_message(f\"\
+          \  LLM Judge progress: {i + 1}/{len(clean_data)}\")\n\n            clean_data\
+          \ = judged_data\n            log_message(f\"LLM Judge: {llm_judge_rejected}\
+          \ rejected (score < 5), {len(clean_data)} remaining\")\n\n        except\
+          \ ImportError:\n            log_message(\"LLM Judge: 'requests' not available,\
+          \ skipping\")\n        except Exception as e:\n            log_message(f\"\
+          LLM Judge: error ({e}), continuing without judge\")\n    elif enable_llm_judge\
+          \ and not llm_judge_endpoint:\n        log_message(\"LLM Judge: enabled\
+          \ but no endpoint provided \u2014 skipping\")\n    else:\n        log_message(\"\
+          LLM Judge: disabled (default for expert-curated data)\")\n\n    # =====================================================================\n\
           \    # Output\n    # =====================================================================\n\
           \    total_output = len(clean_data)\n    total_removed = total_input - total_output\n\
           \n    with open(output_dataset.path, \"w\") as f:\n        for row in clean_data:\n\
@@ -851,13 +916,17 @@ deploymentSpec:
           , format_rejected)\n    output_metrics.log_metric(\"exact_duplicates\",\
           \ exact_dupes)\n    output_metrics.log_metric(\"near_duplicates\", near_dupes)\n\
           \    output_metrics.log_metric(\"quality_rejected\", quality_rejected)\n\
-          \    output_metrics.log_metric(\"execution_seconds\", round(elapsed, 2))\n\
-          \n    log_message(\"\")\n    log_message(\"=\" * 60)\n    log_message(f\"\
-          Data Quality Summary:\")\n    log_message(f\"  Input:            {total_input:,}\
-          \ examples\")\n    log_message(f\"  Format rejected:  {format_rejected:,}\"\
-          )\n    log_message(f\"  Exact duplicates: {exact_dupes:,}\")\n    log_message(f\"\
-          \  Near-duplicates:  {near_dupes:,}\")\n    log_message(f\"  Quality rejected:\
-          \ {quality_rejected:,}\")\n    log_message(f\"  Output:           {total_output:,}\
+          \    output_metrics.log_metric(\"llm_judge_rejected\", llm_judge_rejected)\n\
+          \    output_metrics.log_metric(\"llm_judge_enabled\", 1 if (enable_llm_judge\
+          \ and llm_judge_endpoint) else 0)\n    output_metrics.log_metric(\"execution_seconds\"\
+          , round(elapsed, 2))\n\n    log_message(\"\")\n    log_message(\"=\" * 60)\n\
+          \    log_message(f\"Data Quality Summary:\")\n    log_message(f\"  Input:\
+          \            {total_input:,} examples\")\n    log_message(f\"  Format rejected:\
+          \  {format_rejected:,}\")\n    log_message(f\"  Exact duplicates: {exact_dupes:,}\"\
+          )\n    log_message(f\"  Near-duplicates:  {near_dupes:,}\")\n    log_message(f\"\
+          \  Quality rejected: {quality_rejected:,}\")\n    log_message(f\"  LLM judge:\
+          \        {llm_judge_rejected:,}\" if enable_llm_judge else \"  LLM judge:\
+          \        disabled\")\n    log_message(f\"  Output:           {total_output:,}\
           \ examples ({total_removed:,} removed, {round(total_removed / max(total_input,\
           \ 1) * 100, 1)}%)\")\n    log_message(f\"  Time:             {elapsed:.1f}s\"\
           )\n    log_message(\"=\" * 60)\n\n"
@@ -2315,9 +2384,13 @@ root:
                 outputArtifactKey: train_dataset
                 producerTask: dataset-download
           parameters:
+            enable_llm_judge:
+              componentInputParameter: enable_llm_judge
             export_to_pvc:
               runtimeValue:
                 constant: true
+            llm_judge_endpoint:
+              componentInputParameter: llm_judge_endpoint
             min_assistant_tokens:
               runtimeValue:
                 constant: 5.0
@@ -2331,8 +2404,7 @@ root:
               runtimeValue:
                 constant: pipeline_log.txt
             similarity_threshold:
-              runtimeValue:
-                constant: 0.85
+              componentInputParameter: similarity_threshold
         taskInfo:
           name: data-quality-filter
       dataset-download:
@@ -2617,6 +2689,10 @@ root:
         defaultValue: 128.0
         isOptional: true
         parameterType: NUMBER_INTEGER
+      enable_llm_judge:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
       env_vars:
         defaultValue: ''
         isOptional: true
@@ -2694,6 +2770,10 @@ root:
         defaultValue: 0.0002
         isOptional: true
         parameterType: NUMBER_DOUBLE
+      llm_judge_endpoint:
+        defaultValue: ''
+        isOptional: true
+        parameterType: STRING
       lora_alpha:
         defaultValue: 32.0
         isOptional: true
@@ -2806,6 +2886,10 @@ root:
         defaultValue: fine-tuning-shared
         isOptional: true
         parameterType: STRING
+      similarity_threshold:
+        defaultValue: 0.85
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
       technique:
         defaultValue: lora
         isOptional: true

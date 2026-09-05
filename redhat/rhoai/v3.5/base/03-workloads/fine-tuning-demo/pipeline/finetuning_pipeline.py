@@ -143,6 +143,11 @@ def finetuning_pipeline(
     dataset_subset: int = 5000,
     train_split_ratio: float = 0.9,
 
+    # PHASE 1.5: DATA QUALITY (dedup, quality scoring, optional LLM judge)
+    similarity_threshold: float = 0.85,
+    enable_llm_judge: bool = False,
+    llm_judge_endpoint: str = "",
+
     # =========================================================================
     # PHASE 2: MODEL SELECTION
     # =========================================================================
@@ -293,11 +298,13 @@ def finetuning_pipeline(
     quality_task = data_quality_filter(
         input_dataset=dataset_task.outputs["train_dataset"],
         pvc_mount_path=PIPELINE_PVC_MOUNT,
-        similarity_threshold=0.85,
+        similarity_threshold=similarity_threshold,
         min_assistant_tokens=5,
         min_user_tokens=3,
         export_to_pvc=True,
         shared_log_file="pipeline_log.txt",
+        enable_llm_judge=enable_llm_judge,
+        llm_judge_endpoint=llm_judge_endpoint,
     )
     quality_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")

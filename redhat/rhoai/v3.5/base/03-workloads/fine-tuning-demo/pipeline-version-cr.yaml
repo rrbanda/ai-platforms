@@ -3,11 +3,11 @@ kind: PipelineVersion
 metadata:
   labels:
     pipelines.kubeflow.org/pipeline: finetuning-pipeline
-  name: finetuning-pipeline-v3
+  name: finetuning-pipeline-v4
   namespace: fine-tuning-demo
 spec:
   description: 7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques. Includes data quality filter (dedup + quality scoring), model pre-caching, distributed training, benchmark evaluation with safety benchmarks via EvalHub + MLflow, holdout evaluation, and model registry with full provenance.
-  displayName: v3
+  displayName: v4
   pipelineName: finetuning-pipeline
   pipelineSpec:
     components:
@@ -969,7 +969,7 @@ spec:
                     constant: 3.0
                 pvc_mount_path:
                   runtimeValue:
-                    constant: /mnt/shared
+                    constant: '{{$.workspace_path}}'
                 shared_log_file:
                   runtimeValue:
                     constant: pipeline_log.txt
@@ -987,7 +987,7 @@ spec:
                   componentInputParameter: dataset_uri
                 pvc_mount_path:
                   runtimeValue:
-                    constant: /mnt/shared
+                    constant: '{{$.workspace_path}}'
                 shared_log_file:
                   runtimeValue:
                     constant: pipeline_log.txt
@@ -1007,7 +1007,7 @@ spec:
                   componentInputParameter: base_model
                 pvc_mount_path:
                   runtimeValue:
-                    constant: /mnt/shared
+                    constant: '{{$.workspace_path}}'
             taskInfo:
               name: download-base-model
           evalhub-evaluator-kserve:
@@ -1052,7 +1052,7 @@ spec:
                   componentInputParameter: mlflow_experiment
                 pvc_mount_path:
                   runtimeValue:
-                    constant: /mnt/shared
+                    constant: '{{$.workspace_path}}'
             taskInfo:
               name: evalhub-evaluator-kserve
           kubeflow-model-registry:
@@ -1098,7 +1098,7 @@ spec:
                   componentInputParameter: registry_model_version
                 pvc_mount_path:
                   runtimeValue:
-                    constant: /mnt/shared
+                    constant: '{{$.workspace_path}}'
                 registry_address:
                   componentInputParameter: registry_address
                 registry_port:
@@ -1162,7 +1162,7 @@ spec:
                   componentInputParameter: osft_unfreeze_ratio
                 pvc_path:
                   runtimeValue:
-                    constant: /mnt/shared
+                    constant: '{{$.workspace_path}}'
                 sft_fsdp_sharding_strategy:
                   componentInputParameter: sft_fsdp_sharding
                 technique:
@@ -1480,20 +1480,8 @@ spec:
         executors:
           exec-data-quality-filter:
             imagePullPolicy: IfNotPresent
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
           exec-dataset-download:
             imagePullPolicy: IfNotPresent
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: AWS_ACCESS_KEY_ID
@@ -1515,12 +1503,6 @@ spec:
                   constant: hf-token
           exec-download-base-model:
             imagePullPolicy: IfNotPresent
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: HF_TOKEN
@@ -1532,12 +1514,6 @@ spec:
                   constant: hf-token
           exec-evalhub-evaluator-kserve:
             imagePullPolicy: IfNotPresent
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: HF_TOKEN
@@ -1549,20 +1525,8 @@ spec:
                   constant: hf-token
           exec-kubeflow-model-registry:
             imagePullPolicy: IfNotPresent
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
           exec-train-model:
             imagePullPolicy: IfNotPresent
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: KUBERNETES_SERVER_URL
@@ -1595,12 +1559,6 @@ spec:
             nodeSelector:
               labels:
                 nvidia.com/gpu.present: 'true'
-            pvcMount:
-            - constant: fine-tuning-shared
-              mountPath: /mnt/shared
-              pvcNameParameter:
-                runtimeValue:
-                  constant: fine-tuning-shared
             secretAsEnv:
             - keyToEnv:
               - envVar: HF_TOKEN
@@ -1610,3 +1568,11 @@ spec:
               secretNameParameter:
                 runtimeValue:
                   constant: hf-token
+      pipelineConfig:
+        workspace:
+          kubernetes:
+            pvcSpecPatch:
+              accessModes:
+              - ReadWriteOnce
+              storageClassName: gp3-csi
+          size: 50Gi

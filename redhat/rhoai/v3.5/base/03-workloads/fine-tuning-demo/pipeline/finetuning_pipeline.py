@@ -55,12 +55,13 @@ from components.evaluation.lm_eval import universal_llm_evaluator
 
 
 # =============================================================================
-# PVC Configuration — static PVC name for compile-time mount_pvc binding.
-# KFP mount_pvc requires the PVC name at compile time for reliable mounting.
-# To use a different PVC, change this constant and recompile (make pipeline).
+# PVC Configuration — KFP workspace auto-provisioning with gp3-csi (EBS).
+# KFP creates and mounts a workspace PVC automatically per pipeline run.
+# All tasks use dsl.WORKSPACE_PATH_PLACEHOLDER for the mount path.
 # =============================================================================
-PIPELINE_PVC_NAME = "fine-tuning-shared"
-PIPELINE_PVC_MOUNT = "/mnt/shared"
+PVC_SIZE = "50Gi"
+PVC_STORAGE_CLASS = "gp3-csi"
+PVC_ACCESS_MODES = ["ReadWriteOnce"]
 PIPELINE_NAME = "finetuning-pipeline"
 
 
@@ -125,6 +126,17 @@ def download_base_model(
         "model pre-caching, distributed training, benchmark evaluation "
         "via EvalHub with MLflow, holdout evaluation on task-specific data, "
         "and model registry with full provenance."
+    ),
+    pipeline_config=dsl.PipelineConfig(
+        workspace=dsl.WorkspaceConfig(
+            size=PVC_SIZE,
+            kubernetes=dsl.KubernetesWorkspaceConfig(
+                pvcSpecPatch={
+                    "accessModes": PVC_ACCESS_MODES,
+                    "storageClassName": PVC_STORAGE_CLASS,
+                }
+            ),
+        ),
     ),
 )
 def finetuning_pipeline(
@@ -268,14 +280,13 @@ def finetuning_pipeline(
     # =========================================================================
     dataset_task = dataset_download(
         dataset_uri=dataset_uri,
-        pvc_mount_path=PIPELINE_PVC_MOUNT,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
         train_split_ratio=train_split_ratio,
         subset_count=dataset_subset,
         shared_log_file="pipeline_log.txt",
     )
     dataset_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(dataset_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(dataset_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     kfp.kubernetes.use_secret_as_env(
         dataset_task,
@@ -294,7 +305,7 @@ def finetuning_pipeline(
     # =========================================================================
     quality_task = data_quality_filter(
         input_dataset=dataset_task.outputs["train_dataset"],
-        pvc_mount_path=PIPELINE_PVC_MOUNT,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
         similarity_threshold=similarity_threshold,
         min_assistant_tokens=5,
         min_user_tokens=3,
@@ -305,7 +316,6 @@ def finetuning_pipeline(
     )
     quality_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(quality_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 2: Model Download (pre-cache to PVC, idempotent)
@@ -313,11 +323,10 @@ def finetuning_pipeline(
     # =========================================================================
     model_download_task = download_base_model(
         model_name=base_model,
-        pvc_mount_path=PIPELINE_PVC_MOUNT,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
     )
     model_download_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(model_download_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(model_download_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)
@@ -325,7 +334,7 @@ def finetuning_pipeline(
     # =========================================================================
     training_task = train_model(
         technique=technique,
-        pvc_path=PIPELINE_PVC_MOUNT,
+        pvc_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
         dataset=quality_task.outputs["output_dataset"],
         training_base_model=base_model,
         training_effective_batch_size=effective_batch_size,
@@ -365,7 +374,6 @@ def finetuning_pipeline(
     training_task.after(model_download_task)
     training_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(training_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(training_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     kfp.kubernetes.use_secret_as_env(
         task=training_task,
@@ -390,7 +398,7 @@ def finetuning_pipeline(
     #   Results logged to MLflow experiment for cross-run comparison.
     # =========================================================================
     eval_task = evalhub_evaluator_kserve(
-        pvc_mount_path=PIPELINE_PVC_MOUNT,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
         model_artifact=training_task.outputs["output_model"],
         evalhub_url=evalhub_url,
         collection_id=evalhub_collection,
@@ -407,7 +415,6 @@ def finetuning_pipeline(
     )
     eval_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(eval_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(eval_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 4b: Holdout Evaluation via lm-eval (on the actual eval split)
@@ -431,7 +438,6 @@ def finetuning_pipeline(
     kfp.kubernetes.add_node_selector(
         holdout_eval_task, "nvidia.com/gpu.present", "true"
     )
-    kfp.kubernetes.mount_pvc(holdout_eval_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
     # HF token for all steps that may download gated models or datasets
     for _task in [dataset_task, model_download_task, training_task, eval_task, holdout_eval_task]:
@@ -452,7 +458,7 @@ def finetuning_pipeline(
     #   - Pipeline run ID and namespace
     # =========================================================================
     registry_task = model_registry(
-        pvc_mount_path=PIPELINE_PVC_MOUNT,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
         input_model=training_task.outputs["output_model"],
         input_metrics=training_task.outputs["output_metrics"],
         eval_metrics=eval_task.outputs["output_metrics"],
@@ -474,7 +480,6 @@ def finetuning_pipeline(
     registry_task.after(holdout_eval_task)
     registry_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(registry_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(registry_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
 
 
 if __name__ == "__main__":

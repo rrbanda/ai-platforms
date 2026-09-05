@@ -15,7 +15,7 @@
 #    eval_gpu_count: int [Default: 1.0]
 #    eval_memory: str [Default: '32Gi']
 #    eval_timeout: int [Default: 7200.0]
-#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}, {'id': 'truthfulqa_mc1', 'provider_id': 'lm_evaluation_harness'}, {'id': 'toxigen', 'provider_id': 'lm_evaluation_harness'}, {'id': 'ethics_cm', 'provider_id': 'lm_evaluation_harness'}]]
+#    evalhub_benchmarks: list [Default: [{'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_ifeval'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_bbh'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_mmlu_pro'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_musr'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_math_hard'}, {'provider_id': 'lm_evaluation_harness', 'id': 'truthfulqa_mc1'}, {'provider_id': 'lm_evaluation_harness', 'id': 'toxigen'}, {'provider_id': 'lm_evaluation_harness', 'id': 'ethics_cm'}]]
 #    evalhub_collection: str [Default: '']
 #    evalhub_url: str [Default: 'https://evalhub.redhat-ods-applications.svc.cluster.local:8443']
 #    gpu_per_worker: int [Default: 1.0]
@@ -2398,7 +2398,7 @@ root:
                 constant: 3.0
             pvc_mount_path:
               runtimeValue:
-                constant: /mnt/shared
+                constant: '{{$.workspace_path}}'
             shared_log_file:
               runtimeValue:
                 constant: pipeline_log.txt
@@ -2416,7 +2416,7 @@ root:
               componentInputParameter: dataset_uri
             pvc_mount_path:
               runtimeValue:
-                constant: /mnt/shared
+                constant: '{{$.workspace_path}}'
             shared_log_file:
               runtimeValue:
                 constant: pipeline_log.txt
@@ -2436,7 +2436,7 @@ root:
               componentInputParameter: base_model
             pvc_mount_path:
               runtimeValue:
-                constant: /mnt/shared
+                constant: '{{$.workspace_path}}'
         taskInfo:
           name: download-base-model
       evalhub-evaluator-kserve:
@@ -2481,7 +2481,7 @@ root:
               componentInputParameter: mlflow_experiment
             pvc_mount_path:
               runtimeValue:
-                constant: /mnt/shared
+                constant: '{{$.workspace_path}}'
         taskInfo:
           name: evalhub-evaluator-kserve
       kubeflow-model-registry:
@@ -2527,7 +2527,7 @@ root:
               componentInputParameter: registry_model_version
             pvc_mount_path:
               runtimeValue:
-                constant: /mnt/shared
+                constant: '{{$.workspace_path}}'
             registry_address:
               componentInputParameter: registry_address
             registry_port:
@@ -2591,7 +2591,7 @@ root:
               componentInputParameter: osft_unfreeze_ratio
             pvc_path:
               runtimeValue:
-                constant: /mnt/shared
+                constant: '{{$.workspace_path}}'
             sft_fsdp_sharding_strategy:
               componentInputParameter: sft_fsdp_sharding
             technique:
@@ -2910,20 +2910,8 @@ platforms:
       executors:
         exec-data-quality-filter:
           imagePullPolicy: IfNotPresent
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
         exec-dataset-download:
           imagePullPolicy: IfNotPresent
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: AWS_ACCESS_KEY_ID
@@ -2945,12 +2933,6 @@ platforms:
                 constant: hf-token
         exec-download-base-model:
           imagePullPolicy: IfNotPresent
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: HF_TOKEN
@@ -2962,12 +2944,6 @@ platforms:
                 constant: hf-token
         exec-evalhub-evaluator-kserve:
           imagePullPolicy: IfNotPresent
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: HF_TOKEN
@@ -2979,20 +2955,8 @@ platforms:
                 constant: hf-token
         exec-kubeflow-model-registry:
           imagePullPolicy: IfNotPresent
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
         exec-train-model:
           imagePullPolicy: IfNotPresent
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: KUBERNETES_SERVER_URL
@@ -3025,12 +2989,6 @@ platforms:
           nodeSelector:
             labels:
               nvidia.com/gpu.present: 'true'
-          pvcMount:
-          - constant: fine-tuning-shared
-            mountPath: /mnt/shared
-            pvcNameParameter:
-              runtimeValue:
-                constant: fine-tuning-shared
           secretAsEnv:
           - keyToEnv:
             - envVar: HF_TOKEN
@@ -3040,3 +2998,11 @@ platforms:
             secretNameParameter:
               runtimeValue:
                 constant: hf-token
+    pipelineConfig:
+      workspace:
+        kubernetes:
+          pvcSpecPatch:
+            accessModes:
+            - ReadWriteOnce
+            storageClassName: gp3-csi
+        size: 50Gi

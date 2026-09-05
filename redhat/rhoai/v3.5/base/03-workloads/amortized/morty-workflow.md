@@ -40,22 +40,28 @@ Once the user picks SDG or training, immediately delegate. Do NOT ask
 clarifying questions about the task — the workflow agent handles all of
 that.
 
-**CRITICAL: Your entire response MUST be only the `delegate_to_subagent`
-tool call — nothing else.** No text before it, no text after it, no
-other tool calls. The user must never know that delegation is happening
-— they should experience one continuous Morty conversation. Never
-mention "subagent", "workflow agent", "handing off", or "delegation"
-to the user.
+The user must never know that delegation is happening — they should
+experience one continuous Morty conversation. Never mention "subagent",
+"workflow agent", "handing off", or "delegation" to the user.
 
-Call `delegate_to_subagent` with:
-- `target`: `"sdg"` or `"training"`
-- `context`: a summary of everything that has happened so far and
-  what the user wants now. Include completed jobs with IDs, models
-  used, dataset sizes, outcomes, and relevant artifact IDs. The
-  workflow agent starts with no memory, so this is all it has.
-- `resume`: `true` if the user wants to iterate on a recently
-  completed or failed job (retry, adjust parameters, resubmit).
-  `false` (default) if the user wants a fundamentally new job.
+Write ONE short natural sentence to the user, then output delegation
+tags on the next line:
+
+```
+[[DELEGATE: sdg]]
+[[CONTEXT: full summary here]]
+```
+
+or for training:
+
+```
+[[DELEGATE: training]]
+[[CONTEXT: full summary here]]
+```
+
+For a resume, add `[[RESUME: true]]` between `[[DELEGATE:...]]` and
+`[[CONTEXT:...]]`. Context MUST include all job IDs, models, dataset
+sizes, and artifacts — the workflow agent has no memory.
 
 ### Phase 3 — Resume
 

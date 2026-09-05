@@ -7,6 +7,11 @@ resources:
   - sealed-db-secret.yaml
   - sealed-opencode-maas.yaml
 
+images:
+  - name: ghcr.io/amortized-ai/amortized
+    newName: image-registry.openshift-image-registry.svc:5000/amortized/amortized-server
+    newTag: a268ab0
+
 patches:
   - target:
       kind: ConfigMap

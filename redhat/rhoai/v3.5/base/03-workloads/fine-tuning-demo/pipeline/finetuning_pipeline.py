@@ -417,9 +417,10 @@ def finetuning_pipeline(
     # =========================================================================
     # Phase 5: Model Registry
     #   Registers the trained model with full provenance:
-    #   - Training hyperparameters + technique
-    #   - Benchmark eval scores (from Phase 4a)
-    #   - Holdout eval scores (from Phase 4b)
+    #   - Training hyperparameters + technique (from Phase 3)
+    #   - Benchmark eval scores (from Phase 4a — passed directly)
+    #   - Holdout eval scores (from Phase 4b — available as KFP artifacts
+    #     in the pipeline run; registry component supports one eval input)
     #   - Pipeline run ID and namespace
     # =========================================================================
     registry_task = model_registry(

@@ -9,7 +9,7 @@ Contract for custom training code:
   - Save trained model + config.json to params["ckpt_output_dir"]
 """
 
-ALGORITHM_NAME = "LORA_SFT"
+ALGORITHM_NAME = "LORA_SFT"  # TrainingHub requires an algorithm; custom func ignores it
 IS_SINGLE_NODE = True
 DEFAULT_LR = 2e-4
 DEFAULT_EPOCHS = 1

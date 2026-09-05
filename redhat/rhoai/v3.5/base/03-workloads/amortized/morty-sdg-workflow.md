@@ -1,3 +1,20 @@
+---
+permission:
+  read: allow
+  edit: deny
+  glob: deny
+  grep: deny
+  list: deny
+  bash: deny
+  task: deny
+  external_directory: deny
+  todowrite: deny
+  lsp: deny
+  skill: deny
+  webfetch: deny
+  websearch: deny
+---
+
 # SDG Subagent
 
 ## Identity

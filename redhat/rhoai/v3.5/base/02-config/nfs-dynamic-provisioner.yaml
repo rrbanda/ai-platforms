@@ -1,0 +1,125 @@
+# NFS Subdir External Provisioner
+#
+# Creates a StorageClass "nfs-csi" that dynamically provisions PVCs from
+# the existing NFS server in the nfs-provisioner namespace. Each PVC gets
+# its own subdirectory under /exports on the NFS server.
+#
+# Required by the fine-tuning pipeline for ReadWriteMany workspace PVCs
+# (training pods, KServe eval pods, and pipeline executor all need to
+# mount the same PVC simultaneously).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-subdir-provisioner
+  namespace: nfs-provisioner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nfs-subdir-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nfs-subdir-provisioner-runner
+subjects:
+  - kind: ServiceAccount
+    name: nfs-subdir-provisioner
+    namespace: nfs-provisioner
+roleRef:
+  kind: ClusterRole
+  name: nfs-subdir-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nfs-subdir-provisioner-leader-locking
+  namespace: nfs-provisioner
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nfs-subdir-provisioner-leader-locking
+  namespace: nfs-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: nfs-subdir-provisioner
+    namespace: nfs-provisioner
+roleRef:
+  kind: Role
+  name: nfs-subdir-provisioner-leader-locking
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-subdir-provisioner
+  namespace: nfs-provisioner
+  labels:
+    app: nfs-subdir-provisioner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-subdir-provisioner
+  template:
+    metadata:
+      labels:
+        app: nfs-subdir-provisioner
+    spec:
+      serviceAccountName: nfs-subdir-provisioner
+      containers:
+        - name: nfs-subdir-provisioner
+          image: registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+          volumeMounts:
+            - name: nfs-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: nfs-provisioner/nfs-subdir
+            - name: NFS_SERVER
+              value: "172.30.216.116"
+            - name: NFS_PATH
+              value: "/exports"
+      volumes:
+        - name: nfs-root
+          nfs:
+            server: "172.30.216.116"
+            path: "/exports"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-csi
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: nfs-provisioner/nfs-subdir
+parameters:
+  archiveOnDelete: "false"
+  onDelete: "delete"
+mountOptions:
+  - nfsvers=4.1

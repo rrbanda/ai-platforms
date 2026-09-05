@@ -12,6 +12,7 @@ resources:
   - nemo-guardrails.yaml
   - vector-stores-config.yaml
   - nfs-provisioner.yaml
+  - nfs-dynamic-provisioner.yaml
   - model-catalog-source.yaml
   - maas-sql-finetuned.yaml
   - model-registry-instance.yaml

@@ -44,6 +44,17 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
+        - name: migrate
+          image: ghcr.io/amortized-ai/amortized:latest
+          imagePullPolicy: Always
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - secretRef:
+                name: amortized-db
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
       containers:
         - name: server
           image: ghcr.io/amortized-ai/amortized:latest

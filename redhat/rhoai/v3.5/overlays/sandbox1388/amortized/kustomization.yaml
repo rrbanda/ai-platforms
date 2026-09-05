@@ -5,6 +5,7 @@ resources:
   - ../../../base/03-workloads/amortized
   - sealed-s3-secret.yaml
   - sealed-db-secret.yaml
+  - sealed-opencode-maas.yaml
 
 patches:
   - target:

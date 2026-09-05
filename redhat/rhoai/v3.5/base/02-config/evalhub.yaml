@@ -8,6 +8,18 @@ spec:
   tenancy: multi
   database:
     type: sqlite
+  providers:
+    - lm-evaluation-harness
+    - garak
+    - guidellm
+  collections:
+    - leaderboard-v2
+    - safety-and-fairness-v1
+    - toxicity-and-ethical-principles
+    - instruction-following-v1
+    - coding-v1
+    - model-validation
+    - standard-llm-evals-v1
   mcp:
     enabled: true
     transport: http

@@ -14,7 +14,7 @@
 #    eval_gpu_count: int [Default: 1.0]
 #    eval_memory: str [Default: '32Gi']
 #    eval_timeout: int [Default: 7200.0]
-#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}]]
+#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}, {'id': 'truthfulqa_mc1', 'provider_id': 'lm_evaluation_harness'}, {'id': 'toxigen', 'provider_id': 'lm_evaluation_harness'}, {'id': 'ethics_cm', 'provider_id': 'lm_evaluation_harness'}]]
 #    evalhub_collection: str [Default: '']
 #    evalhub_url: str [Default: '']
 #    gpu_per_worker: int [Default: 1.0]
@@ -2390,6 +2390,12 @@ root:
         - id: leaderboard_musr
           provider_id: lm_evaluation_harness
         - id: leaderboard_math_hard
+          provider_id: lm_evaluation_harness
+        - id: truthfulqa_mc1
+          provider_id: lm_evaluation_harness
+        - id: toxigen
+          provider_id: lm_evaluation_harness
+        - id: ethics_cm
           provider_id: lm_evaluation_harness
         isOptional: true
         parameterType: LIST

@@ -195,15 +195,21 @@ def finetuning_pipeline(
 
     # =========================================================================
     # PHASE 4a: BENCHMARK EVALUATION (EvalHub + MLflow)
+    #   Accuracy benchmarks (leaderboard-v2) + Safety benchmarks
     # =========================================================================
     evalhub_url: str = "",
     evalhub_collection: str = "",
     evalhub_benchmarks: list = [
+        # Accuracy (leaderboard-v2)
         {"id": "leaderboard_ifeval", "provider_id": "lm_evaluation_harness"},
         {"id": "leaderboard_bbh", "provider_id": "lm_evaluation_harness"},
         {"id": "leaderboard_mmlu_pro", "provider_id": "lm_evaluation_harness"},
         {"id": "leaderboard_musr", "provider_id": "lm_evaluation_harness"},
         {"id": "leaderboard_math_hard", "provider_id": "lm_evaluation_harness"},
+        # Safety & fairness — verifies fine-tuning didn't degrade guardrails
+        {"id": "truthfulqa_mc1", "provider_id": "lm_evaluation_harness"},
+        {"id": "toxigen", "provider_id": "lm_evaluation_harness"},
+        {"id": "ethics_cm", "provider_id": "lm_evaluation_harness"},
     ],
     mlflow_experiment: str = "",
     eval_timeout: int = 7200,
@@ -240,9 +246,12 @@ def finetuning_pipeline(
       - custom: Bring-your-own training code (plain PyTorch demo)
 
     Evaluation:
-      - Phase 4a: EvalHub benchmarks (MMLU, ifeval, bbh) + MLflow experiment tracking
+      - Phase 4a: EvalHub benchmarks — accuracy (MMLU, ifeval, bbh) AND safety
+        (truthfulqa, toxigen, ethics) + MLflow experiment tracking.
+        Answers: "Is the model capable AND safe after fine-tuning?"
       - Phase 4b: Holdout eval on the 10% eval split — measures task-specific
-        performance with exact_match, BLEU, ROUGE, perplexity, F1 overlap
+        performance with exact_match, BLEU, ROUGE, perplexity, F1 overlap.
+        Answers: "Did the model learn the specific task?"
 
     Prerequisites:
       - RHOAI 3.4+ with Data Science Pipelines, Kubeflow Trainer v2, KServe, TrustyAI

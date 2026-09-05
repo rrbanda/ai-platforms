@@ -15,7 +15,7 @@
 #    eval_gpu_count: int [Default: 1.0]
 #    eval_memory: str [Default: '32Gi']
 #    eval_timeout: int [Default: 7200.0]
-#    evalhub_benchmarks: list [Default: [{'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_ifeval'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_bbh'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_mmlu_pro'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_musr'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_math_hard'}, {'provider_id': 'lm_evaluation_harness', 'id': 'truthfulqa_mc1'}, {'provider_id': 'lm_evaluation_harness', 'id': 'toxigen'}, {'provider_id': 'lm_evaluation_harness', 'id': 'ethics_cm'}]]
+#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}, {'id': 'truthfulqa_mc1', 'provider_id': 'lm_evaluation_harness'}, {'id': 'toxigen', 'provider_id': 'lm_evaluation_harness'}, {'id': 'ethics_cm', 'provider_id': 'lm_evaluation_harness'}]]
 #    evalhub_collection: str [Default: '']
 #    evalhub_url: str [Default: 'https://evalhub.redhat-ods-applications.svc.cluster.local:8443']
 #    gpu_per_worker: int [Default: 1.0]
@@ -724,7 +724,7 @@ deploymentSpec:
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'sdg-hub>=0.7.0,<1.0'\
           \ 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
           3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
@@ -945,7 +945,7 @@ deploymentSpec:
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'datasets>=2.14.0'\
           \ 'huggingface-hub>=0.20.0' 's3fs>=2023.1.0'  &&  python3 -m pip install\
-          \ --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
           \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
@@ -1211,7 +1211,7 @@ deploymentSpec:
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'huggingface_hub>=0.20.0'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -1263,7 +1263,7 @@ deploymentSpec:
           \ python3 -m pip install --quiet --no-warn-script-location --index-url https://pypi.org/simple\
           \ --trusted-host https://pypi.org/simple 'requests'  &&  python3 -m pip\
           \ install --quiet --no-warn-script-location --index-url https://pypi.org/simple\
-          \ --trusted-host https://pypi.org/simple 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ --trusted-host https://pypi.org/simple 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
           \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
@@ -1647,7 +1647,7 @@ deploymentSpec:
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'model-registry==0.3.4'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -1814,7 +1814,7 @@ deploymentSpec:
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'kubernetes'\
           \ 'olot' 'matplotlib'  &&  python3 -m pip install --quiet --no-warn-script-location\
-          \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
           3.9\"' && \"$0\" \"$@\"\n"
         - sh
         - -ec
@@ -1999,7 +1999,7 @@ deploymentSpec:
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'lm-eval[vllm]'\
           \ 'unitxt' 'sacrebleu' 'rouge-score' 'datasets' 'accelerate' 'torch' 'transformers'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -2907,7 +2907,7 @@ root:
         isOptional: true
         parameterType: BOOLEAN
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.17.0
+sdkVersion: kfp-2.16.1
 ---
 platforms:
   kubernetes:

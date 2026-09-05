@@ -1,49 +1,37 @@
-# Pipeline RBAC
+# Pipeline RBAC — Namespace-scoped
 #
-# Grants the pipeline ServiceAccount permissions to:
+# Grants the pipeline ServiceAccount permissions ONLY within the
+# fine-tuning-demo namespace. For multi-tenant deployments, duplicate
+# this file per namespace with the appropriate namespace references.
+#
+# Permissions:
 # - Submit and manage Kubeflow Trainer v2 TrainJobs
 # - Create/delete KServe InferenceServices for ephemeral eval serving
 # - Create/delete KServe ServingRuntimes for eval
 # - Submit TrustyAI LMEvalJobs
-# - Read pods, logs, configmaps for monitoring
+# - Read pods, logs for monitoring
+# - Create/update ConfigMaps for EvalHub provider configs
+#
+# Note: ClusterTrainingRuntimes are cluster-scoped and require a
+# separate ClusterRole. The read-only ClusterRole below is minimal.
 ---
+# Cluster-scoped: read-only access to ClusterTrainingRuntimes
+# (these are shared resources installed by the RHOAI operator)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: fine-tuning-pipeline-runner
+  name: fine-tuning-demo-training-runtime-reader
   labels:
     app: fine-tuning-pipeline
 rules:
-  # Kubeflow Trainer v2
   - apiGroups: ["trainer.kubeflow.org"]
-    resources: ["clustertrainingruntimes", "trainingruntimes", "trainjobs"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  # TrustyAI LMEval
-  - apiGroups: ["trustyai.opendatahub.io"]
-    resources: ["lmevaljobs"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  # KServe InferenceServices (for EvalHub ephemeral serving)
-  - apiGroups: ["serving.kserve.io"]
-    resources: ["inferenceservices", "servingruntimes"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  # Core resources
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["pods", "pods/log", "services"]
+    resources: ["clustertrainingruntimes"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: fine-tuning-pipeline-runner
+  name: fine-tuning-demo-training-runtime-reader
   labels:
     app: fine-tuning-pipeline
 subjects:
@@ -58,5 +46,65 @@ subjects:
     namespace: fine-tuning-demo
 roleRef:
   kind: ClusterRole
+  name: fine-tuning-demo-training-runtime-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Namespace-scoped: full pipeline permissions within fine-tuning-demo only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fine-tuning-pipeline-runner
+  namespace: fine-tuning-demo
+  labels:
+    app: fine-tuning-pipeline
+rules:
+  # Kubeflow Trainer v2 — TrainJobs (namespace-scoped)
+  - apiGroups: ["trainer.kubeflow.org"]
+    resources: ["trainingruntimes", "trainjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # TrustyAI LMEval
+  - apiGroups: ["trustyai.opendatahub.io"]
+    resources: ["lmevaljobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # KServe — ephemeral InferenceServices for evaluation
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["inferenceservices", "servingruntimes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # ConfigMaps — EvalHub provider configs, pipeline metadata
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Pods/logs — monitoring training and eval jobs
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services"]
+    verbs: ["get", "list", "watch"]
+  # Secrets — read-only (pipeline reads credentials, doesn't create them)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  # PVCs — read workspace PVC
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fine-tuning-pipeline-runner
+  namespace: fine-tuning-demo
+  labels:
+    app: fine-tuning-pipeline
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: ds-pipeline-dspa
+    namespace: fine-tuning-demo
+roleRef:
+  kind: Role
   name: fine-tuning-pipeline-runner
   apiGroup: rbac.authorization.k8s.io

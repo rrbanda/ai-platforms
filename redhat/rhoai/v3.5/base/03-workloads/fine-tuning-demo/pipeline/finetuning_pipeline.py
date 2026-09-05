@@ -53,11 +53,9 @@ from components.evaluation.lm_eval import universal_llm_evaluator
 
 
 # =============================================================================
-# PVC Configuration — use pre-existing NFS RWX PVC (no auto-provisioning)
-# The fine-tuning-shared PVC is an 80Gi NFS ReadWriteMany volume that allows
-# all pipeline phases (training, eval, KServe serving) to mount simultaneously.
+# PVC Configuration — defaults to pre-existing NFS RWX PVC
+# Override via pipeline parameters for different namespaces/teams.
 # =============================================================================
-PIPELINE_PVC_NAME = "fine-tuning-shared"
 PIPELINE_PVC_MOUNT = "/mnt/shared"
 PIPELINE_NAME = "finetuning-pipeline"
 
@@ -126,6 +124,11 @@ def download_base_model(
     ),
 )
 def finetuning_pipeline(
+    # =========================================================================
+    # INFRASTRUCTURE (per-namespace, overridable for multi-tenancy)
+    # =========================================================================
+    shared_pvc_name: str = "fine-tuning-shared",
+
     # =========================================================================
     # TECHNIQUE SELECTION
     # =========================================================================
@@ -247,8 +250,14 @@ def finetuning_pipeline(
       - RHOAI 3.4+ with Data Science Pipelines, Kubeflow Trainer v2, KServe, TrustyAI
       - EvalHub and MLflow deployed (for Phase 4a)
       - Secrets: kubernetes-credentials, hf-token (optional), s3-secret (optional)
-      - 50Gi ReadWriteMany NFS PVC (auto-provisioned by pipeline workspace)
+      - ReadWriteMany PVC in the pipeline namespace (default: fine-tuning-shared)
       - GPU nodes for training (Phase 3) and evaluation (Phases 4a, 4b)
+
+    Multi-tenancy:
+      Each team gets their own namespace with: DSPA, secrets, RWX PVC, Role/RoleBinding.
+      Override shared_pvc_name, evalhub_url, registry_address per namespace.
+      Pipeline RBAC uses namespace-scoped Role (not ClusterRole) so teams
+      cannot access each other's TrainJobs or InferenceServices.
     """
     # =========================================================================
     # Phase 1: Dataset Download (90/10 train/eval split)
@@ -262,7 +271,7 @@ def finetuning_pipeline(
     )
     dataset_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(dataset_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(dataset_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(dataset_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
 
     kfp.kubernetes.use_secret_as_env(
         dataset_task,
@@ -284,7 +293,7 @@ def finetuning_pipeline(
     )
     model_download_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(model_download_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(model_download_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(model_download_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)
@@ -332,7 +341,7 @@ def finetuning_pipeline(
     training_task.after(model_download_task)
     training_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(training_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(training_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(training_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
 
     kfp.kubernetes.use_secret_as_env(
         task=training_task,
@@ -374,7 +383,7 @@ def finetuning_pipeline(
     )
     eval_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(eval_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(eval_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(eval_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
 
     # =========================================================================
     # Phase 4b: Holdout Evaluation via lm-eval (on the actual eval split)
@@ -440,7 +449,7 @@ def finetuning_pipeline(
     registry_task.after(holdout_eval_task)
     registry_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(registry_task, "IfNotPresent")
-    kfp.kubernetes.mount_pvc(registry_task, pvc_name=PIPELINE_PVC_NAME, mount_path=PIPELINE_PVC_MOUNT)
+    kfp.kubernetes.mount_pvc(registry_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
 
 
 if __name__ == "__main__":

@@ -938,130 +938,6 @@ spec:
     pipelineInfo:
       description: Fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques. Includes dataset preparation with train/eval split, model pre-caching, distributed training, benchmark evaluation via EvalHub with MLflow, holdout evaluation on task-specific data, and model registry with full provenance.
       name: finetuning-pipeline
-    platforms:
-      kubernetes:
-        deploymentSpec:
-          executors:
-            exec-data-quality-filter:
-              imagePullPolicy: IfNotPresent
-              pvcMount:
-              - componentInputParameter: shared_pvc_name
-                mountPath: /mnt/shared
-                pvcNameParameter:
-                  componentInputParameter: shared_pvc_name
-            exec-dataset-download:
-              imagePullPolicy: IfNotPresent
-              pvcMount:
-              - componentInputParameter: shared_pvc_name
-                mountPath: /mnt/shared
-                pvcNameParameter:
-                  componentInputParameter: shared_pvc_name
-              secretAsEnv:
-              - keyToEnv:
-                - envVar: AWS_ACCESS_KEY_ID
-                  secretKey: AWS_ACCESS_KEY_ID
-                - envVar: AWS_SECRET_ACCESS_KEY
-                  secretKey: AWS_SECRET_ACCESS_KEY
-                optional: true
-                secretName: s3-secret
-                secretNameParameter:
-                  runtimeValue:
-                    constant: s3-secret
-              - keyToEnv:
-                - envVar: HF_TOKEN
-                  secretKey: HF_TOKEN
-                optional: true
-                secretName: hf-token
-                secretNameParameter:
-                  runtimeValue:
-                    constant: hf-token
-            exec-download-base-model:
-              imagePullPolicy: IfNotPresent
-              pvcMount:
-              - componentInputParameter: shared_pvc_name
-                mountPath: /mnt/shared
-                pvcNameParameter:
-                  componentInputParameter: shared_pvc_name
-              secretAsEnv:
-              - keyToEnv:
-                - envVar: HF_TOKEN
-                  secretKey: HF_TOKEN
-                optional: true
-                secretName: hf-token
-                secretNameParameter:
-                  runtimeValue:
-                    constant: hf-token
-            exec-evalhub-evaluator-kserve:
-              imagePullPolicy: IfNotPresent
-              pvcMount:
-              - componentInputParameter: shared_pvc_name
-                mountPath: /mnt/shared
-                pvcNameParameter:
-                  componentInputParameter: shared_pvc_name
-              secretAsEnv:
-              - keyToEnv:
-                - envVar: HF_TOKEN
-                  secretKey: HF_TOKEN
-                optional: true
-                secretName: hf-token
-                secretNameParameter:
-                  runtimeValue:
-                    constant: hf-token
-            exec-kubeflow-model-registry:
-              imagePullPolicy: IfNotPresent
-              pvcMount:
-              - componentInputParameter: shared_pvc_name
-                mountPath: /mnt/shared
-                pvcNameParameter:
-                  componentInputParameter: shared_pvc_name
-            exec-train-model:
-              imagePullPolicy: IfNotPresent
-              pvcMount:
-              - componentInputParameter: shared_pvc_name
-                mountPath: /mnt/shared
-                pvcNameParameter:
-                  componentInputParameter: shared_pvc_name
-              secretAsEnv:
-              - keyToEnv:
-                - envVar: KUBERNETES_SERVER_URL
-                  secretKey: KUBERNETES_SERVER_URL
-                - envVar: KUBERNETES_AUTH_TOKEN
-                  secretKey: KUBERNETES_AUTH_TOKEN
-                optional: false
-                secretName: kubernetes-credentials
-                secretNameParameter:
-                  runtimeValue:
-                    constant: kubernetes-credentials
-              - keyToEnv:
-                - envVar: OCI_PULL_SECRET_MODEL_DOWNLOAD
-                  secretKey: OCI_PULL_SECRET_MODEL_DOWNLOAD
-                optional: true
-                secretName: oci-pull-secret-model-download
-                secretNameParameter:
-                  runtimeValue:
-                    constant: oci-pull-secret-model-download
-              - keyToEnv:
-                - envVar: HF_TOKEN
-                  secretKey: HF_TOKEN
-                optional: true
-                secretName: hf-token
-                secretNameParameter:
-                  runtimeValue:
-                    constant: hf-token
-            exec-universal-llm-evaluator:
-              imagePullPolicy: IfNotPresent
-              nodeSelector:
-                labels:
-                  nvidia.com/gpu.present: 'true'
-              secretAsEnv:
-              - keyToEnv:
-                - envVar: HF_TOKEN
-                  secretKey: HF_TOKEN
-                optional: true
-                secretName: hf-token
-                secretNameParameter:
-                  runtimeValue:
-                    constant: hf-token
     root:
       dag:
         tasks:
@@ -1602,3 +1478,127 @@ spec:
             parameterType: BOOLEAN
     schemaVersion: 2.1.0
     sdkVersion: kfp-2.17.0
+  platformSpec:
+    kubernetes:
+      deploymentSpec:
+        executors:
+          exec-data-quality-filter:
+            imagePullPolicy: IfNotPresent
+            pvcMount:
+            - componentInputParameter: shared_pvc_name
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                componentInputParameter: shared_pvc_name
+          exec-dataset-download:
+            imagePullPolicy: IfNotPresent
+            pvcMount:
+            - componentInputParameter: shared_pvc_name
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                componentInputParameter: shared_pvc_name
+            secretAsEnv:
+            - keyToEnv:
+              - envVar: AWS_ACCESS_KEY_ID
+                secretKey: AWS_ACCESS_KEY_ID
+              - envVar: AWS_SECRET_ACCESS_KEY
+                secretKey: AWS_SECRET_ACCESS_KEY
+              optional: true
+              secretName: s3-secret
+              secretNameParameter:
+                runtimeValue:
+                  constant: s3-secret
+            - keyToEnv:
+              - envVar: HF_TOKEN
+                secretKey: HF_TOKEN
+              optional: true
+              secretName: hf-token
+              secretNameParameter:
+                runtimeValue:
+                  constant: hf-token
+          exec-download-base-model:
+            imagePullPolicy: IfNotPresent
+            pvcMount:
+            - componentInputParameter: shared_pvc_name
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                componentInputParameter: shared_pvc_name
+            secretAsEnv:
+            - keyToEnv:
+              - envVar: HF_TOKEN
+                secretKey: HF_TOKEN
+              optional: true
+              secretName: hf-token
+              secretNameParameter:
+                runtimeValue:
+                  constant: hf-token
+          exec-evalhub-evaluator-kserve:
+            imagePullPolicy: IfNotPresent
+            pvcMount:
+            - componentInputParameter: shared_pvc_name
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                componentInputParameter: shared_pvc_name
+            secretAsEnv:
+            - keyToEnv:
+              - envVar: HF_TOKEN
+                secretKey: HF_TOKEN
+              optional: true
+              secretName: hf-token
+              secretNameParameter:
+                runtimeValue:
+                  constant: hf-token
+          exec-kubeflow-model-registry:
+            imagePullPolicy: IfNotPresent
+            pvcMount:
+            - componentInputParameter: shared_pvc_name
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                componentInputParameter: shared_pvc_name
+          exec-train-model:
+            imagePullPolicy: IfNotPresent
+            pvcMount:
+            - componentInputParameter: shared_pvc_name
+              mountPath: /mnt/shared
+              pvcNameParameter:
+                componentInputParameter: shared_pvc_name
+            secretAsEnv:
+            - keyToEnv:
+              - envVar: KUBERNETES_SERVER_URL
+                secretKey: KUBERNETES_SERVER_URL
+              - envVar: KUBERNETES_AUTH_TOKEN
+                secretKey: KUBERNETES_AUTH_TOKEN
+              optional: false
+              secretName: kubernetes-credentials
+              secretNameParameter:
+                runtimeValue:
+                  constant: kubernetes-credentials
+            - keyToEnv:
+              - envVar: OCI_PULL_SECRET_MODEL_DOWNLOAD
+                secretKey: OCI_PULL_SECRET_MODEL_DOWNLOAD
+              optional: true
+              secretName: oci-pull-secret-model-download
+              secretNameParameter:
+                runtimeValue:
+                  constant: oci-pull-secret-model-download
+            - keyToEnv:
+              - envVar: HF_TOKEN
+                secretKey: HF_TOKEN
+              optional: true
+              secretName: hf-token
+              secretNameParameter:
+                runtimeValue:
+                  constant: hf-token
+          exec-universal-llm-evaluator:
+            imagePullPolicy: IfNotPresent
+            nodeSelector:
+              labels:
+                nvidia.com/gpu.present: 'true'
+            secretAsEnv:
+            - keyToEnv:
+              - envVar: HF_TOKEN
+                secretKey: HF_TOKEN
+              optional: true
+              secretName: hf-token
+              secretNameParameter:
+                runtimeValue:
+                  constant: hf-token

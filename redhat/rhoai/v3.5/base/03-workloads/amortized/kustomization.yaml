@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - scc.yaml
+  - rbac.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - minio.yaml
+  - minio-init.yaml
+  - mlflow.yaml
+  - server-pvc.yaml
+  - server-deployment.yaml
+  - server-service.yaml
+  - studio-deployment.yaml
+  - studio-service.yaml
+  - studio-route.yaml

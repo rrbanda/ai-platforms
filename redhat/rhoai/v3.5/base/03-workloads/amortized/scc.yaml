@@ -1,0 +1,31 @@
+# MinIO and MLflow containers run as root; grant anyuid SCC to their service accounts.
+# amortized-server and postgres use the default restricted-v2 SCC.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: amortized-minio-anyuid
+  labels:
+    app: amortized
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: amortized-minio
+    namespace: amortized
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: amortized-mlflow-anyuid
+  labels:
+    app: amortized
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: amortized-mlflow
+    namespace: amortized

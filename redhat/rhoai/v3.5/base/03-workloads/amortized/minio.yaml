@@ -1,0 +1,108 @@
+# MinIO requires root to bind ports and manage data; uses amortized-minio SA (anyuid SCC).
+# Credentials pulled from amortized-s3 sealed secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: amortized
+  labels:
+    app: amortized
+    component: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amortized
+      component: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: amortized
+        component: minio
+    spec:
+      serviceAccountName: amortized-minio
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:latest
+          imagePullPolicy: Always
+          command: ["minio", "server", "/data", "--console-address", ":9001"]
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: amortized-s3
+                  key: AWS_ACCESS_KEY_ID
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: amortized-s3
+                  key: AWS_SECRET_ACCESS_KEY
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minio-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+  namespace: amortized
+  labels:
+    app: amortized
+    component: minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: amortized
+  labels:
+    app: amortized
+    component: minio
+spec:
+  type: ClusterIP
+  selector:
+    app: amortized
+    component: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+    - name: console
+      port: 9001
+      targetPort: console

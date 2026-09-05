@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: amortized-config
+  namespace: amortized
+  labels:
+    app: amortized
+data:
+  AMORTIZED_DATA_DIR: "/data"
+  AMORTIZED_COMPUTE_BACKEND: "kubernetes"
+  AMORTIZED_COMPUTE_NAMESPACE: "amortized-jobs"
+  AMORTIZED_IMAGE_REGISTRY: "ghcr.io/amortized-ai"
+  AMORTIZED_EXTERNAL_URL: "http://amortized-server.amortized.svc.cluster.local:8000"
+  AMORTIZED_AGENT_SERVER_URL: "http://amortized-server.amortized.svc.cluster.local:8000"
+  # Patched per overlay
+  AMORTIZED_MLFLOW_TRACKING_URI: ""
+  AMORTIZED_GATEWAY_URL: ""
+  AMORTIZED_S3_BUCKET: ""
+  # MLflow TLS — amortized's own MLflow uses a self-signed cert
+  MLFLOW_TRACKING_INSECURE_TLS: "true"

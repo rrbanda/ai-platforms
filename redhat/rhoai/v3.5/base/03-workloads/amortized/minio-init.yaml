@@ -1,0 +1,50 @@
+# One-shot Job that creates the 'amortized' bucket in MinIO after it starts.
+# Reuses the amortized-minio SA (anyuid) since mc runs as root.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+  namespace: amortized
+  labels:
+    app: amortized
+    component: minio-init
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app: amortized
+        component: minio-init
+    spec:
+      serviceAccountName: amortized-minio
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-minio
+          image: quay.io/minio/minio:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              until curl -sf http://minio.amortized.svc.cluster.local:9000/minio/health/ready; do
+                echo "Waiting for MinIO..."
+                sleep 5
+              done
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              mc alias set local http://minio.amortized.svc.cluster.local:9000 "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"
+              mc mb --ignore-existing local/amortized
+              echo "Bucket 'amortized' ready."
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: amortized-s3
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: amortized-s3
+                  key: AWS_SECRET_ACCESS_KEY

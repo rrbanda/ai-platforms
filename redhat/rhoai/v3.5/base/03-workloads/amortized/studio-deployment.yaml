@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amortized-studio
+  namespace: amortized
+  labels:
+    app: amortized
+    component: studio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amortized
+      component: studio
+  template:
+    metadata:
+      labels:
+        app: amortized
+        component: studio
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: studio
+          image: ghcr.io/amortized-ai/studio:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: BACKEND_HOST
+              value: "amortized-server.amortized.svc.cluster.local"
+            - name: BACKEND_PORT
+              value: "8000"
+            - name: AGENT_HOST
+              value: ""
+            - name: AGENT_PORT
+              value: "4096"
+            - name: MLFLOW_HOST
+              value: "mlflow.amortized.svc.cluster.local"
+            - name: MLFLOW_PORT
+              value: "5000"
+            # OpenShift CoreDNS is at 172.30.0.10, not 10.96.0.10 (vanilla K8s)
+            - name: DNS_RESOLVER
+              value: "172.30.0.10"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10

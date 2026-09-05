@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amortized
+  labels:
+    app: amortized
+    opendatahub.io/dashboard: "true"
+  annotations:
+    openshift.io/display-name: "Amortized"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amortized-jobs
+  labels:
+    app: amortized
+  annotations:
+    openshift.io/display-name: "Amortized Jobs"

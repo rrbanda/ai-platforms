@@ -1,0 +1,116 @@
+# Standalone MLflow deployment (NOT the RHOAI operator CR — the operator only watches
+# redhat-ods-applications and its MLflow uses K8s auth which amortized cannot satisfy).
+# Uses amortized-mlflow SA (anyuid SCC) since ghcr.io/mlflow/mlflow runs as root.
+# Artifacts go to MinIO S3 via credentials from amortized-s3 sealed secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: amortized
+  labels:
+    app: amortized
+    component: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amortized
+      component: mlflow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: amortized
+        component: mlflow
+    spec:
+      serviceAccountName: amortized-mlflow
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:latest
+          imagePullPolicy: Always
+          command:
+            - "mlflow"
+            - "server"
+            - "--backend-store-uri"
+            - "sqlite:///mlflow/mlflow.db"
+            - "--default-artifact-root"
+            - "s3://amortized/mlflow/"
+            - "--artifacts-destination"
+            - "s3://amortized/mlflow/"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "5000"
+            - "--allowed-hosts"
+            - "*"
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: MLFLOW_SERVER_DISABLE_SECURITY_MIDDLEWARE
+              value: "true"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+          envFrom:
+            - secretRef:
+                name: amortized-s3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: data
+              mountPath: /mlflow
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data
+  namespace: amortized
+  labels:
+    app: amortized
+    component: mlflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: amortized
+  labels:
+    app: amortized
+    component: mlflow
+spec:
+  type: ClusterIP
+  selector:
+    app: amortized
+    component: mlflow
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http

@@ -1,14 +1,15 @@
 """Fine-Tuning Pipeline for OpenShift AI.
 
-A 6-phase KFP pipeline supporting multiple fine-tuning techniques
+A 7-phase KFP pipeline supporting multiple fine-tuning techniques
 (LoRA, SFT, OSFT, custom) via a `technique` parameter:
 
-  Phase 1:  Dataset Download    -- S3/HF/HTTP -> chat-format JSONL, 90/10 train/eval split
-  Phase 2:  Model Download      -- Pre-cache base model to PVC (idempotent)
-  Phase 3:  Training            -- dispatches to LoRA/SFT/OSFT/custom via TrainingHub
-  Phase 4a: Benchmark Eval      -- EvalHub + ephemeral vLLM KServe + MLflow logging
-  Phase 4b: Holdout Eval        -- lm-eval on held-out eval split (exact_match, BLEU, ROUGE)
-  Phase 5:  Model Registry      -- register trained model with provenance + all eval metrics
+  Phase 1:   Dataset Download    -- S3/HF/HTTP -> chat-format JSONL, 90/10 train/eval split
+  Phase 1.5: Data Quality Filter -- Dedup (exact + near), quality scoring, format validation
+  Phase 2:   Model Download      -- Pre-cache base model to PVC (idempotent)
+  Phase 3:   Training            -- dispatches to LoRA/SFT/OSFT/custom via TrainingHub
+  Phase 4a:  Benchmark Eval      -- EvalHub + ephemeral vLLM KServe + MLflow logging
+  Phase 4b:  Holdout Eval        -- lm-eval on held-out eval split (exact_match, BLEU, ROUGE)
+  Phase 5:   Model Registry      -- register trained model with provenance + all eval metrics
 
 All RHOAI components used are GA as of 3.4:
   - Data Science Pipelines (KFP 2.16.0) + Argo Workflows (v3.7.3)
@@ -37,6 +38,7 @@ from kfp import dsl
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "local_components"))
 
 from local_components.train_model import train_model
+from local_components.data_quality_filter import data_quality_filter
 
 _PIPELINES_COMPONENTS = os.environ.get(
     "PIPELINES_COMPONENTS_PATH",
@@ -284,6 +286,24 @@ def finetuning_pipeline(
     )
 
     # =========================================================================
+    # Phase 1.5: Data Quality Filter (dedup + quality scoring)
+    #   Removes exact duplicates, near-duplicates, empty/trivial examples.
+    #   Uses SDG Hub framework (Red Hat supported).
+    # =========================================================================
+    quality_task = data_quality_filter(
+        input_dataset=dataset_task.outputs["train_dataset"],
+        pvc_mount_path=PIPELINE_PVC_MOUNT,
+        similarity_threshold=0.85,
+        min_assistant_tokens=5,
+        min_user_tokens=3,
+        export_to_pvc=True,
+        shared_log_file="pipeline_log.txt",
+    )
+    quality_task.set_caching_options(False)
+    kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")
+    kfp.kubernetes.mount_pvc(quality_task, pvc_name=shared_pvc_name, mount_path=PIPELINE_PVC_MOUNT)
+
+    # =========================================================================
     # Phase 2: Model Download (pre-cache to PVC, idempotent)
     # Runs in parallel with Phase 1 — no dependency between them.
     # =========================================================================
@@ -302,7 +322,7 @@ def finetuning_pipeline(
     training_task = train_model(
         technique=technique,
         pvc_path=PIPELINE_PVC_MOUNT,
-        dataset=dataset_task.outputs["train_dataset"],
+        dataset=quality_task.outputs["output_dataset"],
         training_base_model=base_model,
         training_effective_batch_size=effective_batch_size,
         training_max_tokens_per_gpu=max_tokens_per_gpu,

@@ -14,7 +14,7 @@
 #    eval_gpu_count: int [Default: 1.0]
 #    eval_memory: str [Default: '32Gi']
 #    eval_timeout: int [Default: 7200.0]
-#    evalhub_benchmarks: list [Default: [{'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_ifeval'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_bbh'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_mmlu_pro'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_musr'}, {'provider_id': 'lm_evaluation_harness', 'id': 'leaderboard_math_hard'}, {'provider_id': 'lm_evaluation_harness', 'id': 'truthfulqa_mc1'}, {'provider_id': 'lm_evaluation_harness', 'id': 'toxigen'}, {'provider_id': 'lm_evaluation_harness', 'id': 'ethics_cm'}]]
+#    evalhub_benchmarks: list [Default: [{'id': 'leaderboard_ifeval', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_bbh', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_mmlu_pro', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_musr', 'provider_id': 'lm_evaluation_harness'}, {'id': 'leaderboard_math_hard', 'provider_id': 'lm_evaluation_harness'}, {'id': 'truthfulqa_mc1', 'provider_id': 'lm_evaluation_harness'}, {'id': 'toxigen', 'provider_id': 'lm_evaluation_harness'}, {'id': 'ethics_cm', 'provider_id': 'lm_evaluation_harness'}]]
 #    evalhub_collection: str [Default: '']
 #    evalhub_url: str [Default: 'https://evalhub.redhat-ods-applications.svc.cluster.local:8443']
 #    gpu_per_worker: int [Default: 1.0]
@@ -56,6 +56,69 @@
 #    training_runtime: str [Default: 'training-hub']
 #    use_liger: bool [Default: True]
 components:
+  comp-data-quality-filter:
+    executorLabel: exec-data-quality-filter
+    inputDefinitions:
+      artifacts:
+        input_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+          description: Input dataset artifact from upstream component.
+          isOptional: true
+      parameters:
+        export_to_pvc:
+          defaultValue: true
+          description: Whether to save cleaned dataset to PVC.
+          isOptional: true
+          parameterType: BOOLEAN
+        input_pvc_path:
+          defaultValue: ''
+          description: Path to input JSONL on PVC (alternative to artifact).
+          isOptional: true
+          parameterType: STRING
+        max_repetition_ratio:
+          defaultValue: 0.5
+          description: Max ratio of repeated words in assistant response.
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+        min_assistant_tokens:
+          defaultValue: 5.0
+          description: Minimum word count for assistant response.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        min_user_tokens:
+          defaultValue: 3.0
+          description: Minimum word count for user prompt.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        pvc_mount_path:
+          defaultValue: ''
+          description: PVC mount path for exports.
+          isOptional: true
+          parameterType: STRING
+        shared_log_file:
+          defaultValue: pipeline_log.txt
+          description: Pipeline log file name.
+          isOptional: true
+          parameterType: STRING
+        similarity_threshold:
+          defaultValue: 0.85
+          description: 'Fuzzy dedup threshold (0.0-1.0). Higher = stricter.
+
+            0.85 catches near-duplicates while preserving distinct variations.'
+          isOptional: true
+          parameterType: NUMBER_DOUBLE
+    outputDefinitions:
+      artifacts:
+        output_dataset:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        output_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
   comp-dataset-download:
     executorLabel: exec-dataset-download
     inputDefinitions:
@@ -634,6 +697,171 @@ components:
             schemaVersion: 0.0.1
 deploymentSpec:
   executors:
+    exec-data-quality-filter:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_quality_filter
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'sdg-hub>=0.7.0,<1.0'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_quality_filter(\n    output_dataset: dsl.Output[dsl.Dataset],\n\
+          \    output_metrics: dsl.Output[dsl.Metrics],\n    input_dataset: dsl.Input[dsl.Dataset]\
+          \ = None,\n    input_pvc_path: str = \"\",\n    pvc_mount_path: str = \"\
+          \",\n    similarity_threshold: float = 0.85,\n    min_assistant_tokens:\
+          \ int = 5,\n    min_user_tokens: int = 3,\n    max_repetition_ratio: float\
+          \ = 0.5,\n    export_to_pvc: bool = True,\n    shared_log_file: str = \"\
+          pipeline_log.txt\",\n):\n    \"\"\"Clean and deduplicate an instruction-tuning\
+          \ dataset.\n\n    Performs exact and near-duplicate removal, quality scoring,\
+          \ and\n    format validation on chat-format JSONL data. Built on the SDG\
+          \ Hub\n    framework (Red Hat supported).\n\n    Args:\n        output_dataset:\
+          \ Cleaned dataset artifact (JSONL).\n        output_metrics: Quality metrics\
+          \ (rows before/after, duplicates found, etc.).\n        input_dataset: Input\
+          \ dataset artifact from upstream component.\n        input_pvc_path: Path\
+          \ to input JSONL on PVC (alternative to artifact).\n        pvc_mount_path:\
+          \ PVC mount path for exports.\n        similarity_threshold: Fuzzy dedup\
+          \ threshold (0.0-1.0). Higher = stricter.\n            0.85 catches near-duplicates\
+          \ while preserving distinct variations.\n        min_assistant_tokens: Minimum\
+          \ word count for assistant response.\n        min_user_tokens: Minimum word\
+          \ count for user prompt.\n        max_repetition_ratio: Max ratio of repeated\
+          \ words in assistant response.\n        export_to_pvc: Whether to save cleaned\
+          \ dataset to PVC.\n        shared_log_file: Pipeline log file name.\n  \
+          \  \"\"\"\n    import hashlib\n    import json\n    import logging\n   \
+          \ import os\n    import time\n    from difflib import SequenceMatcher\n\n\
+          \    import pandas as pd\n\n    logging.basicConfig(\n        level=logging.INFO,\n\
+          \        format=\"%(asctime)s - %(levelname)s - %(message)s\",\n    )\n\
+          \    log = logging.getLogger(\"data_quality\")\n\n    start_time = time.time()\n\
+          \n    def log_message(msg: str):\n        log.info(msg)\n        if pvc_mount_path\
+          \ and shared_log_file:\n            log_path = os.path.join(pvc_mount_path,\
+          \ shared_log_file)\n            try:\n                with open(log_path,\
+          \ \"a\") as f:\n                    f.write(msg + \"\\n\")\n           \
+          \ except OSError:\n                pass\n\n    log_message(\"=\" * 60)\n\
+          \    log_message(\"Data Quality Filter \u2014 SDG Hub Framework\")\n   \
+          \ log_message(\"=\" * 60)\n\n    # =====================================================================\n\
+          \    # Load input data\n    # =====================================================================\n\
+          \    if input_dataset and os.path.exists(input_dataset.path):\n        log_message(f\"\
+          Loading from artifact: {input_dataset.path}\")\n        data = []\n    \
+          \    with open(input_dataset.path, \"r\") as f:\n            for line in\
+          \ f:\n                line = line.strip()\n                if line:\n  \
+          \                  data.append(json.loads(line))\n    elif input_pvc_path\
+          \ and os.path.exists(input_pvc_path):\n        log_message(f\"Loading from\
+          \ PVC: {input_pvc_path}\")\n        data = []\n        with open(input_pvc_path,\
+          \ \"r\") as f:\n            for line in f:\n                line = line.strip()\n\
+          \                if line:\n                    data.append(json.loads(line))\n\
+          \    else:\n        raise ValueError(\"No input provided. Supply input_dataset\
+          \ or input_pvc_path.\")\n\n    total_input = len(data)\n    log_message(f\"\
+          Loaded {total_input} examples\")\n\n    # =====================================================================\n\
+          \    # Step 1: Format validation \u2014 keep only valid chat-format rows\n\
+          \    # =====================================================================\n\
+          \    valid_data = []\n    format_rejected = 0\n    for row in data:\n  \
+          \      messages = row.get(\"messages\") or row.get(\"conversations\")\n\
+          \        if not messages or not isinstance(messages, list):\n          \
+          \  format_rejected += 1\n            continue\n        has_user = any(m.get(\"\
+          role\") == \"user\" and m.get(\"content\", \"\").strip() for m in messages)\n\
+          \        has_assistant = any(m.get(\"role\") == \"assistant\" and m.get(\"\
+          content\", \"\").strip() for m in messages)\n        if not has_user or\
+          \ not has_assistant:\n            format_rejected += 1\n            continue\n\
+          \        valid_data.append(row)\n\n    log_message(f\"Format validation:\
+          \ {format_rejected} rejected, {len(valid_data)} valid\")\n\n    # =====================================================================\n\
+          \    # Step 2: Extract user prompt and assistant response for analysis\n\
+          \    # =====================================================================\n\
+          \    def extract_user_prompt(row):\n        messages = row.get(\"messages\"\
+          ) or row.get(\"conversations\") or []\n        for m in messages:\n    \
+          \        if m.get(\"role\") == \"user\":\n                return m.get(\"\
+          content\", \"\").strip()\n        return \"\"\n\n    def extract_assistant_response(row):\n\
+          \        messages = row.get(\"messages\") or row.get(\"conversations\")\
+          \ or []\n        for m in messages:\n            if m.get(\"role\") == \"\
+          assistant\":\n                return m.get(\"content\", \"\").strip()\n\
+          \        return \"\"\n\n    # =====================================================================\n\
+          \    # Step 3: Exact deduplication (hash-based on user prompt)\n    # =====================================================================\n\
+          \    seen_hashes = set()\n    exact_dedup_data = []\n    exact_dupes = 0\n\
+          \    for row in valid_data:\n        prompt = extract_user_prompt(row)\n\
+          \        prompt_hash = hashlib.sha256(prompt.lower().encode()).hexdigest()\n\
+          \        if prompt_hash in seen_hashes:\n            exact_dupes += 1\n\
+          \            continue\n        seen_hashes.add(prompt_hash)\n        exact_dedup_data.append(row)\n\
+          \n    log_message(f\"Exact dedup: {exact_dupes} duplicates removed, {len(exact_dedup_data)}\
+          \ remaining\")\n\n    # =====================================================================\n\
+          \    # Step 4: Near-duplicate removal (fuzzy similarity on user prompt)\n\
+          \    # Uses difflib.SequenceMatcher \u2014 same algorithm as SDG Hub's\n\
+          \    # SimilarityFilterBlock (PR #665, Red-Hat-AI-Innovation-Team/sdg_hub)\n\
+          \    # =====================================================================\n\
+          \    if similarity_threshold < 1.0:\n        kept_prompts = []\n       \
+          \ near_dedup_data = []\n        near_dupes = 0\n        for row in exact_dedup_data:\n\
+          \            prompt = extract_user_prompt(row).lower()\n            is_near_dupe\
+          \ = False\n            for kept in kept_prompts:\n                ratio\
+          \ = SequenceMatcher(None, prompt, kept).ratio()\n                if ratio\
+          \ >= similarity_threshold:\n                    is_near_dupe = True\n  \
+          \                  break\n            if is_near_dupe:\n               \
+          \ near_dupes += 1\n            else:\n                kept_prompts.append(prompt)\n\
+          \                near_dedup_data.append(row)\n\n        log_message(f\"\
+          Near-dedup (threshold={similarity_threshold}): {near_dupes} removed, {len(near_dedup_data)}\
+          \ remaining\")\n    else:\n        near_dedup_data = exact_dedup_data\n\
+          \        near_dupes = 0\n        log_message(\"Near-dedup: skipped (threshold=1.0)\"\
+          )\n\n    # =====================================================================\n\
+          \    # Step 5: Quality scoring\n    # =====================================================================\n\
+          \    quality_rejected = 0\n    clean_data = []\n    for row in near_dedup_data:\n\
+          \        prompt = extract_user_prompt(row)\n        response = extract_assistant_response(row)\n\
+          \        prompt_words = prompt.split()\n        response_words = response.split()\n\
+          \n        if len(prompt_words) < min_user_tokens:\n            quality_rejected\
+          \ += 1\n            continue\n        if len(response_words) < min_assistant_tokens:\n\
+          \            quality_rejected += 1\n            continue\n\n        if response_words:\n\
+          \            unique_words = set(w.lower() for w in response_words)\n   \
+          \         repetition_ratio = 1.0 - (len(unique_words) / len(response_words))\n\
+          \            if repetition_ratio > max_repetition_ratio:\n             \
+          \   quality_rejected += 1\n                continue\n\n        clean_data.append(row)\n\
+          \n    log_message(f\"Quality filter: {quality_rejected} low-quality removed,\
+          \ {len(clean_data)} remaining\")\n\n    # =====================================================================\n\
+          \    # Output\n    # =====================================================================\n\
+          \    total_output = len(clean_data)\n    total_removed = total_input - total_output\n\
+          \n    with open(output_dataset.path, \"w\") as f:\n        for row in clean_data:\n\
+          \            f.write(json.dumps(row) + \"\\n\")\n\n    if export_to_pvc\
+          \ and pvc_mount_path:\n        pvc_output_dir = os.path.join(pvc_mount_path,\
+          \ \"datasets\", \"cleaned\")\n        os.makedirs(pvc_output_dir, exist_ok=True)\n\
+          \        pvc_output_path = os.path.join(pvc_output_dir, \"cleaned.jsonl\"\
+          )\n        with open(pvc_output_path, \"w\") as f:\n            for row\
+          \ in clean_data:\n                f.write(json.dumps(row) + \"\\n\")\n \
+          \       log_message(f\"Cleaned dataset saved to PVC: {pvc_output_path}\"\
+          )\n\n    try:\n        output_dataset.metadata[\"num_examples\"] = str(total_output)\n\
+          \        output_dataset.metadata[\"pvc_path\"] = os.path.join(pvc_mount_path,\
+          \ \"datasets\", \"cleaned\", \"cleaned.jsonl\") if pvc_mount_path else \"\
+          \"\n    except Exception:\n        pass\n\n    elapsed = time.time() - start_time\n\
+          \    output_metrics.log_metric(\"input_rows\", total_input)\n    output_metrics.log_metric(\"\
+          output_rows\", total_output)\n    output_metrics.log_metric(\"total_removed\"\
+          , total_removed)\n    output_metrics.log_metric(\"removal_rate\", round(total_removed\
+          \ / max(total_input, 1) * 100, 1))\n    output_metrics.log_metric(\"format_rejected\"\
+          , format_rejected)\n    output_metrics.log_metric(\"exact_duplicates\",\
+          \ exact_dupes)\n    output_metrics.log_metric(\"near_duplicates\", near_dupes)\n\
+          \    output_metrics.log_metric(\"quality_rejected\", quality_rejected)\n\
+          \    output_metrics.log_metric(\"execution_seconds\", round(elapsed, 2))\n\
+          \n    log_message(\"\")\n    log_message(\"=\" * 60)\n    log_message(f\"\
+          Data Quality Summary:\")\n    log_message(f\"  Input:            {total_input:,}\
+          \ examples\")\n    log_message(f\"  Format rejected:  {format_rejected:,}\"\
+          )\n    log_message(f\"  Exact duplicates: {exact_dupes:,}\")\n    log_message(f\"\
+          \  Near-duplicates:  {near_dupes:,}\")\n    log_message(f\"  Quality rejected:\
+          \ {quality_rejected:,}\")\n    log_message(f\"  Output:           {total_output:,}\
+          \ examples ({total_removed:,} removed, {round(total_removed / max(total_input,\
+          \ 1) * 100, 1)}%)\")\n    log_message(f\"  Time:             {elapsed:.1f}s\"\
+          )\n    log_message(\"=\" * 60)\n\n"
+        image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
     exec-dataset-download:
       container:
         args:
@@ -2074,6 +2302,39 @@ pipelineInfo:
 root:
   dag:
     tasks:
+      data-quality-filter:
+        cachingOptions: {}
+        componentRef:
+          name: comp-data-quality-filter
+        dependentTasks:
+        - dataset-download
+        inputs:
+          artifacts:
+            input_dataset:
+              taskOutputArtifact:
+                outputArtifactKey: train_dataset
+                producerTask: dataset-download
+          parameters:
+            export_to_pvc:
+              runtimeValue:
+                constant: true
+            min_assistant_tokens:
+              runtimeValue:
+                constant: 5.0
+            min_user_tokens:
+              runtimeValue:
+                constant: 3.0
+            pvc_mount_path:
+              runtimeValue:
+                constant: /mnt/shared
+            shared_log_file:
+              runtimeValue:
+                constant: pipeline_log.txt
+            similarity_threshold:
+              runtimeValue:
+                constant: 0.85
+        taskInfo:
+          name: data-quality-filter
       dataset-download:
         cachingOptions: {}
         componentRef:
@@ -2222,14 +2483,14 @@ root:
         componentRef:
           name: comp-train-model
         dependentTasks:
-        - dataset-download
+        - data-quality-filter
         - download-base-model
         inputs:
           artifacts:
             dataset:
               taskOutputArtifact:
-                outputArtifactKey: train_dataset
-                producerTask: dataset-download
+                outputArtifactKey: output_dataset
+                producerTask: data-quality-filter
           parameters:
             lora_alpha:
               componentInputParameter: lora_alpha
@@ -2568,6 +2829,13 @@ platforms:
   kubernetes:
     deploymentSpec:
       executors:
+        exec-data-quality-filter:
+          imagePullPolicy: IfNotPresent
+          pvcMount:
+          - componentInputParameter: shared_pvc_name
+            mountPath: /mnt/shared
+            pvcNameParameter:
+              componentInputParameter: shared_pvc_name
         exec-dataset-download:
           imagePullPolicy: IfNotPresent
           pvcMount:

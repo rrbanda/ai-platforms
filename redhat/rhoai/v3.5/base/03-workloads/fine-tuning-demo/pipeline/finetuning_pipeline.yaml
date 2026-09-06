@@ -1599,7 +1599,7 @@ spec:
             - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip\
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
-              \ 'model-registry==0.3.4'  &&  python3 -m pip install --quiet --no-warn-script-location\
+              \ 'model-registry>=0.3.6'  &&  python3 -m pip install --quiet --no-warn-script-location\
               \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
@@ -2381,7 +2381,7 @@ spec:
               value: '0'
             - name: FLASHINFER_ENABLE_AOT
               value: '1'
-            image: registry.access.redhat.com/ubi9/python-311:latest
+            image: registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d
             resources:
               accelerator:
                 count: '1'

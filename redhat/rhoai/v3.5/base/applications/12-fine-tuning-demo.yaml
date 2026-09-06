@@ -14,6 +14,18 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: fine-tuning-demo
+  ignoreDifferences:
+    - group: kubeflow.org
+      kind: Notebook
+      jqPathExpressions:
+        - .spec.template.spec.containers[].resources
+        - .spec.template.spec.volumes[]?.persistentVolumeClaim
+        - .metadata.annotations["notebooks.opendatahub.io/last-image-selection"]
+        - .metadata.annotations["notebooks.opendatahub.io/last-size-selection"]
+    - group: serving.kserve.io
+      kind: LLMInferenceService
+      jsonPointers:
+        - /status
   syncPolicy:
     automated:
       selfHeal: true

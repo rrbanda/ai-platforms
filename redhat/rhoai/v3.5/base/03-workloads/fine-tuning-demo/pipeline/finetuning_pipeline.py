@@ -420,6 +420,7 @@ def finetuning_pipeline(
         batch_size=holdout_eval_batch_size,
         limit=holdout_eval_limit,
         log_samples=True,
+        model_args={"enforce_eager": True},
     )
     holdout_eval_task.after(eval_task)
     holdout_eval_task.set_caching_options(False)
@@ -431,9 +432,12 @@ def finetuning_pipeline(
     )
     kfp.kubernetes.add_toleration(holdout_eval_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
 
-    # vLLM: use Flash Attention backend — the eval image lacks nvcc so
-    # FlashInfer JIT compilation fails. FLASH_ATTN is pre-compiled.
+    # The eval image (ubi9/python-311) has no CUDA toolkit (no nvcc, no
+    # /usr/local/cuda). vLLM's FlashInfer JIT and deep_gemm both need nvcc.
+    # Disable all JIT-compiled kernel paths to use pre-compiled alternatives.
     holdout_eval_task.set_env_variable("VLLM_ATTENTION_BACKEND", "FLASH_ATTN")
+    holdout_eval_task.set_env_variable("VLLM_USE_FLASHINFER_SAMPLER", "false")
+    holdout_eval_task.set_env_variable("FLASHINFER_ENABLE_AOT", "1")
 
     # HF token for all steps that may download gated models or datasets
     for _task in [dataset_task, training_task, eval_task, holdout_eval_task]:

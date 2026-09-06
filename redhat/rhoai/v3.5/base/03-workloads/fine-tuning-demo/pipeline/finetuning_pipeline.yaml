@@ -2377,6 +2377,10 @@ spec:
             env:
             - name: VLLM_ATTENTION_BACKEND
               value: FLASH_ATTN
+            - name: VLLM_USE_FLASHINFER_SAMPLER
+              value: 'false'
+            - name: FLASHINFER_ENABLE_AOT
+              value: '1'
             image: registry.access.redhat.com/ubi9/python-311:latest
             resources:
               accelerator:
@@ -2667,6 +2671,10 @@ spec:
                 log_samples:
                   runtimeValue:
                     constant: true
+                model_args:
+                  runtimeValue:
+                    constant:
+                      enforce_eager: true
                 task_names:
                   componentInputParameter: holdout_eval_tasks
             taskInfo:

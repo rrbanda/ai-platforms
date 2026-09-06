@@ -20,7 +20,7 @@ spec:
       jqPathExpressions:
         - .metadata.annotations
         - .spec.template.spec.containers[].resources
-        - .spec.template.spec.volumes[]?.persistentVolumeClaim
+        - .spec.template.spec.volumes
         - .spec.template.spec.initContainers
         - .spec.template.spec.affinity
         - .spec.template.spec.enableServiceLinks

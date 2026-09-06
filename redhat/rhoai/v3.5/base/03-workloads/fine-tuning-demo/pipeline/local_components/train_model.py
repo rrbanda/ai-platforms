@@ -234,6 +234,33 @@ def train_model(
     if kubernetes_config and getattr(kubernetes_config, "volume_mounts", None):
         vmts.extend(kubernetes_config.volume_mounts)
 
+    # Mount the workspace PVC into the TrainJob pod so it can read
+    # datasets and write checkpoints. Discover PVC name from own pod spec.
+    try:
+        from kubernetes import client as k8s_client
+
+        v1 = k8s_client.CoreV1Api(_api)
+        my_pod_name = os.environ.get("HOSTNAME", "")
+        my_namespace = os.environ.get("KFP_POD_NAMESPACE", "") or open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read().strip()
+        if my_pod_name and my_namespace:
+            pod = v1.read_namespaced_pod(my_pod_name, my_namespace)
+            for vol in pod.spec.volumes or []:
+                if vol.persistent_volume_claim and "workspace" in (vol.persistent_volume_claim.claim_name or ""):
+                    workspace_pvc = vol.persistent_volume_claim.claim_name
+                    workspace_mount = None
+                    for container in pod.spec.containers or []:
+                        for vm in container.volume_mounts or []:
+                            if vm.name == vol.name:
+                                workspace_mount = vm.mount_path
+                                break
+                    if workspace_pvc and workspace_mount:
+                        log.info(f"Discovered workspace PVC: {workspace_pvc} at {workspace_mount}")
+                        vols.append({"name": "workspace", "persistentVolumeClaim": {"claimName": workspace_pvc}})
+                        vmts.append({"name": "workspace", "mountPath": workspace_mount})
+                    break
+    except Exception as e:
+        log.warning(f"Could not discover workspace PVC: {e}")
+
     resources = {
         "nvidia.com/gpu": training_resource_gpu_per_worker,
         "memory": training_resource_memory_per_worker,

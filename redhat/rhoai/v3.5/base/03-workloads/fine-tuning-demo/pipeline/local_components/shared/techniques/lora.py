@@ -80,8 +80,12 @@ def train_func(**p):
     Calls training_hub.lora_sft(), then merges the LoRA adapter into the
     base model using Unsloth's save_pretrained_merged(). Post-processes
     safetensors keys and config.json for vLLM compatibility.
+
+    The merge writes to local /tmp first (avoids NFS mmap hangs on large
+    safetensors writes), then copies the final model to the PVC checkpoint dir.
     """
     import os
+    import shutil
 
     from training_hub import lora_sft as tr
 
@@ -95,20 +99,15 @@ def train_func(**p):
 
         from safetensors.torch import load_file, save_file
 
-        for _f in (
-            _glob.glob(ckpt_dir + "/*.safetensors")
-            + _glob.glob(ckpt_dir + "/model.safetensors.index.json")
-            + _glob.glob(ckpt_dir + "/adapter_config.json")
-        ):
-            if os.path.exists(_f):
-                os.remove(_f)
+        local_merge = "/tmp/_merge_output"
+        os.makedirs(local_merge, exist_ok=True)
 
-        print("[PY] Merging and saving model (Unsloth merged_16bit)...", flush=True)
+        print("[PY] Merging and saving model (Unsloth merged_16bit) to local storage...", flush=True)
         result["model"].save_pretrained_merged(
-            ckpt_dir, result["tokenizer"], save_method="merged_16bit"
+            local_merge, result["tokenizer"], save_method="merged_16bit"
         )
 
-        for sf_path in sorted(_glob.glob(ckpt_dir + "/*.safetensors")):
+        for sf_path in sorted(_glob.glob(local_merge + "/*.safetensors")):
             tensors = load_file(sf_path)
             clean, needs_fix = {}, False
             for k, v in tensors.items():
@@ -123,7 +122,7 @@ def train_func(**p):
             if needs_fix:
                 save_file(clean, sf_path)
 
-        idx_path = ckpt_dir + "/model.safetensors.index.json"
+        idx_path = local_merge + "/model.safetensors.index.json"
         if os.path.exists(idx_path):
             with open(idx_path) as f:
                 idx = json.load(f)
@@ -140,7 +139,7 @@ def train_func(**p):
                 with open(idx_path, "w") as f:
                     json.dump(idx, f, indent=2)
 
-        cfg_path = ckpt_dir + "/config.json"
+        cfg_path = local_merge + "/config.json"
         if os.path.exists(cfg_path):
             with open(cfg_path) as f:
                 cfg = json.load(f)
@@ -148,6 +147,14 @@ def train_func(**p):
                 del cfg["quantization_config"]
                 with open(cfg_path, "w") as f:
                     json.dump(cfg, f, indent=2)
+
+        print("[PY] Copying merged model to PVC...", flush=True)
+        for fn in os.listdir(local_merge):
+            src = os.path.join(local_merge, fn)
+            dst = os.path.join(ckpt_dir, fn)
+            if os.path.isfile(src):
+                shutil.copy2(src, dst)
+        shutil.rmtree(local_merge, ignore_errors=True)
 
         print("[PY] Merged model saved.", flush=True)
     return result

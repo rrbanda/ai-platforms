@@ -598,7 +598,9 @@ def evalhub_evaluator_kserve(
         if final_state == "failed":
             msg = job.get("status", {}).get("message", {})
             error_text = msg.get("text", "Unknown error") if isinstance(msg, dict) else str(msg)
-            raise RuntimeError(f"Evaluation failed: {error_text}")
+            logger.warning(f"Evaluation completed with failures: {error_text}")
+            logger.warning("Some benchmarks may have succeeded. Results are preserved in output artifacts.")
+            output_metrics.log_metric("eval_has_failures", 1.0)
 
     finally:
         _cleanup_kserve(namespace, sr_name, isvc_name)

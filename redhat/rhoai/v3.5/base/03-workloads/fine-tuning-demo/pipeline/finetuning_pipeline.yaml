@@ -1640,10 +1640,13 @@ spec:
               mlflow_experiment_url\"] = mlflow_experiment_url\n\n        if final_state\
               \ == \"failed\":\n            msg = job.get(\"status\", {}).get(\"message\"\
               , {})\n            error_text = msg.get(\"text\", \"Unknown error\"\
-              ) if isinstance(msg, dict) else str(msg)\n            raise RuntimeError(f\"\
-              Evaluation failed: {error_text}\")\n\n    finally:\n        _cleanup_kserve(namespace,\
-              \ sr_name, isvc_name)\n\n    logger.info(\"Eval Hub evaluation (KServe)\
-              \ complete.\")\n\n"
+              ) if isinstance(msg, dict) else str(msg)\n            logger.warning(f\"\
+              Evaluation completed with failures: {error_text}\")\n            logger.warning(\"\
+              Some benchmarks may have succeeded. Results are preserved in output\
+              \ artifacts.\")\n            output_metrics.log_metric(\"eval_has_failures\"\
+              , 1.0)\n\n    finally:\n        _cleanup_kserve(namespace, sr_name,\
+              \ isvc_name)\n\n    logger.info(\"Eval Hub evaluation (KServe) complete.\"\
+              )\n\n"
             image: registry.access.redhat.com/ubi9/python-311:latest
         exec-kubeflow-model-registry:
           container:

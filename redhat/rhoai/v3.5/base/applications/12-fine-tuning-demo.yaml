@@ -22,6 +22,9 @@ spec:
         - .spec.template.spec.containers[].resources
         - .spec.template.spec.volumes[]?.persistentVolumeClaim
         - .spec.template.spec.initContainers
+        - .spec.template.spec.affinity
+        - .spec.template.spec.enableServiceLinks
+        - .spec.template.spec.serviceAccountName
     - group: serving.kserve.io
       kind: LLMInferenceService
       jqPathExpressions:

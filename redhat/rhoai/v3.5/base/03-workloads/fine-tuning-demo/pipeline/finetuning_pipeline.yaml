@@ -1918,30 +1918,33 @@ spec:
               \ \"volumes\", None):\n        vols.extend(kubernetes_config.volumes)\n\
               \    if kubernetes_config and getattr(kubernetes_config, \"volume_mounts\"\
               , None):\n        vmts.extend(kubernetes_config.volume_mounts)\n\n \
-              \   # Mount the workspace PVC into the TrainJob pod so it can read\n\
-              \    # datasets and write checkpoints. Discover PVC name from own pod\
-              \ spec.\n    try:\n        from kubernetes import client as k8s_client\n\
-              \n        v1 = k8s_client.CoreV1Api(_api)\n        my_pod_name = os.environ.get(\"\
-              HOSTNAME\", \"\")\n        my_namespace = os.environ.get(\"KFP_POD_NAMESPACE\"\
-              , \"\") or open(\"/var/run/secrets/kubernetes.io/serviceaccount/namespace\"\
-              ).read().strip()\n        if my_pod_name and my_namespace:\n       \
-              \     pod = v1.read_namespaced_pod(my_pod_name, my_namespace)\n    \
-              \        for vol in pod.spec.volumes or []:\n                if vol.persistent_volume_claim\
-              \ and \"workspace\" in (vol.persistent_volume_claim.claim_name or \"\
-              \"):\n                    workspace_pvc = vol.persistent_volume_claim.claim_name\n\
-              \                    workspace_mount = None\n                    for\
-              \ container in pod.spec.containers or []:\n                        for\
-              \ vm in container.volume_mounts or []:\n                           \
-              \ if vm.name == vol.name:\n                                workspace_mount\
-              \ = vm.mount_path\n                                break\n         \
-              \           if workspace_pvc and workspace_mount:\n                \
-              \        log.info(f\"Discovered workspace PVC: {workspace_pvc} at {workspace_mount}\"\
-              )\n                        vols.append({\"name\": \"workspace\", \"\
-              persistentVolumeClaim\": {\"claimName\": workspace_pvc}})\n        \
-              \                vmts.append({\"name\": \"workspace\", \"mountPath\"\
-              : workspace_mount})\n                    break\n    except Exception\
-              \ as e:\n        log.warning(f\"Could not discover workspace PVC: {e}\"\
-              )\n\n    resources = {\n        \"nvidia.com/gpu\": training_resource_gpu_per_worker,\n\
+              \   # Check if workspace PVC is already mounted via kubernetes_config\
+              \ passthrough.\n    # If not, discover it from own pod spec and add\
+              \ it.\n    has_workspace = any(\"workspace\" in str(v) for v in vols)\n\
+              \    if not has_workspace:\n        try:\n            from kubernetes\
+              \ import client as k8s_client\n            v1 = k8s_client.CoreV1Api(_api)\n\
+              \            my_pod_name = os.environ.get(\"HOSTNAME\", \"\")\n    \
+              \        my_namespace = open(\"/var/run/secrets/kubernetes.io/serviceaccount/namespace\"\
+              ).read().strip()\n            if my_pod_name and my_namespace:\n   \
+              \             pod = v1.read_namespaced_pod(my_pod_name, my_namespace)\n\
+              \                for vol in pod.spec.volumes or []:\n              \
+              \      if vol.persistent_volume_claim and \"workspace\" in (vol.persistent_volume_claim.claim_name\
+              \ or \"\"):\n                        workspace_pvc = vol.persistent_volume_claim.claim_name\n\
+              \                        workspace_mount = None\n                  \
+              \      for container in pod.spec.containers or []:\n               \
+              \             for vm in container.volume_mounts or []:\n           \
+              \                     if vm.name == vol.name:\n                    \
+              \                workspace_mount = vm.mount_path\n                 \
+              \                   break\n                        if workspace_pvc\
+              \ and workspace_mount:\n                            log.info(f\"Adding\
+              \ workspace PVC: {workspace_pvc} at {workspace_mount}\")\n         \
+              \                   vols.append({\"name\": \"workspace\", \"persistentVolumeClaim\"\
+              : {\"claimName\": workspace_pvc}})\n                            vmts.append({\"\
+              name\": \"workspace\", \"mountPath\": workspace_mount})\n          \
+              \              break\n        except Exception as e:\n            log.warning(f\"\
+              Could not discover workspace PVC: {e}\")\n    else:\n        log.info(\"\
+              Workspace PVC already in kubernetes_config passthrough\")\n\n    resources\
+              \ = {\n        \"nvidia.com/gpu\": training_resource_gpu_per_worker,\n\
               \        \"memory\": training_resource_memory_per_worker,\n        \"\
               cpu\": int(training_resource_cpu_per_worker),\n    }\n\n    job = client.train(\n\
               \        trainer=TrainingHubTrainer(\n            func=tech.train_func,\n\

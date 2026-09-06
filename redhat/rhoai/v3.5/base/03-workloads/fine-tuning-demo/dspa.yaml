@@ -8,6 +8,11 @@ spec:
   apiServer:
     managedPipelines: {}
     pipelineStore: kubernetes
+    workspace:
+      volumeClaimTemplateSpec:
+        accessModes:
+          - ReadWriteMany
+        storageClassName: nfs-csi
   objectStorage:
     disableHealthCheck: false
     enableExternalRoute: false

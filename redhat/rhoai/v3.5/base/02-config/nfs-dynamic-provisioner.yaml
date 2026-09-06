@@ -121,5 +121,3 @@ provisioner: nfs-provisioner/nfs-subdir
 parameters:
   archiveOnDelete: "false"
   onDelete: "delete"
-mountOptions:
-  - nfsvers=4.1

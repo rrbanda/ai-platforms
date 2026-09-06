@@ -55,7 +55,7 @@ def train_model(
     training_envs: str = "",
     training_resource_cpu_per_worker: str = "4",
     training_resource_gpu_per_worker: int = 1,
-    training_resource_memory_per_worker: str = "32Gi",
+    training_resource_memory_per_worker: str = "24Gi",
     training_resource_num_procs_per_worker: str = "auto",
     training_resource_num_workers: int = 1,
     training_metadata_labels: str = "",

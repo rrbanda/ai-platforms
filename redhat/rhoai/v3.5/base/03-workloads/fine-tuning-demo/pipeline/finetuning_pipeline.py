@@ -173,7 +173,7 @@ def finetuning_pipeline(
     gpu_per_worker: int = 1,
     num_workers: int = 1,
     cpu_per_worker: str = "4",
-    memory_per_worker: str = "32Gi",
+    memory_per_worker: str = "24Gi",
     training_runtime: str = "training-hub",
     seed: int = 42,
     use_liger: bool = True,
@@ -486,7 +486,17 @@ def finetuning_pipeline(
 
 
 if __name__ == "__main__":
+    from kfp.compiler.compiler_utils import KubernetesManifestOptions
+
+    # Compile to Pipeline + PipelineVersion CRD manifests (GitOps-ready)
     kfp.compiler.Compiler().compile(
         pipeline_func=finetuning_pipeline,
         package_path=__file__.replace(".py", ".yaml"),
+        kubernetes_manifest_format=True,
+        kubernetes_manifest_options=KubernetesManifestOptions(
+            pipeline_name="finetuning-pipeline",
+            pipeline_version_name="v1",
+            namespace="fine-tuning-demo",
+            include_pipeline_manifest=True,
+        ),
     )

@@ -18,16 +18,10 @@ spec:
     - group: kubeflow.org
       kind: Notebook
       jqPathExpressions:
+        - .metadata.annotations
         - .spec.template.spec.containers[].resources
         - .spec.template.spec.volumes[]?.persistentVolumeClaim
         - .spec.template.spec.initContainers
-        - .metadata.annotations["notebooks.opendatahub.io/last-image-selection"]
-        - .metadata.annotations["notebooks.opendatahub.io/last-size-selection"]
-        - .metadata.annotations["notebooks.opendatahub.io/inject-oauth"]
-        - .metadata.annotations["notebooks.opendatahub.io/oauth-logout-url"]
-        - .metadata.annotations["opendatahub.io/accelerator-name"]
-        - .metadata.annotations["opendatahub.io/image-display-name"]
-        - .metadata.annotations["opendatahub.io/username"]
     - group: serving.kserve.io
       kind: LLMInferenceService
       jqPathExpressions:

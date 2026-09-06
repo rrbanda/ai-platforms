@@ -16,11 +16,8 @@ spec:
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
-      jqPathExpressions:
-        - .spec.volumeClaimTemplates[]?.spec.storageClassName
-        - .spec.volumeClaimTemplates[]?.spec.volumeMode
-        - .spec.volumeClaimTemplates[]?.spec.resources.limits
-        - .spec.volumeClaimTemplates[]?.status
+      jsonPointers:
+        - /spec/volumeClaimTemplates
   syncPolicy:
     automated:
       selfHeal: true

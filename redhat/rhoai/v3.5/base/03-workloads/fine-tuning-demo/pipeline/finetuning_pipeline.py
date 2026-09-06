@@ -318,19 +318,8 @@ def finetuning_pipeline(
     kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")
 
     # =========================================================================
-    # Phase 2: Model Download (pre-cache to PVC, idempotent)
-    # Runs in parallel with Phase 1 — no dependency between them.
-    # =========================================================================
-    model_download_task = download_base_model(
-        model_name=base_model,
-        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
-    )
-    model_download_task.set_caching_options(False)
-    kfp.kubernetes.set_image_pull_policy(model_download_task, "IfNotPresent")
-
-    # =========================================================================
     # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)
-    # Depends on: Phase 1 (dataset) — model download handled internally by TrainJob
+    # Model download handled internally by TrainJob (training-hub runtime)
     # =========================================================================
     training_task = train_model(
         technique=technique,
@@ -371,7 +360,6 @@ def finetuning_pipeline(
         osft_unfreeze_rank_ratio=osft_unfreeze_ratio,
         osft_target_patterns=osft_target_patterns,
     )
-    training_task.after(model_download_task)
     training_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(training_task, "IfNotPresent")
     kfp.kubernetes.add_toleration(training_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
@@ -443,7 +431,7 @@ def finetuning_pipeline(
     kfp.kubernetes.add_toleration(holdout_eval_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
 
     # HF token for all steps that may download gated models or datasets
-    for _task in [dataset_task, model_download_task, training_task, eval_task, holdout_eval_task]:
+    for _task in [dataset_task, training_task, eval_task, holdout_eval_task]:
         kfp.kubernetes.use_secret_as_env(
             task=_task,
             secret_name="hf-token",

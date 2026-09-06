@@ -134,20 +134,6 @@ spec:
               artifactType:
                 schemaTitle: system.Dataset
                 schemaVersion: 0.0.1
-      comp-download-base-model:
-        executorLabel: exec-download-base-model
-        inputDefinitions:
-          parameters:
-            model_name:
-              description: HuggingFace model ID (e.g. 'Qwen/Qwen2.5-1.5B-Instruct').
-              parameterType: STRING
-            pvc_mount_path:
-              description: Workspace PVC mount path.
-              parameterType: STRING
-        outputDefinitions:
-          parameters:
-            Output:
-              parameterType: STRING
       comp-evalhub-evaluator-kserve:
         executorLabel: exec-evalhub-evaluator-kserve
         inputDefinitions:
@@ -1193,57 +1179,6 @@ spec:
               \ {pvc_eval_path}\")\n        log_message(\"=\" * 60)\n\n    except\
               \ Exception as e:\n        error_msg = f\"ERROR in dataset download:\
               \ {str(e)}\"\n        log_message(error_msg)\n        raise\n\n"
-            image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
-        exec-download-base-model:
-          container:
-            args:
-            - --executor_input
-            - '{{$}}'
-            - --function_to_execute
-            - download_base_model
-            command:
-            - sh
-            - -c
-            - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip\
-              \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
-              \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
-              \ 'huggingface_hub>=0.20.0'  &&  python3 -m pip install --quiet --no-warn-script-location\
-              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
-              3.9\"' && \"$0\" \"$@\"\n"
-            - sh
-            - -ec
-            - 'program_path=$(mktemp -d)
-
-
-              printf "%s" "$0" > "$program_path/ephemeral_component.py"
-
-              _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
-
-              '
-            - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing\
-              \ import *\n\ndef download_base_model(\n    model_name: str,\n    pvc_mount_path:\
-              \ str,\n) -> str:\n    \"\"\"Pre-cache a HuggingFace model to the workspace\
-              \ PVC.\n\n    Idempotent: skips download if model already cached (sentinel\
-              \ file check).\n    This ensures the model is available on shared PVC\
-              \ for training and eval\n    without re-downloading on every pipeline\
-              \ run.\n\n    Args:\n        model_name: HuggingFace model ID (e.g.\
-              \ 'Qwen/Qwen2.5-1.5B-Instruct').\n        pvc_mount_path: Workspace\
-              \ PVC mount path.\n\n    Returns:\n        The sub-path on PVC where\
-              \ the model is cached.\n    \"\"\"\n    import os\n\n    from huggingface_hub\
-              \ import snapshot_download\n\n    model_dir_name = model_name.replace(\"\
-              /\", \"--\")\n    model_path = os.path.join(pvc_mount_path, \"models\"\
-              , model_dir_name)\n    sentinel = os.path.join(model_path, \".download_complete\"\
-              )\n\n    if os.path.exists(sentinel):\n        file_count = sum(1 for\
-              \ _ in os.scandir(model_path) if _.is_file())\n        print(f\"Model\
-              \ '{model_name}' already cached at {model_path} ({file_count} files).\
-              \ Skipping.\")\n        return model_dir_name\n\n    print(f\"Downloading\
-              \ model '{model_name}' to {model_path}...\")\n    os.makedirs(model_path,\
-              \ exist_ok=True)\n    snapshot_download(\n        repo_id=model_name,\n\
-              \        local_dir=model_path,\n        local_dir_use_symlinks=False,\n\
-              \    )\n\n    with open(sentinel, \"w\") as f:\n        f.write(model_name)\n\
-              \n    file_count = sum(1 for _ in os.scandir(model_path) if _.is_file())\n\
-              \    print(f\"Model '{model_name}' downloaded ({file_count} files).\"\
-              )\n    return model_dir_name\n\n"
             image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
         exec-evalhub-evaluator-kserve:
           container:
@@ -2483,19 +2418,6 @@ spec:
                   componentInputParameter: train_split_ratio
             taskInfo:
               name: dataset-download
-          download-base-model:
-            cachingOptions: {}
-            componentRef:
-              name: comp-download-base-model
-            inputs:
-              parameters:
-                model_name:
-                  componentInputParameter: base_model
-                pvc_mount_path:
-                  runtimeValue:
-                    constant: '{{$.workspace_path}}'
-            taskInfo:
-              name: download-base-model
           evalhub-evaluator-kserve:
             cachingOptions: {}
             componentRef:
@@ -2612,7 +2534,6 @@ spec:
               name: comp-train-model
             dependentTasks:
             - data-quality-filter
-            - download-base-model
             inputs:
               artifacts:
                 dataset:
@@ -2980,17 +2901,6 @@ spec:
                 secretNameParameter:
                   runtimeValue:
                     constant: s3-secret
-              - keyToEnv:
-                - envVar: HF_TOKEN
-                  secretKey: HF_TOKEN
-                optional: true
-                secretName: hf-token
-                secretNameParameter:
-                  runtimeValue:
-                    constant: hf-token
-            exec-download-base-model:
-              imagePullPolicy: IfNotPresent
-              secretAsEnv:
               - keyToEnv:
                 - envVar: HF_TOKEN
                   secretKey: HF_TOKEN

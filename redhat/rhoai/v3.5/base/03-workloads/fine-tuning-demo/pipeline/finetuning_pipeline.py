@@ -189,7 +189,7 @@ def finetuning_pipeline(
     lora_target_modules: str = "",
     lora_load_in_4bit: bool = True,
     lora_load_in_8bit: bool = False,
-    lora_sample_packing: bool = False,
+    lora_sample_packing: bool = True,
     lora_micro_batch_size: int = 2,
     lora_grad_accum_steps: int = 1,
     lora_flash_attention: bool = True,

@@ -83,6 +83,10 @@ def prepare_jsonl(ds_dir: str, jsonl_path: str, log: logging.Logger) -> None:
         jsonl_path: Output JSONL path.
         log: Logger instance.
     """
+    if os.path.exists(jsonl_path) and os.path.getsize(jsonl_path) > 0:
+        log.info(f"JSONL already exists: {jsonl_path}")
+        return
+
     from datasets import load_from_disk
 
     try:

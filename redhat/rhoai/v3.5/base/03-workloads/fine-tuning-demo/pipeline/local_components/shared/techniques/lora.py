@@ -44,6 +44,13 @@ def build_params(common, **kw):
         if v is not None:
             common[key] = bool(v)
 
+    # Unsloth >=2026.6 sets padding_free=True when flash_attention is enabled.
+    # padding_free without packing raises:
+    #   "When padding_free=True without packing, max_length is not enforced."
+    # Auto-enable sample_packing to prevent this incompatibility.
+    if common.get("flash_attention") and not common.get("sample_packing"):
+        common["sample_packing"] = True
+
     load_4bit = kw.get("lora_load_in_4bit")
     load_8bit = kw.get("lora_load_in_8bit")
     if load_4bit and load_8bit:

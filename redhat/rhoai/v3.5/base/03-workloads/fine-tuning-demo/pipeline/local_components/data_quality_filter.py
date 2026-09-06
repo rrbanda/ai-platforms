@@ -20,7 +20,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4",
-    packages_to_install=["sdg-hub>=0.7.0,<1.0", "requests"],
+    packages_to_install=["sdg-hub>=0.7.0,<1.0", "requests", "mlflow>=2.0"],
 )
 def data_quality_filter(
     output_dataset: dsl.Output[dsl.Dataset],
@@ -37,6 +37,9 @@ def data_quality_filter(
     # -- Optional LLM Judge for hallucination detection --
     enable_llm_judge: bool = False,
     llm_judge_endpoint: str = "",
+    # -- Optional MLflow dataset tracking --
+    mlflow_tracking_uri: str = "",
+    mlflow_experiment_name: str = "finetuning-datasets",
 ):
     """Clean and deduplicate an instruction-tuning dataset.
 
@@ -353,3 +356,44 @@ def data_quality_filter(
     log_message(f"  Output:           {total_output:,} examples ({total_removed:,} removed, {round(total_removed / max(total_input, 1) * 100, 1)}%)")
     log_message(f"  Time:             {elapsed:.1f}s")
     log_message("=" * 60)
+
+    # =====================================================================
+    # MLflow Dataset Tracking (optional)
+    #   Registers the cleaned dataset as an MLflow artifact with quality
+    #   metadata so it can be browsed and reused from the MLflow UI.
+    # =====================================================================
+    if mlflow_tracking_uri:
+        try:
+            import mlflow
+
+            mlflow.set_tracking_uri(mlflow_tracking_uri)
+            mlflow.set_experiment(mlflow_experiment_name)
+
+            dataset_name = input_pvc_path or "cleaned_dataset"
+            if hasattr(input_dataset, "metadata"):
+                src = (getattr(input_dataset, "metadata", {}) or {}).get("dataset_uri", "")
+                if src:
+                    dataset_name = src.replace("hf://", "").replace("/", "_")
+
+            with mlflow.start_run(run_name=f"dataset_{dataset_name}_{total_output}ex"):
+                mlflow.log_param("source_uri", (getattr(input_dataset, "metadata", {}) or {}).get("dataset_uri", "unknown"))
+                mlflow.log_param("input_examples", total_input)
+                mlflow.log_param("output_examples", total_output)
+                mlflow.log_param("format_rejected", format_rejected)
+                mlflow.log_param("exact_duplicates", exact_dupes)
+                mlflow.log_param("near_duplicates", near_dupes)
+                mlflow.log_param("quality_rejected", quality_rejected)
+                mlflow.log_param("llm_judge_rejected", llm_judge_rejected)
+                mlflow.log_param("llm_judge_enabled", enable_llm_judge)
+                mlflow.log_param("similarity_threshold", similarity_threshold)
+                mlflow.log_metric("removal_rate", round(total_removed / max(total_input, 1) * 100, 1))
+                mlflow.log_metric("execution_seconds", round(elapsed, 2))
+
+                if export_to_pvc and pvc_mount_path:
+                    pvc_cleaned = os.path.join(pvc_mount_path, "datasets", "cleaned", "cleaned.jsonl")
+                    if os.path.exists(pvc_cleaned):
+                        mlflow.log_artifact(pvc_cleaned, artifact_path="datasets")
+
+            log_message(f"MLflow: dataset registered in experiment '{mlflow_experiment_name}'")
+        except Exception as e:
+            log_message(f"MLflow: tracking failed ({e}), continuing")

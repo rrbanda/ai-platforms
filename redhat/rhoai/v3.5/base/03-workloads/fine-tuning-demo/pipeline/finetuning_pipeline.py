@@ -265,6 +265,8 @@ def finetuning_pipeline(
         shared_log_file="pipeline_log.txt",
         enable_llm_judge=enable_llm_judge,
         llm_judge_endpoint=llm_judge_endpoint,
+        mlflow_tracking_uri=f"https://mlflow.redhat-ods-applications.svc.cluster.local:8443" if mlflow_experiment else "",
+        mlflow_experiment_name="finetuning-datasets",
     )
     quality_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")

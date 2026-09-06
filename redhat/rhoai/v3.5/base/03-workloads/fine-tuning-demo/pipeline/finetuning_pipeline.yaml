@@ -70,6 +70,14 @@ spec:
               description: Minimum word count for user prompt.
               isOptional: true
               parameterType: NUMBER_INTEGER
+            mlflow_experiment_name:
+              defaultValue: finetuning-datasets
+              isOptional: true
+              parameterType: STRING
+            mlflow_tracking_uri:
+              defaultValue: ''
+              isOptional: true
+              parameterType: STRING
             pvc_mount_path:
               defaultValue: ''
               description: PVC mount path for exports.
@@ -676,9 +684,10 @@ spec:
             - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip\
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
-              \ 'sdg-hub>=0.7.0,<1.0' 'requests'  &&  python3 -m pip install --quiet\
-              \ --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
-              \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+              \ 'sdg-hub>=0.7.0,<1.0' 'requests' 'mlflow>=2.0'  &&  python3 -m pip\
+              \ install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps'\
+              \ 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"\
+              $@\"\n"
             - sh
             - -ec
             - 'program_path=$(mktemp -d)
@@ -698,33 +707,34 @@ spec:
               \ float = 0.5,\n    export_to_pvc: bool = True,\n    shared_log_file:\
               \ str = \"pipeline_log.txt\",\n    # -- Optional LLM Judge for hallucination\
               \ detection --\n    enable_llm_judge: bool = False,\n    llm_judge_endpoint:\
-              \ str = \"\",\n):\n    \"\"\"Clean and deduplicate an instruction-tuning\
-              \ dataset.\n\n    Performs exact and near-duplicate removal, quality\
-              \ scoring, and\n    format validation on chat-format JSONL data. Built\
-              \ on the SDG Hub\n    framework (Red Hat supported).\n\n    Optional\
-              \ LLM Judge:\n      When enable_llm_judge=True, each example is scored\
-              \ by an LLM\n      for answer quality and factual grounding. Requires\
-              \ an OpenAI-compatible\n      endpoint (e.g., vLLM on KServe). Examples\
-              \ scoring below threshold\n      are flagged or removed. Useful for\
-              \ synthetic/generated training data.\n      For expert-curated data,\
-              \ leave disabled (default).\n\n    Args:\n        output_dataset: Cleaned\
-              \ dataset artifact (JSONL).\n        output_metrics: Quality metrics\
-              \ (rows before/after, duplicates found, etc.).\n        input_dataset:\
-              \ Input dataset artifact from upstream component.\n        input_pvc_path:\
-              \ Path to input JSONL on PVC (alternative to artifact).\n        pvc_mount_path:\
-              \ PVC mount path for exports.\n        similarity_threshold: Fuzzy dedup\
-              \ threshold (0.0-1.0). Higher = stricter.\n        min_assistant_tokens:\
-              \ Minimum word count for assistant response.\n        min_user_tokens:\
-              \ Minimum word count for user prompt.\n        max_repetition_ratio:\
-              \ Max ratio of repeated words in assistant response.\n        export_to_pvc:\
-              \ Whether to save cleaned dataset to PVC.\n        shared_log_file:\
-              \ Pipeline log file name.\n        enable_llm_judge: Enable LLM-based\
-              \ quality scoring (requires endpoint).\n        llm_judge_endpoint:\
-              \ OpenAI-compatible API endpoint for the judge model\n            (e.g.,\
-              \ http://vllm-judge.namespace.svc.cluster.local:8000/v1).\n    \"\"\"\
-              \n    import hashlib\n    import json\n    import logging\n    import\
-              \ os\n    import time\n    from difflib import SequenceMatcher\n\n \
-              \   import pandas as pd\n\n    logging.basicConfig(\n        level=logging.INFO,\n\
+              \ str = \"\",\n    # -- Optional MLflow dataset tracking --\n    mlflow_tracking_uri:\
+              \ str = \"\",\n    mlflow_experiment_name: str = \"finetuning-datasets\"\
+              ,\n):\n    \"\"\"Clean and deduplicate an instruction-tuning dataset.\n\
+              \n    Performs exact and near-duplicate removal, quality scoring, and\n\
+              \    format validation on chat-format JSONL data. Built on the SDG Hub\n\
+              \    framework (Red Hat supported).\n\n    Optional LLM Judge:\n   \
+              \   When enable_llm_judge=True, each example is scored by an LLM\n \
+              \     for answer quality and factual grounding. Requires an OpenAI-compatible\n\
+              \      endpoint (e.g., vLLM on KServe). Examples scoring below threshold\n\
+              \      are flagged or removed. Useful for synthetic/generated training\
+              \ data.\n      For expert-curated data, leave disabled (default).\n\n\
+              \    Args:\n        output_dataset: Cleaned dataset artifact (JSONL).\n\
+              \        output_metrics: Quality metrics (rows before/after, duplicates\
+              \ found, etc.).\n        input_dataset: Input dataset artifact from\
+              \ upstream component.\n        input_pvc_path: Path to input JSONL on\
+              \ PVC (alternative to artifact).\n        pvc_mount_path: PVC mount\
+              \ path for exports.\n        similarity_threshold: Fuzzy dedup threshold\
+              \ (0.0-1.0). Higher = stricter.\n        min_assistant_tokens: Minimum\
+              \ word count for assistant response.\n        min_user_tokens: Minimum\
+              \ word count for user prompt.\n        max_repetition_ratio: Max ratio\
+              \ of repeated words in assistant response.\n        export_to_pvc: Whether\
+              \ to save cleaned dataset to PVC.\n        shared_log_file: Pipeline\
+              \ log file name.\n        enable_llm_judge: Enable LLM-based quality\
+              \ scoring (requires endpoint).\n        llm_judge_endpoint: OpenAI-compatible\
+              \ API endpoint for the judge model\n            (e.g., http://vllm-judge.namespace.svc.cluster.local:8000/v1).\n\
+              \    \"\"\"\n    import hashlib\n    import json\n    import logging\n\
+              \    import os\n    import time\n    from difflib import SequenceMatcher\n\
+              \n    import pandas as pd\n\n    logging.basicConfig(\n        level=logging.INFO,\n\
               \        format=\"%(asctime)s - %(levelname)s - %(message)s\",\n   \
               \ )\n    log = logging.getLogger(\"data_quality\")\n\n    start_time\
               \ = time.time()\n\n    def log_message(msg: str):\n        log.info(msg)\n\
@@ -895,7 +905,39 @@ spec:
               \        disabled\")\n    log_message(f\"  Output:           {total_output:,}\
               \ examples ({total_removed:,} removed, {round(total_removed / max(total_input,\
               \ 1) * 100, 1)}%)\")\n    log_message(f\"  Time:             {elapsed:.1f}s\"\
-              )\n    log_message(\"=\" * 60)\n\n"
+              )\n    log_message(\"=\" * 60)\n\n    # =====================================================================\n\
+              \    # MLflow Dataset Tracking (optional)\n    #   Registers the cleaned\
+              \ dataset as an MLflow artifact with quality\n    #   metadata so it\
+              \ can be browsed and reused from the MLflow UI.\n    # =====================================================================\n\
+              \    if mlflow_tracking_uri:\n        try:\n            import mlflow\n\
+              \n            mlflow.set_tracking_uri(mlflow_tracking_uri)\n       \
+              \     mlflow.set_experiment(mlflow_experiment_name)\n\n            dataset_name\
+              \ = input_pvc_path or \"cleaned_dataset\"\n            if hasattr(input_dataset,\
+              \ \"metadata\"):\n                src = (getattr(input_dataset, \"metadata\"\
+              , {}) or {}).get(\"dataset_uri\", \"\")\n                if src:\n \
+              \                   dataset_name = src.replace(\"hf://\", \"\").replace(\"\
+              /\", \"_\")\n\n            with mlflow.start_run(run_name=f\"dataset_{dataset_name}_{total_output}ex\"\
+              ):\n                mlflow.log_param(\"source_uri\", (getattr(input_dataset,\
+              \ \"metadata\", {}) or {}).get(\"dataset_uri\", \"unknown\"))\n    \
+              \            mlflow.log_param(\"input_examples\", total_input)\n   \
+              \             mlflow.log_param(\"output_examples\", total_output)\n\
+              \                mlflow.log_param(\"format_rejected\", format_rejected)\n\
+              \                mlflow.log_param(\"exact_duplicates\", exact_dupes)\n\
+              \                mlflow.log_param(\"near_duplicates\", near_dupes)\n\
+              \                mlflow.log_param(\"quality_rejected\", quality_rejected)\n\
+              \                mlflow.log_param(\"llm_judge_rejected\", llm_judge_rejected)\n\
+              \                mlflow.log_param(\"llm_judge_enabled\", enable_llm_judge)\n\
+              \                mlflow.log_param(\"similarity_threshold\", similarity_threshold)\n\
+              \                mlflow.log_metric(\"removal_rate\", round(total_removed\
+              \ / max(total_input, 1) * 100, 1))\n                mlflow.log_metric(\"\
+              execution_seconds\", round(elapsed, 2))\n\n                if export_to_pvc\
+              \ and pvc_mount_path:\n                    pvc_cleaned = os.path.join(pvc_mount_path,\
+              \ \"datasets\", \"cleaned\", \"cleaned.jsonl\")\n                  \
+              \  if os.path.exists(pvc_cleaned):\n                        mlflow.log_artifact(pvc_cleaned,\
+              \ artifact_path=\"datasets\")\n\n            log_message(f\"MLflow:\
+              \ dataset registered in experiment '{mlflow_experiment_name}'\")\n \
+              \       except Exception as e:\n            log_message(f\"MLflow: tracking\
+              \ failed ({e}), continuing\")\n\n"
             image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
         exec-dataset-download:
           container:
@@ -2427,6 +2469,12 @@ spec:
                 min_user_tokens:
                   runtimeValue:
                     constant: 3.0
+                mlflow_experiment_name:
+                  runtimeValue:
+                    constant: finetuning-datasets
+                mlflow_tracking_uri:
+                  runtimeValue:
+                    constant: https://mlflow.redhat-ods-applications.svc.cluster.local:8443
                 pvc_mount_path:
                   runtimeValue:
                     constant: '{{$.workspace_path}}'

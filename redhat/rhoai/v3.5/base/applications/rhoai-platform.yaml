@@ -65,10 +65,12 @@ spec:
                 annotations:
                   security.opendatahub.io/authorino-tls-bootstrap: 'true'
                   opendatahub.io/managed: 'false'
+                  networking.istio.io/service-type: ClusterIP
                 spec:
                   gatewayClassName: maas-gateway-class
                   listeners:
                   - name: https
+                    hostname: maas.apps.ocp.qn6c5.sandbox1388.opentlc.com
                     port: 443
                     protocol: HTTPS
                     tls:

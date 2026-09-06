@@ -66,6 +66,14 @@ rules:
   - apiGroups: ["trustyai.opendatahub.io"]
     resources: ["lmevaljobs"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # EvalHub — evaluation jobs, collections, providers (per RHOAI 3.5 docs)
+  - apiGroups: ["trustyai.opendatahub.io"]
+    resources: ["evaluations", "collections", "providers"]
+    verbs: ["get", "list", "create", "update", "delete"]
+  # MLflow — experiment tracking from EvalHub
+  - apiGroups: ["mlflow.kubeflow.org"]
+    resources: ["experiments"]
+    verbs: ["create", "get"]
   # KServe — ephemeral InferenceServices for evaluation
   - apiGroups: ["serving.kserve.io"]
     resources: ["inferenceservices", "servingruntimes"]

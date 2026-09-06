@@ -2379,6 +2379,8 @@ spec:
               accelerator:
                 count: '1'
                 resourceCount: '1'
+                resourceType: nvidia.com/gpu
+                type: nvidia.com/gpu
     pipelineInfo:
       description: Fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques.
         Includes dataset preparation with train/eval split, model pre-caching, distributed

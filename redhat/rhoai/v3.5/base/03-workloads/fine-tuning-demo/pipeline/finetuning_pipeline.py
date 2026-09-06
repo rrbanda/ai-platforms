@@ -424,7 +424,8 @@ def finetuning_pipeline(
     holdout_eval_task.after(eval_task)
     holdout_eval_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(holdout_eval_task, "IfNotPresent")
-    holdout_eval_task.set_gpu_limit("1")
+    holdout_eval_task.set_accelerator_type("nvidia.com/gpu")
+    holdout_eval_task.set_accelerator_limit(1)
     kfp.kubernetes.add_node_selector(
         holdout_eval_task, "nvidia.com/gpu.present", "true"
     )

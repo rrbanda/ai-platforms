@@ -261,6 +261,8 @@ def train_model(
                     spec=PodSpecOverride(
                         volumes=vols,
                         containers=[ContainerOverride(name="node", volume_mounts=vmts)],
+                        tolerations=[{"key": "nvidia.com/gpu", "operator": "Exists", "effect": "NoSchedule"}],
+                        node_selector={"nvidia.com/gpu.present": "true"},
                     ),
                 )
             )

@@ -1968,9 +1968,12 @@ deploymentSpec:
           \                        else None\n                    ),\n           \
           \         spec=PodSpecOverride(\n                        volumes=vols,\n\
           \                        containers=[ContainerOverride(name=\"node\", volume_mounts=vmts)],\n\
-          \                    ),\n                )\n            )\n        ],\n\
-          \        runtime=runtime,\n    )\n    log.info(f\"Job submitted: {job}\"\
-          )\n    wait_for_training_job(client, job, log)\n\n    # =====================================================================\n\
+          \                        tolerations=[{\"key\": \"nvidia.com/gpu\", \"operator\"\
+          : \"Exists\", \"effect\": \"NoSchedule\"}],\n                        node_selector={\"\
+          nvidia.com/gpu.present\": \"true\"},\n                    ),\n         \
+          \       )\n            )\n        ],\n        runtime=runtime,\n    )\n\
+          \    log.info(f\"Job submitted: {job}\")\n    wait_for_training_job(client,\
+          \ job, log)\n\n    # =====================================================================\n\
           \    # Phase D: Metrics and model persistence\n    # =====================================================================\n\
           \    output_metrics.log_metric(\"technique\", technique)\n    output_metrics.log_metric(\"\
           num_epochs\", float(params.get(\"num_epochs\", 1)))\n    output_metrics.log_metric(\"\

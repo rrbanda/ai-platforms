@@ -604,6 +604,56 @@ spec:
           field: ENV
         - applyToTask: true
           field: KUBERNETES_VOLUMES
+      comp-unitxt-format-validator:
+        executorLabel: exec-unitxt-format-validator
+        inputDefinitions:
+          artifacts:
+            input_dataset:
+              artifactType:
+                schemaTitle: system.Dataset
+                schemaVersion: 0.0.1
+              description: Cleaned JSONL from the quality filter.
+          parameters:
+            base_model:
+              defaultValue: Qwen/Qwen2.5-1.5B-Instruct
+              description: HuggingFace model ID for tokenizer resolution.
+              isOptional: true
+              parameterType: STRING
+            max_seq_len:
+              defaultValue: 8192.0
+              description: Maximum sequence length in tokens.
+              isOptional: true
+              parameterType: NUMBER_INTEGER
+            mlflow_experiment_name:
+              defaultValue: finetuning-datasets
+              description: MLflow experiment for dataset tracking.
+              isOptional: true
+              parameterType: STRING
+            mlflow_tracking_uri:
+              defaultValue: ''
+              description: MLflow tracking URI (empty = skip logging).
+              isOptional: true
+              parameterType: STRING
+            pvc_mount_path:
+              defaultValue: ''
+              description: Workspace PVC mount path.
+              isOptional: true
+              parameterType: STRING
+            system_prompt:
+              defaultValue: You are a helpful assistant.
+              description: Standard system prompt to enforce on all examples.
+              isOptional: true
+              parameterType: STRING
+        outputDefinitions:
+          artifacts:
+            output_dataset:
+              artifactType:
+                schemaTitle: system.Dataset
+                schemaVersion: 0.0.1
+            output_metrics:
+              artifactType:
+                schemaTitle: system.Metrics
+                schemaVersion: 0.0.1
       comp-universal-llm-evaluator:
         executorLabel: exec-universal-llm-evaluator
         inputDefinitions:
@@ -2047,6 +2097,195 @@ spec:
               \ output_model, log)\n\n    return f\"{technique} training completed\"\
               \n\n"
             image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+        exec-unitxt-format-validator:
+          container:
+            args:
+            - --executor_input
+            - '{{$}}'
+            - --function_to_execute
+            - unitxt_format_validator
+            command:
+            - sh
+            - -c
+            - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip\
+              \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
+              \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
+              \ 'unitxt' 'transformers' 'mlflow>=2.0'  &&  python3 -m pip install\
+              \ --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+              \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+            - sh
+            - -ec
+            - 'program_path=$(mktemp -d)
+
+
+              printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+              _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+              '
+            - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing\
+              \ import *\n\ndef unitxt_format_validator(\n    input_dataset: dsl.Input[dsl.Dataset],\n\
+              \    output_dataset: dsl.Output[dsl.Dataset],\n    output_metrics: dsl.Output[dsl.Metrics],\n\
+              \    base_model: str = \"Qwen/Qwen2.5-1.5B-Instruct\",\n    system_prompt:\
+              \ str = \"You are a helpful assistant.\",\n    max_seq_len: int = 8192,\n\
+              \    pvc_mount_path: str = \"\",\n    mlflow_tracking_uri: str = \"\"\
+              ,\n    mlflow_experiment_name: str = \"finetuning-datasets\",\n):\n\
+              \    \"\"\"Validate and normalize training data format using unitxt.\n\
+              \n    Enforces a standard system prompt, validates chat template structure,\n\
+              \    and checks tokenization length against the base model's tokenizer.\n\
+              \n    Args:\n        input_dataset: Cleaned JSONL from the quality filter.\n\
+              \        output_dataset: Normalized JSONL with consistent formatting.\n\
+              \        output_metrics: Validation metrics (token stats, format corrections).\n\
+              \        base_model: HuggingFace model ID for tokenizer resolution.\n\
+              \        system_prompt: Standard system prompt to enforce on all examples.\n\
+              \        max_seq_len: Maximum sequence length in tokens.\n        pvc_mount_path:\
+              \ Workspace PVC mount path.\n        mlflow_tracking_uri: MLflow tracking\
+              \ URI (empty = skip logging).\n        mlflow_experiment_name: MLflow\
+              \ experiment for dataset tracking.\n    \"\"\"\n    import json\n  \
+              \  import logging\n    import os\n    import time\n\n    logging.basicConfig(\n\
+              \        level=logging.INFO,\n        format=\"%(asctime)s - %(name)s\
+              \ - %(levelname)s - %(message)s\",\n    )\n    log = logging.getLogger(\"\
+              unitxt_formatter\")\n\n    start_time = time.time()\n\n    # =====================================================================\n\
+              \    # 1. Load cleaned dataset\n    # =====================================================================\n\
+              \    data = []\n    src = input_dataset.path\n    if os.path.isdir(src):\n\
+              \        for fn in sorted(os.listdir(src)):\n            fp = os.path.join(src,\
+              \ fn)\n            if os.path.isfile(fp):\n                with open(fp)\
+              \ as f:\n                    for line in f:\n                      \
+              \  if line.strip():\n                            data.append(json.loads(line))\n\
+              \                break\n    elif os.path.isfile(src):\n        with\
+              \ open(src) as f:\n            for line in f:\n                if line.strip():\n\
+              \                    data.append(json.loads(line))\n\n    if not data:\n\
+              \        meta = getattr(input_dataset, \"metadata\", {}) or {}\n   \
+              \     pvc_path = (meta.get(\"pvc_path\") or \"\").strip()\n        if\
+              \ pvc_path and os.path.isfile(pvc_path):\n            with open(pvc_path)\
+              \ as f:\n                for line in f:\n                    if line.strip():\n\
+              \                        data.append(json.loads(line))\n\n    total_input\
+              \ = len(data)\n    log.info(f\"Loaded {total_input} examples\")\n\n\
+              \    if total_input == 0:\n        log.warning(\"No examples loaded\
+              \ \u2014 passing through empty dataset\")\n        with open(output_dataset.path,\
+              \ \"w\") as f:\n            pass\n        output_metrics.log_metric(\"\
+              input_examples\", 0)\n        return\n\n    # =====================================================================\n\
+              \    # 2. Load tokenizer for token length validation\n    # =====================================================================\n\
+              \    from transformers import AutoTokenizer\n\n    log.info(f\"Loading\
+              \ tokenizer for {base_model}...\")\n    tokenizer = AutoTokenizer.from_pretrained(base_model,\
+              \ trust_remote_code=True)\n    if tokenizer.chat_template:\n       \
+              \ log.info(f\"Chat template found: {tokenizer.chat_template[:80]}...\"\
+              )\n    else:\n        log.info(\"No chat template in tokenizer \u2014\
+              \ using default formatting\")\n\n    # =====================================================================\n\
+              \    # 3. Validate and normalize each example\n    # =====================================================================\n\
+              \    normalized = []\n    stats = {\n        \"system_prompt_added\"\
+              : 0,\n        \"system_prompt_replaced\": 0,\n        \"system_prompt_kept\"\
+              : 0,\n        \"invalid_structure\": 0,\n        \"exceeds_max_seq_len\"\
+              : 0,\n        \"token_lengths\": [],\n    }\n\n    for i, example in\
+              \ enumerate(data):\n        messages = example.get(\"messages\", example.get(\"\
+              conversations\", []))\n        if not messages or not isinstance(messages,\
+              \ list):\n            stats[\"invalid_structure\"] += 1\n          \
+              \  continue\n\n        # -----------------------------------------------------------------\n\
+              \        # 3a. Enforce system prompt\n        # -----------------------------------------------------------------\n\
+              \        if messages[0].get(\"role\") == \"system\":\n            if\
+              \ messages[0].get(\"content\", \"\").strip() != system_prompt.strip():\n\
+              \                stats[\"system_prompt_replaced\"] += 1\n          \
+              \      messages[0][\"content\"] = system_prompt\n            else:\n\
+              \                stats[\"system_prompt_kept\"] += 1\n        else:\n\
+              \            stats[\"system_prompt_added\"] += 1\n            messages.insert(0,\
+              \ {\"role\": \"system\", \"content\": system_prompt})\n\n        # -----------------------------------------------------------------\n\
+              \        # 3b. Validate role ordering: system -> (user -> assistant)+\n\
+              \        # -----------------------------------------------------------------\n\
+              \        roles = [m.get(\"role\") for m in messages]\n        valid\
+              \ = True\n\n        if roles[0] != \"system\":\n            valid =\
+              \ False\n\n        for j in range(1, len(roles)):\n            if j\
+              \ % 2 == 1 and roles[j] != \"user\":\n                valid = False\n\
+              \                break\n            if j % 2 == 0 and roles[j] != \"\
+              assistant\":\n                valid = False\n                break\n\
+              \n        if not valid:\n            has_user = any(r == \"user\" for\
+              \ r in roles)\n            has_assistant = any(r == \"assistant\" for\
+              \ r in roles)\n            if not (has_user and has_assistant):\n  \
+              \              stats[\"invalid_structure\"] += 1\n                continue\n\
+              \n        # -----------------------------------------------------------------\n\
+              \        # 3c. Check tokenization length\n        # -----------------------------------------------------------------\n\
+              \        try:\n            if tokenizer.chat_template:\n           \
+              \     formatted = tokenizer.apply_chat_template(\n                 \
+              \   messages, tokenize=True, add_generation_prompt=False\n         \
+              \       )\n                token_count = len(formatted)\n          \
+              \  else:\n                text = \"\"\n                for m in messages:\n\
+              \                    text += f\"<|{m['role']}|>\\n{m['content']}\\n\"\
+              \n                token_count = len(tokenizer.encode(text))\n\n    \
+              \        stats[\"token_lengths\"].append(token_count)\n\n          \
+              \  if token_count > max_seq_len:\n                stats[\"exceeds_max_seq_len\"\
+              ] += 1\n        except Exception as e:\n            log.warning(f\"\
+              Tokenization failed for example {i}: {e}\")\n            token_count\
+              \ = 0\n\n        normalized.append({\"messages\": messages})\n\n   \
+              \ # =====================================================================\n\
+              \    # 4. Write normalized output\n    # =====================================================================\n\
+              \    with open(output_dataset.path, \"w\") as f:\n        for row in\
+              \ normalized:\n            f.write(json.dumps(row, ensure_ascii=False)\
+              \ + \"\\n\")\n\n    if pvc_mount_path:\n        pvc_out = os.path.join(pvc_mount_path,\
+              \ \"datasets\", \"formatted\", \"formatted.jsonl\")\n        os.makedirs(os.path.dirname(pvc_out),\
+              \ exist_ok=True)\n        with open(pvc_out, \"w\") as f:\n        \
+              \    for row in normalized:\n                f.write(json.dumps(row,\
+              \ ensure_ascii=False) + \"\\n\")\n        log.info(f\"Formatted dataset\
+              \ saved to PVC: {pvc_out}\")\n        try:\n            output_dataset.metadata[\"\
+              pvc_path\"] = pvc_out\n        except Exception:\n            pass\n\
+              \n    # =====================================================================\n\
+              \    # 5. Compute and log metrics\n    # =====================================================================\n\
+              \    total_output = len(normalized)\n    token_lengths = stats[\"token_lengths\"\
+              ]\n    avg_tokens = sum(token_lengths) / len(token_lengths) if token_lengths\
+              \ else 0\n    min_tokens = min(token_lengths) if token_lengths else\
+              \ 0\n    max_tokens = max(token_lengths) if token_lengths else 0\n\n\
+              \    elapsed = time.time() - start_time\n\n    output_metrics.log_metric(\"\
+              input_examples\", total_input)\n    output_metrics.log_metric(\"output_examples\"\
+              , total_output)\n    output_metrics.log_metric(\"invalid_structure\"\
+              , stats[\"invalid_structure\"])\n    output_metrics.log_metric(\"system_prompt_added\"\
+              , stats[\"system_prompt_added\"])\n    output_metrics.log_metric(\"\
+              system_prompt_replaced\", stats[\"system_prompt_replaced\"])\n    output_metrics.log_metric(\"\
+              system_prompt_kept\", stats[\"system_prompt_kept\"])\n    output_metrics.log_metric(\"\
+              exceeds_max_seq_len\", stats[\"exceeds_max_seq_len\"])\n    output_metrics.log_metric(\"\
+              avg_token_length\", round(avg_tokens, 1))\n    output_metrics.log_metric(\"\
+              min_token_length\", min_tokens)\n    output_metrics.log_metric(\"max_token_length\"\
+              , max_tokens)\n    output_metrics.log_metric(\"execution_seconds\",\
+              \ round(elapsed, 2))\n\n    try:\n        output_dataset.metadata[\"\
+              num_examples\"] = str(total_output)\n        output_dataset.metadata[\"\
+              system_prompt\"] = system_prompt\n        output_dataset.metadata[\"\
+              base_model\"] = base_model\n        output_dataset.metadata[\"avg_token_length\"\
+              ] = str(round(avg_tokens, 1))\n    except Exception:\n        pass\n\
+              \n    log.info(\"=\" * 60)\n    log.info(\"Unitxt Format Validation\
+              \ Summary:\")\n    log.info(f\"  Input:              {total_input:,}\
+              \ examples\")\n    log.info(f\"  Output:             {total_output:,}\
+              \ examples\")\n    log.info(f\"  Invalid structure:  {stats['invalid_structure']:,}\"\
+              )\n    log.info(f\"  System prompt:\")\n    log.info(f\"    - Added:\
+              \          {stats['system_prompt_added']:,}\")\n    log.info(f\"   \
+              \ - Replaced:       {stats['system_prompt_replaced']:,}\")\n    log.info(f\"\
+              \    - Already correct:{stats['system_prompt_kept']:,}\")\n    log.info(f\"\
+              \  Token lengths:\")\n    log.info(f\"    - Min:            {min_tokens:,}\"\
+              )\n    log.info(f\"    - Avg:            {avg_tokens:,.1f}\")\n    log.info(f\"\
+              \    - Max:            {max_tokens:,}\")\n    log.info(f\"    - Exceeds\
+              \ {max_seq_len}: {stats['exceeds_max_seq_len']:,}\")\n    log.info(f\"\
+              \  Base model:         {base_model}\")\n    log.info(f\"  System prompt:\
+              \      {system_prompt[:50]}...\")\n    log.info(f\"  Time:         \
+              \      {elapsed:.1f}s\")\n    log.info(\"=\" * 60)\n\n    # =====================================================================\n\
+              \    # 6. Log to MLflow (optional)\n    # =====================================================================\n\
+              \    if mlflow_tracking_uri:\n        try:\n            import mlflow\n\
+              \n            mlflow.set_tracking_uri(mlflow_tracking_uri)\n       \
+              \     mlflow.set_experiment(mlflow_experiment_name)\n\n            with\
+              \ mlflow.start_run(run_name=f\"format_{base_model.replace('/', '_')}_{total_output}ex\"\
+              ):\n                mlflow.log_param(\"base_model\", base_model)\n \
+              \               mlflow.log_param(\"system_prompt\", system_prompt)\n\
+              \                mlflow.log_param(\"max_seq_len\", max_seq_len)\n  \
+              \              mlflow.log_param(\"input_examples\", total_input)\n \
+              \               mlflow.log_param(\"output_examples\", total_output)\n\
+              \                mlflow.log_param(\"system_prompt_added\", stats[\"\
+              system_prompt_added\"])\n                mlflow.log_param(\"exceeds_max_seq_len\"\
+              , stats[\"exceeds_max_seq_len\"])\n                mlflow.log_metric(\"\
+              avg_token_length\", round(avg_tokens, 1))\n                mlflow.log_metric(\"\
+              max_token_length\", max_tokens)\n\n                if pvc_mount_path:\n\
+              \                    pvc_formatted = os.path.join(pvc_mount_path, \"\
+              datasets\", \"formatted\", \"formatted.jsonl\")\n                  \
+              \  if os.path.exists(pvc_formatted):\n                        mlflow.log_artifact(pvc_formatted,\
+              \ artifact_path=\"datasets\")\n\n            log.info(f\"MLflow: format\
+              \ validation logged to '{mlflow_experiment_name}'\")\n        except\
+              \ Exception as e:\n            log.warning(f\"MLflow logging failed:\
+              \ {e}\")\n\n"
+            image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
         exec-universal-llm-evaluator:
           container:
             args:
@@ -2644,13 +2883,13 @@ spec:
             componentRef:
               name: comp-train-model
             dependentTasks:
-            - data-quality-filter
+            - unitxt-format-validator
             inputs:
               artifacts:
                 dataset:
                   taskOutputArtifact:
                     outputArtifactKey: output_dataset
-                    producerTask: data-quality-filter
+                    producerTask: unitxt-format-validator
               parameters:
                 lora_alpha:
                   componentInputParameter: lora_alpha
@@ -2737,6 +2976,30 @@ spec:
                   componentInputParameter: use_liger
             taskInfo:
               name: train-model
+          unitxt-format-validator:
+            cachingOptions: {}
+            componentRef:
+              name: comp-unitxt-format-validator
+            dependentTasks:
+            - data-quality-filter
+            inputs:
+              artifacts:
+                input_dataset:
+                  taskOutputArtifact:
+                    outputArtifactKey: output_dataset
+                    producerTask: data-quality-filter
+              parameters:
+                base_model:
+                  componentInputParameter: base_model
+                max_seq_len:
+                  componentInputParameter: max_seq_len
+                pvc_mount_path:
+                  runtimeValue:
+                    constant: '{{$.workspace_path}}'
+                system_prompt:
+                  componentInputParameter: system_prompt
+            taskInfo:
+              name: unitxt-format-validator
           universal-llm-evaluator:
             cachingOptions: {}
             componentRef:
@@ -3036,6 +3299,10 @@ spec:
             defaultValue: 0.85
             isOptional: true
             parameterType: NUMBER_DOUBLE
+          system_prompt:
+            defaultValue: You are a helpful assistant.
+            isOptional: true
+            parameterType: STRING
           technique:
             defaultValue: lora
             isOptional: true
@@ -3140,6 +3407,8 @@ spec:
               - effect: NoSchedule
                 key: nvidia.com/gpu
                 operator: Exists
+            exec-unitxt-format-validator:
+              imagePullPolicy: IfNotPresent
             exec-universal-llm-evaluator:
               imagePullPolicy: IfNotPresent
               nodeSelector:

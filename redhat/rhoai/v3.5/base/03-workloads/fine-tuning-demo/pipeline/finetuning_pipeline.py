@@ -42,6 +42,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "local_components"))
 
 from local_components.train_model import train_model
 from local_components.data_quality_filter import data_quality_filter
+from local_components.unitxt_formatter import unitxt_format_validator
 
 _PIPELINES_COMPONENTS = os.environ.get(
     "PIPELINES_COMPONENTS_PATH",
@@ -133,6 +134,9 @@ def finetuning_pipeline(
     enable_llm_judge: bool = False,
     llm_judge_endpoint: str = "",
     llm_judge_model: str = "judge",
+
+    # PHASE 2: FORMAT VALIDATION (unitxt)
+    system_prompt: str = "You are a helpful assistant.",
 
     # =========================================================================
     # PHASE 2: MODEL SELECTION
@@ -279,12 +283,27 @@ def finetuning_pipeline(
     )
 
     # =========================================================================
+    # Phase 2: Format Validation (unitxt)
+    #   Enforces standard system prompt, validates chat template structure,
+    #   checks tokenization fits within max_seq_len.
+    # =========================================================================
+    format_task = unitxt_format_validator(
+        input_dataset=quality_task.outputs["output_dataset"],
+        base_model=base_model,
+        system_prompt=system_prompt,
+        max_seq_len=max_seq_len,
+        pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
+    )
+    format_task.set_caching_options(False)
+    kfp.kubernetes.set_image_pull_policy(format_task, "IfNotPresent")
+
+    # =========================================================================
     # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)
     # =========================================================================
     training_task = train_model(
         technique=technique,
         pvc_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
-        dataset=quality_task.outputs["output_dataset"],
+        dataset=format_task.outputs["output_dataset"],
         training_base_model=base_model,
         training_effective_batch_size=effective_batch_size,
         training_max_tokens_per_gpu=max_tokens_per_gpu,

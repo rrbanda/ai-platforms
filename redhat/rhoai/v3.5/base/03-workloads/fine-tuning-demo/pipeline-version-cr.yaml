@@ -247,84 +247,6 @@ spec:
                   artifactType:
                     schemaTitle: system.Artifact
                     schemaVersion: 0.0.1
-          comp-holdout-llm-evaluator:
-            executorLabel: exec-holdout-llm-evaluator
-            inputDefinitions:
-              artifacts:
-                eval_dataset:
-                  artifactType:
-                    schemaTitle: system.Dataset
-                    schemaVersion: 0.0.1
-                  description: JSONL dataset for custom holdout evaluation.
-                  isOptional: true
-                model_artifact:
-                  artifactType:
-                    schemaTitle: system.Model
-                    schemaVersion: 0.0.1
-                  description: KFP Model artifact from training step.
-                  isOptional: true
-              parameters:
-                batch_size:
-                  defaultValue: auto
-                  description: Batch size ("auto" or integer).
-                  isOptional: true
-                  parameterType: STRING
-                custom_eval_max_tokens:
-                  defaultValue: 256.0
-                  description: Max tokens for custom eval generation.
-                  isOptional: true
-                  parameterType: NUMBER_INTEGER
-                enforce_eager:
-                  defaultValue: true
-                  description: Disable CUDA graphs (avoids JIT compilation issues).
-                  isOptional: true
-                  parameterType: BOOLEAN
-                gen_kwargs:
-                  defaultValue: {}
-                  description: Generation kwargs for the model.
-                  isOptional: true
-                  parameterType: STRUCT
-                limit:
-                  defaultValue: -1.0
-                  description: Max examples per task (-1 = all).
-                  isOptional: true
-                  parameterType: NUMBER_INTEGER
-                log_samples:
-                  defaultValue: true
-                  description: Log individual evaluation samples.
-                  isOptional: true
-                  parameterType: BOOLEAN
-                model_args:
-                  defaultValue: {}
-                  description: 'Model init args (e.g. {"dtype": "float16"}).'
-                  isOptional: true
-                  parameterType: STRUCT
-                model_path:
-                  description: HF model ID or path. Used if model_artifact is None.
-                  isOptional: true
-                  parameterType: STRING
-                task_names:
-                  description: Benchmark task names (e.g. ["arc_easy"]).
-                  parameterType: LIST
-                verbosity:
-                  defaultValue: INFO
-                  description: Logging level.
-                  isOptional: true
-                  parameterType: STRING
-            outputDefinitions:
-              artifacts:
-                output_metrics:
-                  artifactType:
-                    schemaTitle: system.Metrics
-                    schemaVersion: 0.0.1
-                output_results:
-                  artifactType:
-                    schemaTitle: system.Artifact
-                    schemaVersion: 0.0.1
-                output_samples:
-                  artifactType:
-                    schemaTitle: system.Artifact
-                    schemaVersion: 0.0.1
           comp-kubeflow-model-registry:
             executorLabel: exec-kubeflow-model-registry
             inputDefinitions:
@@ -659,6 +581,79 @@ spec:
               field: ENV
             - applyToTask: true
               field: KUBERNETES_VOLUMES
+          comp-universal-llm-evaluator:
+            executorLabel: exec-universal-llm-evaluator
+            inputDefinitions:
+              artifacts:
+                eval_dataset:
+                  artifactType:
+                    schemaTitle: system.Dataset
+                    schemaVersion: 0.0.1
+                  description: JSONL dataset in chat format for custom holdout evaluation.
+                  isOptional: true
+                model_artifact:
+                  artifactType:
+                    schemaTitle: system.Model
+                    schemaVersion: 0.0.1
+                  description: KFP Model artifact from a previous pipeline step.
+                  isOptional: true
+              parameters:
+                batch_size:
+                  defaultValue: auto
+                  description: Batch size for evaluation ("auto" or integer).
+                  isOptional: true
+                  parameterType: STRING
+                custom_eval_max_tokens:
+                  defaultValue: 256.0
+                  description: 'Max tokens for generation in custom eval (default: 256).'
+                  isOptional: true
+                  parameterType: NUMBER_INTEGER
+                gen_kwargs:
+                  defaultValue: {}
+                  description: Dictionary of generation kwargs passed to the model.
+                  isOptional: true
+                  parameterType: STRUCT
+                limit:
+                  defaultValue: -1.0
+                  description: Limit number of examples per task (-1 for no limit).
+                  isOptional: true
+                  parameterType: NUMBER_INTEGER
+                log_samples:
+                  defaultValue: true
+                  description: Whether to log individual evaluation samples.
+                  isOptional: true
+                  parameterType: BOOLEAN
+                model_args:
+                  defaultValue: {}
+                  description: 'Dictionary for model initialization (e.g. {"dtype": "float16"}).'
+                  isOptional: true
+                  parameterType: STRUCT
+                model_path:
+                  description: String path or HF ID. Used if model_artifact is None.
+                  isOptional: true
+                  parameterType: STRING
+                task_names:
+                  description: List of benchmark task names (e.g. ["mmlu", "gsm8k"]).
+                  parameterType: LIST
+                verbosity:
+                  defaultValue: INFO
+                  description: Logging verbosity level (DEBUG, INFO, WARNING, ERROR).
+                  isOptional: true
+                  parameterType: STRING
+            outputDefinitions:
+              artifacts:
+                output_metrics:
+                  artifactType:
+                    schemaTitle: system.Metrics
+                    schemaVersion: 0.0.1
+                output_results:
+                  artifactType:
+                    schemaTitle: system.Artifact
+                    schemaVersion: 0.0.1
+                output_samples:
+                  artifactType:
+                    schemaTitle: system.Artifact
+                    schemaVersion: 0.0.1
         deploymentSpec:
           executors:
             exec-data-quality-filter:
@@ -790,47 +785,6 @@ spec:
                   \   for metric_name, metric_value in metrics.items():\n                if isinstance(metric_value, (int, float)):\n                    output_metrics.log_metric(f\"{prefix}/{metric_name}\", float(metric_value))\n                    logger.info(f\"  {prefix}/{metric_name}: {metric_value}\")\n\n            bench_test = br.get(\"test\", {})\n            if bench_test and \"pass\" in bench_test:\n                output_metrics.log_metric(f\"{prefix}/pass\", 1.0 if bench_test[\"pass\"] else 0.0)\n\n        results_data = {\n            \"job_id\": job_id,\n            \"state\": final_state,\n            \"mlflow_experiment_url\": mlflow_experiment_url,\n            \"results\": results,\n            \"config\": eval_config,\n            \"model_url\": model_url,\n            \"serving_method\": \"kserve\",\n            \"isvc_name\": isvc_name,\n            \"isvc_startup_seconds\": round(isvc_startup_duration, 1),\n        }\n\n        results_path = os.path.join(output_results.path,\
                   \ \"eval_results.json\")\n        os.makedirs(os.path.dirname(results_path), exist_ok=True)\n        with open(results_path, \"w\") as f:\n            json.dump(results_data, f, indent=2, default=str)\n        logger.info(f\"Results written to {results_path}\")\n\n        output_results.metadata[\"evalhub_job_id\"] = job_id\n        output_results.metadata[\"evalhub_state\"] = final_state\n        if mlflow_experiment_url:\n            output_results.metadata[\"mlflow_experiment_url\"] = mlflow_experiment_url\n\n        if final_state == \"failed\":\n            msg = job.get(\"status\", {}).get(\"message\", {})\n            error_text = msg.get(\"text\", \"Unknown error\") if isinstance(msg, dict) else str(msg)\n            raise RuntimeError(f\"Evaluation failed: {error_text}\")\n\n    finally:\n        _cleanup_kserve(namespace, sr_name, isvc_name)\n\n    logger.info(\"Eval Hub evaluation (KServe) complete.\")\n\n"
                 image: registry.access.redhat.com/ubi9/python-311:latest
-            exec-holdout-llm-evaluator:
-              container:
-                args:
-                - --executor_input
-                - '{{$}}'
-                - --function_to_execute
-                - holdout_llm_evaluator
-                command:
-                - sh
-                - -c
-                - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'lm-eval[vllm]' 'unitxt' 'sacrebleu' 'rouge-score' 'datasets' 'accelerate'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n"
-                - sh
-                - -ec
-                - 'program_path=$(mktemp -d)
-
-
-                  printf "%s" "$0" > "$program_path/ephemeral_component.py"
-
-                  _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
-
-                  '
-                - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef holdout_llm_evaluator(\n    output_metrics: dsl.Output[dsl.Metrics],\n    output_results: dsl.Output[dsl.Artifact],\n    output_samples: dsl.Output[dsl.Artifact],\n    task_names: list,\n    model_path: str = None,\n    model_artifact: dsl.Input[dsl.Model] = None,\n    eval_dataset: dsl.Input[dsl.Dataset] = None,\n    model_args: dict = {},\n    gen_kwargs: dict = {},\n    batch_size: str = \"auto\",\n    limit: int = -1,\n    log_samples: bool = True,\n    verbosity: str = \"INFO\",\n    custom_eval_max_tokens: int = 256,\n    enforce_eager: bool = True,\n):\n    \"\"\"Holdout evaluation with CUDA-capable image.\n\n    Same interface as universal_llm_evaluator but runs on a CUDA image\n    with nvcc available for vLLM JIT compilation.\n\n    Args:\n        output_metrics: Output metrics artifact with evaluation scores.\n        output_results: Full evaluation results JSON.\n        output_samples:\
-                  \ Logged evaluation samples.\n        task_names: Benchmark task names (e.g. [\"arc_easy\"]).\n        model_path: HF model ID or path. Used if model_artifact is None.\n        model_artifact: KFP Model artifact from training step.\n        eval_dataset: JSONL dataset for custom holdout evaluation.\n        model_args: Model init args (e.g. {\"dtype\": \"float16\"}).\n        gen_kwargs: Generation kwargs for the model.\n        batch_size: Batch size (\"auto\" or integer).\n        limit: Max examples per task (-1 = all).\n        log_samples: Log individual evaluation samples.\n        verbosity: Logging level.\n        custom_eval_max_tokens: Max tokens for custom eval generation.\n        enforce_eager: Disable CUDA graphs (avoids JIT compilation issues).\n    \"\"\"\n    import json\n    import logging\n    import multiprocessing\n    import os\n    import random\n    import time\n\n    multiprocessing.set_start_method(\"spawn\", force=True)\n    os.environ[\"VLLM_WORKER_MULTIPROC_METHOD\"\
-                  ] = \"spawn\"\n    os.environ[\"VLLM_ATTENTION_BACKEND\"] = \"FLASH_ATTN\"\n    os.environ[\"VLLM_USE_FLASHINFER_SAMPLER\"] = \"0\"\n    os.environ[\"FLASHINFER_ENABLE_AOT\"] = \"1\"\n\n    import torch\n\n    from lm_eval.api.instance import Instance\n    from lm_eval.api.metrics import mean\n    from lm_eval.api.registry import get_model\n    from lm_eval.api.task import Task, TaskConfig\n    from lm_eval.evaluator import evaluate\n    from lm_eval.tasks import get_task_dict\n\n    logging.basicConfig(\n        level=getattr(logging, verbosity.upper()),\n        format=\"%(asctime)s - %(name)s - %(levelname)s - %(message)s\",\n    )\n    logger = logging.getLogger(\"HoldoutEval\")\n\n    if not torch.cuda.is_available():\n        logger.warning(\"CUDA is not available! Evaluation will be extremely slow.\")\n\n    def extract_chat_parts(messages: list) -> tuple:\n        system_content, user_content, assistant_content = None, None, None\n        for msg in messages:\n\
-                  \            role = msg.get(\"role\", \"\")\n            content = msg.get(\"content\", \"\")\n            if role == \"system\":\n                system_content = content\n            elif role == \"user\":\n                user_content = content\n            elif role == \"assistant\":\n                assistant_content = content\n        return system_content, user_content, assistant_content\n\n    def validate_dataset(path: str, sample_size: int = 10) -> bool:\n        with open(path) as f:\n            lines = [json.loads(line) for line in f if line.strip()]\n        sample = random.sample(lines, min(sample_size, len(lines)))\n        for item in sample:\n            msgs = item.get(\"messages\", item.get(\"conversations\", []))\n            if not msgs:\n                return False\n            _, user, assistant = extract_chat_parts(msgs)\n            if not user or not assistant:\n                return False\n        logger.info(f\"Dataset format validated: {len(sample)}/{len(sample)}\
-                  \ samples checked OK\")\n        return True\n\n    final_model_path = model_path\n    if model_artifact:\n        art_path = model_artifact.path\n        if os.path.isdir(art_path):\n            final_model_path = art_path\n        elif os.path.isfile(art_path):\n            final_model_path = os.path.dirname(art_path)\n        logger.info(f\"Using model from artifact path: {final_model_path}\")\n\n        meta = getattr(model_artifact, \"metadata\", {}) or {}\n        pvc_dir = (meta.get(\"pvc_model_dir\") or \"\").strip()\n        if pvc_dir and os.path.isdir(pvc_dir) and os.path.exists(os.path.join(pvc_dir, \"config.json\")):\n            final_model_path = pvc_dir\n            logger.info(f\"Using PVC model path: {final_model_path}\")\n\n    if not final_model_path:\n        raise ValueError(\"No model provided. Set model_path or model_artifact.\")\n\n    if not os.path.exists(os.path.join(final_model_path, \"config.json\")):\n        for root, _, files in os.walk(final_model_path):\n\
-                  \            if \"config.json\" in files:\n                final_model_path = root\n                logger.info(f\"Found model config at: {final_model_path}\")\n                break\n\n    eval_jsonl = None\n    if eval_dataset:\n        ds_path = eval_dataset.path\n        meta = getattr(eval_dataset, \"metadata\", {}) or {}\n        logger.info(f\"Eval dataset: {meta.get('num_examples', '?')} examples from {meta.get('split', '?')} split\")\n\n        pvc_path = (meta.get(\"pvc_path\") or \"\").strip()\n        if pvc_path and os.path.isfile(pvc_path):\n            eval_jsonl = pvc_path\n        elif os.path.isfile(ds_path):\n            eval_jsonl = ds_path\n        elif os.path.isdir(ds_path):\n            for fn in [\"eval.jsonl\", \"test.jsonl\", \"data.jsonl\"]:\n                candidate = os.path.join(ds_path, fn)\n                if os.path.isfile(candidate):\n                    eval_jsonl = candidate\n                    break\n\n        if eval_jsonl:\n   \
-                  \         logger.info(f\"Found eval JSONL for custom evaluation: {eval_jsonl}\")\n\n    class CustomHoldoutTask(Task):\n        VERSION = 0\n        OUTPUT_TYPE = \"generate_until\"\n\n        def __init__(self, data_path, max_tokens=256, **kwargs):\n            self._data_path = data_path\n            self._max_tokens = max_tokens\n            self._dataset = None\n            config = TaskConfig(\n                task=\"custom_holdout_eval\",\n                num_fewshot=0,\n                output_type=\"generate_until\",\n                generation_kwargs={\n                    \"temperature\": 0.0,\n                    \"do_sample\": False,\n                    \"max_gen_toks\": max_tokens,\n                    \"until\": [\"\\n\\n\"],\n                },\n                metric_list=[\n                    {\"metric\": \"exact_match\", \"aggregation\": \"mean\", \"higher_is_better\": True},\n                ],\n            )\n            super().__init__(config=config,\
-                  \ seed=42, **kwargs)\n\n        def download(self, *args, **kwargs):\n            pass\n\n        def has_training_docs(self):\n            return False\n\n        def has_validation_docs(self):\n            return False\n\n        def has_test_docs(self):\n            return True\n\n        def _load_data(self):\n            if self._dataset is None:\n                with open(self._data_path) as f:\n                    self._dataset = [json.loads(line) for line in f if line.strip()]\n                logger.info(f\"Loaded {len(self._dataset)} examples from {self._data_path}\")\n            return self._dataset\n\n        def test_docs(self):\n            return self._load_data()\n\n        def doc_to_text(self, doc):\n            messages = doc.get(\"messages\", doc.get(\"conversations\", []))\n            prompt = \"\"\n            for msg in messages:\n                if msg[\"role\"] == \"assistant\":\n                    break\n                prompt += f\"<|{msg['role']}|>\\\
-                  n{msg['content']}\\n\"\n            prompt += \"<|assistant|>\\n\"\n            return prompt\n\n        def doc_to_target(self, doc):\n            messages = doc.get(\"messages\", doc.get(\"conversations\", []))\n            for msg in messages:\n                if msg[\"role\"] == \"assistant\":\n                    return msg.get(\"content\", \"\")\n            return \"\"\n\n        def construct_requests(self, doc, ctx, **kwargs):\n            return [Instance(\n                request_type=\"generate_until\",\n                doc=doc,\n                arguments=(ctx, {\"until\": [\"\\n\\n\"], \"max_gen_toks\": self._max_tokens}),\n                idx=0,\n                **kwargs,\n            )]\n\n        def process_results(self, doc, results):\n            pred = results[0].strip() if results else \"\"\n            ref = self.doc_to_target(doc).strip()\n            em = 1.0 if pred == ref else 0.0\n            return {\"exact_match\": em}\n\n        def aggregation(self):\n\
-                  \            return {\"exact_match\": mean}\n\n        def higher_is_better(self):\n            return {\"exact_match\": True}\n\n    tasks_to_eval = {}\n\n    if eval_jsonl and validate_dataset(eval_jsonl):\n        holdout_task = CustomHoldoutTask(eval_jsonl, max_tokens=custom_eval_max_tokens)\n        tasks_to_eval[\"custom_holdout_eval\"] = holdout_task\n        logger.info(\"Added custom holdout task to evaluation\")\n\n    if task_names:\n        logger.info(f\"Adding benchmark tasks: {task_names}\")\n        benchmark_tasks = get_task_dict(task_names)\n        tasks_to_eval.update(benchmark_tasks)\n\n    for name, task in tasks_to_eval.items():\n        cfg = getattr(task, \"_config\", None) or getattr(task, \"config\", None)\n        if cfg:\n            logger.info(f\"Task: {name} ({getattr(cfg, 'task', 'unknown')})\")\n\n    if not tasks_to_eval:\n        logger.warning(\"No tasks to evaluate. Skipping.\")\n        output_metrics.log_metric(\"status\", \"skipped\"\
-                  )\n        with open(output_results.path, \"w\") as f:\n            json.dump({\"status\": \"skipped\"}, f)\n        with open(output_samples.path, \"w\") as f:\n            json.dump({\"status\": \"skipped\"}, f)\n        return\n\n    logger.info(f\"Total tasks to evaluate: {len(tasks_to_eval)}\")\n    logger.info(\"Loading model with vLLM backend...\")\n    start_time = time.time()\n\n    m_args = dict(model_args) if model_args else {}\n    if enforce_eager:\n        m_args[\"enforce_eager\"] = True\n\n    try:\n        vllm_model_args = {\n            \"pretrained\": final_model_path,\n            \"trust_remote_code\": True,\n            \"gpu_memory_utilization\": 0.8,\n            \"dtype\": \"auto\",\n        }\n        vllm_model_args.update(m_args)\n\n        model_class = get_model(\"vllm\")\n\n        if batch_size == \"auto\":\n            bs = \"auto\"\n        else:\n            try:\n                bs = int(batch_size)\n            except ValueError:\n\
-                  \                bs = \"auto\"\n\n        additional_config = {\"batch_size\": bs, \"device\": None}\n        loaded_model = model_class.create_from_arg_obj(vllm_model_args, additional_config)\n        logger.info(f\"Model loaded successfully in {time.time() - start_time:.2f}s\")\n    except Exception as e:\n        logger.error(f\"Failed to load model: {e}\")\n        raise RuntimeError(f\"Model loading failed: {e}\")\n\n    logger.info(\"Starting evaluation...\")\n    start_time = time.time()\n\n    try:\n        eval_limit = None if limit == -1 else limit\n        results = evaluate(\n            lm=loaded_model,\n            task_dict=tasks_to_eval,\n            limit=eval_limit,\n            log_samples=log_samples,\n        )\n        logger.info(f\"Evaluation completed in {time.time() - start_time:.2f}s\")\n    except Exception as e:\n        logger.error(f\"Evaluation failed: {e}\")\n        raise RuntimeError(f\"Evaluation failed: {e}\")\n\n    clean_results =\
-                  \ {}\n    for task_name, task_results in results.get(\"results\", {}).items():\n        clean_results[task_name] = {}\n        for metric_name, value in task_results.items():\n            if metric_name.endswith(\",none\"):\n                metric_name = metric_name[:-5]\n            if metric_name.endswith(\"_stderr\"):\n                continue\n            if isinstance(value, (int, float)):\n                clean_results[task_name][metric_name] = round(value, 4)\n                output_metrics.log_metric(f\"{task_name}_{metric_name}\", round(value, 4))\n\n    output_results.name = \"eval_results.json\"\n    with open(output_results.path, \"w\") as f:\n        json.dump(clean_results, f, indent=2)\n\n    if log_samples and \"samples\" in clean_results:\n        output_samples.name = \"eval_samples.json\"\n        with open(output_samples.path, \"w\") as f:\n            json.dump(clean_results[\"samples\"], f, indent=2)\n\n"
-                image: registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d
-                resources:
-                  accelerator:
-                    count: '1'
-                    resourceCount: '1'
-                    resourceType: nvidia.com/gpu
-                    type: nvidia.com/gpu
             exec-kubeflow-model-registry:
               container:
                 args:
@@ -902,6 +856,68 @@ spec:
                   \             volumes=vols,\n                        containers=[ContainerOverride(name=\"node\", volume_mounts=vmts)],\n                        tolerations=[{\"key\": \"nvidia.com/gpu\", \"operator\": \"Exists\", \"effect\": \"NoSchedule\"}],\n                        node_selector={\"nvidia.com/gpu.present\": \"true\"},\n                    ),\n                )\n            )\n        ],\n        runtime=runtime,\n    )\n    log.info(f\"Job submitted: {job}\")\n    wait_for_training_job(client, job, log)\n\n    # =====================================================================\n    # Phase D: Metrics and model persistence\n    # =====================================================================\n    output_metrics.log_metric(\"technique\", technique)\n    output_metrics.log_metric(\"num_epochs\", float(params.get(\"num_epochs\", 1)))\n    output_metrics.log_metric(\"effective_batch_size\", float(params.get(\"effective_batch_size\", 128)))\n    output_metrics.log_metric(\"\
                   learning_rate\", float(params.get(\"learning_rate\", 2e-4)))\n    output_metrics.log_metric(\"max_seq_len\", float(params.get(\"max_seq_len\", 8192)))\n    output_metrics.log_metric(\"num_workers\", float(nn_val))\n    output_metrics.log_metric(\"gpu_per_worker\", float(training_resource_gpu_per_worker))\n\n    tech.log_metrics(output_metrics, params)\n\n    metrics_files = getattr(tech, \"METRICS_FILES\", [])\n    loss = []\n    for mf in metrics_files:\n        mf_path = os.path.join(ckpt_dir, mf)\n        if os.path.exists(mf_path):\n            from output import extract_metrics_from_jsonl\n            tm, loss = extract_metrics_from_jsonl(mf_path)\n            for k, v in tm.items():\n                output_metrics.log_metric(f\"training_{k}\", v)\n            break\n\n    plot_training_loss(loss, output_loss_chart.path)\n    persist_model(ckpt_dir, pvc_path, training_base_model, output_model, log)\n\n    return f\"{technique} training completed\"\n\n"
                 image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+            exec-universal-llm-evaluator:
+              container:
+                args:
+                - --executor_input
+                - '{{$}}'
+                - --function_to_execute
+                - universal_llm_evaluator
+                command:
+                - sh
+                - -c
+                - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'lm-eval[vllm]' 'unitxt' 'sacrebleu' 'rouge-score' 'datasets' 'accelerate' 'torch' 'transformers'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+                - sh
+                - -ec
+                - 'program_path=$(mktemp -d)
+
+
+                  printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+                  _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+                  '
+                - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef universal_llm_evaluator(\n    output_metrics: dsl.Output[dsl.Metrics],\n    output_results: dsl.Output[dsl.Artifact],\n    output_samples: dsl.Output[dsl.Artifact],\n    # --- Generic Inputs ---\n    task_names: list,\n    model_path: str = None,  # Optional: Use for HF Hub models (e.g. \"ibm/granite-7b\")\n    model_artifact: dsl.Input[dsl.Model] = None,  # Optional: Use for upstream pipeline models\n    eval_dataset: dsl.Input[dsl.Dataset] = None,  # Optional: Eval dataset for custom holdout evaluation\n    model_args: dict = {},\n    gen_kwargs: dict = {},\n    batch_size: str = \"auto\",\n    limit: int = -1,\n    log_samples: bool = True,\n    verbosity: str = \"INFO\",\n    # --- Custom Eval Options ---\n    custom_eval_max_tokens: int = 256,\n):\n    \"\"\"A Universal LLM Evaluator component using EleutherAI's lm-evaluation-harness.\n\n    Supports two types of evaluation:\n\n\
+                  \    1. Benchmark evaluation: Standard lm-eval tasks (arc_easy, mmlu, gsm8k, etc.)\n    2. Custom holdout evaluation: When eval_dataset is provided, evaluates on your held-out data\n\n    Args:\n        output_metrics: Output metrics artifact with evaluation scores.\n        output_results: Output artifact containing full evaluation results JSON.\n        output_samples: Output artifact containing logged evaluation samples.\n        task_names: List of benchmark task names (e.g. [\"mmlu\", \"gsm8k\"]).\n        model_path: String path or HF ID. Used if model_artifact is None.\n        model_artifact: KFP Model artifact from a previous pipeline step.\n        eval_dataset: JSONL dataset in chat format for custom holdout evaluation.\n        model_args: Dictionary for model initialization (e.g. {\"dtype\": \"float16\"}).\n        gen_kwargs: Dictionary of generation kwargs passed to the model.\n        batch_size: Batch size for evaluation (\"auto\" or integer).\n       \
+                  \ limit: Limit number of examples per task (-1 for no limit).\n        log_samples: Whether to log individual evaluation samples.\n        verbosity: Logging verbosity level (DEBUG, INFO, WARNING, ERROR).\n        custom_eval_max_tokens: Max tokens for generation in custom eval (default: 256).\n    \"\"\"\n    import json\n    import logging\n    import multiprocessing\n    import os\n    import random\n    import time\n\n    # vLLM V1 engine (v0.16+) spawns EngineCore as a subprocess using its own\n    # multiprocessing context, ignoring Python's default start method.\n    # Both settings are needed: set_start_method for general multiprocessing,\n    # and the env var for vLLM's internal process spawning.\n    multiprocessing.set_start_method(\"spawn\", force=True)\n    os.environ[\"VLLM_WORKER_MULTIPROC_METHOD\"] = \"spawn\"\n\n    import torch\n\n    # Delayed imports for lm-eval\n    from lm_eval.api.instance import Instance\n    from lm_eval.api.metrics import mean\n\
+                  \    from lm_eval.api.registry import get_model\n    from lm_eval.api.task import Task, TaskConfig\n    from lm_eval.evaluator import evaluate\n    from lm_eval.tasks import get_task_dict\n\n    # --- 1. Setup Logging ---\n    logging.basicConfig(\n        level=getattr(logging, verbosity.upper()),\n        format=\"%(asctime)s - %(name)s - %(levelname)s - %(message)s\",\n    )\n    logger = logging.getLogger(\"UniversalEval\")\n\n    if not torch.cuda.is_available():\n        logger.warning(\"CUDA is not available! Evaluation will be extremely slow.\")\n\n    # =========================================================================\n    # Dataset Format Validation\n    # =========================================================================\n    def extract_chat_parts(messages: list) -> tuple:\n        \"\"\"Extract system, user, and assistant content from messages array.\"\"\"\n        system_content = None\n        user_content = None\n        assistant_content\
+                  \ = None\n\n        for msg in messages:\n            role = msg.get(\"role\", \"\")\n            content = msg.get(\"content\", \"\")\n\n            if role == \"system\" and system_content is None:\n                system_content = content\n            elif role == \"user\" and user_content is None:\n                user_content = content\n            elif role == \"assistant\" and assistant_content is None:\n                assistant_content = content\n\n        return system_content, user_content, assistant_content\n\n    def validate_chat_format(data: list, logger) -> tuple:\n        \"\"\"Validate that the dataset is in the expected chat format.\"\"\"\n        if not data:\n            return False, 0, \"Dataset is empty\"\n\n        valid_count = 0\n        errors = []\n\n        for i, doc in enumerate(data[: min(10, len(data))]):\n            if \"messages\" not in doc:\n                errors.append(f\"Line {i + 1}: Missing 'messages' field\")\n              \
+                  \  continue\n\n            messages = doc[\"messages\"]\n            if not isinstance(messages, list):\n                errors.append(f\"Line {i + 1}: 'messages' is not an array\")\n                continue\n\n            if len(messages) < 2:\n                errors.append(f\"Line {i + 1}: 'messages' must have at least 2 messages (user + assistant)\")\n                continue\n\n            system_content, user_content, assistant_content = extract_chat_parts(messages)\n\n            if not user_content:\n                errors.append(f\"Line {i + 1}: No message with role='user' found\")\n                continue\n\n            if not assistant_content:\n                errors.append(f\"Line {i + 1}: No message with role='assistant' found\")\n                continue\n\n            valid_count += 1\n\n        if valid_count == 0:\n            error_summary = \"\\n\".join(errors[:5])\n            return False, 0, f\"No valid examples found. Errors:\\n{error_summary}\"\n\
+                  \n        if errors:\n            logger.warning(f\"Some examples have format issues ({len(errors)} warnings in first 10 samples)\")\n            for err in errors[:3]:\n                logger.warning(f\"  - {err}\")\n\n        return True, valid_count, None\n\n    # =========================================================================\n    # Custom Chat Holdout Task\n    # =========================================================================\n    class ChatHoldoutTask(Task):\n        \"\"\"A custom lm-eval task for evaluating on chat-format holdout data.\"\"\"\n\n        VERSION = 0\n\n        def __init__(\n            self,\n            dataset_path: str,\n            task_name: str = \"custom_holdout_eval\",\n            max_gen_toks: int = 256,\n            log_prompts: bool = False,\n            prompts_log: list = None,\n        ):\n            self.dataset_path = dataset_path\n            self.max_gen_toks = max_gen_toks\n            self.log_prompts = log_prompts\n\
+                  \            self.prompts_log = [] if prompts_log is None else prompts_log\n\n            config = TaskConfig(task=task_name, dataset_path=dataset_path)\n            super().__init__(config=config)\n            self.fewshot_rnd = random.Random()\n\n        def download(self, data_dir=None, cache_dir=None, download_mode=None, **kwargs) -> None:\n            \"\"\"Load the chat JSONL dataset.\"\"\"\n            data = []\n            with open(self.dataset_path, \"r\") as f:\n                for line in f:\n                    line = line.strip()\n                    if line:\n                        data.append(json.loads(line))\n\n            self.dataset = {\"test\": data}\n            logger.info(f\"Loaded {len(data)} examples from {self.dataset_path}\")\n\n        def has_test_docs(self):\n            return \"test\" in self.dataset\n\n        def has_validation_docs(self):\n            return False\n\n        def has_training_docs(self):\n            return False\n\n\
+                  \        def test_docs(self):\n            return self.dataset[\"test\"]\n\n        def doc_to_text(self, doc):\n            \"\"\"Extract prompt from messages with chat template.\"\"\"\n            messages = doc.get(\"messages\", [])\n            system_content, user_content, _ = extract_chat_parts(messages)\n\n            if not user_content:\n                return \"\"\n\n            prompt_parts = []\n\n            if system_content:\n                prompt_parts.append(f\"<|im_start|>system\\n{system_content}<|im_end|>\")\n\n            prompt_parts.append(f\"<|im_start|>user\\n{user_content}<|im_end|>\")\n            prompt_parts.append(\"<|im_start|>assistant\\n\")\n\n            return \"\\n\".join(prompt_parts)\n\n        def doc_to_target(self, doc):\n            \"\"\"Extract assistant message as target (expected response).\"\"\"\n            messages = doc.get(\"messages\", [])\n            _, _, assistant_content = extract_chat_parts(messages)\n         \
+                  \   return assistant_content or \"\"\n\n        def construct_requests(self, doc, ctx, **kwargs):\n            \"\"\"Create generation and loglikelihood requests for metrics + perplexity.\"\"\"\n            kwargs.pop(\"apply_chat_template\", None)\n            kwargs.pop(\"chat_template\", None)\n            target = self.doc_to_target(doc)\n            return [\n                Instance(\n                    request_type=\"generate_until\",\n                    doc=doc,\n                    arguments=(\n                        ctx,\n                        {\n                            \"until\": [\"<|im_end|>\", \"<|endoftext|>\", \"</s>\", \"<|end|>\", \"\\n\\nUser:\", \"\\n\\nHuman:\"],\n                            \"max_gen_toks\": self.max_gen_toks,\n                        },\n                    ),\n                    idx=0,\n                    **kwargs,\n                ),\n                Instance(\n                    request_type=\"loglikelihood\",\n   \
+                  \                 doc=doc,\n                    arguments=(ctx, target),\n                    idx=1,\n                    **kwargs,\n                ),\n            ]\n\n        def process_results(self, doc, results):\n            \"\"\"Calculate metrics between prediction and target, plus perplexity.\"\"\"\n            import math\n\n            import sacrebleu\n            from rouge_score import rouge_scorer\n\n            generated_text = results[0]\n            loglik_result = results[1]\n\n            prediction = generated_text.strip()\n            target = self.doc_to_target(doc).strip()\n\n            # Calculate perplexity from loglikelihood\n            try:\n                logprob = loglik_result[0] if isinstance(loglik_result, tuple) else loglik_result\n                num_tokens = max(len(target.split()), 1)\n                perplexity = math.exp(-logprob / num_tokens) if logprob < 0 else math.exp(-logprob)\n                perplexity = min(perplexity,\
+                  \ 10000.0)\n                nll = -logprob / num_tokens if logprob < 0 else -logprob\n            except Exception:\n                perplexity = 10000.0\n                nll = 10.0\n\n            if self.log_prompts:\n                try:\n                    self.prompts_log.append(\n                        {\n                            \"prompt\": self.doc_to_text(doc),\n                            \"target\": target,\n                            \"prediction\": prediction,\n                        }\n                    )\n                except Exception as e:\n                    logger.warning(f\"Failed to log prompt for doc: {e}\")\n\n            exact_match = 1.0 if prediction.lower() == target.lower() else 0.0\n\n            contains_match = 1.0 if target and target.lower() in prediction.lower() else 0.0\n\n            try:\n                bleu = sacrebleu.sentence_bleu(prediction, [target]).score / 100.0\n            except Exception:\n                bleu\
+                  \ = 0.0\n\n            try:\n                scorer = rouge_scorer.RougeScorer([\"rouge1\", \"rouge2\", \"rougeL\"], use_stemmer=True)\n                rouge_scores = scorer.score(target, prediction)\n                rouge1 = rouge_scores[\"rouge1\"].fmeasure\n                rouge2 = rouge_scores[\"rouge2\"].fmeasure\n                rougeL = rouge_scores[\"rougeL\"].fmeasure\n            except Exception:\n                rouge1 = 0.0\n                rouge2 = 0.0\n                rougeL = 0.0\n\n            pred_words = set(prediction.lower().split())\n            target_words = set(target.lower().split())\n            if pred_words and target_words:\n                overlap = len(pred_words & target_words)\n                precision = overlap / len(pred_words) if pred_words else 0\n                recall = overlap / len(target_words) if target_words else 0\n                f1_overlap = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0\n\
+                  \            else:\n                f1_overlap = 0.0\n\n            return {\n                \"exact_match\": exact_match,\n                \"contains_match\": contains_match,\n                \"bleu\": bleu,\n                \"rouge1\": rouge1,\n                \"rouge2\": rouge2,\n                \"rougeL\": rougeL,\n                \"f1_overlap\": f1_overlap,\n                \"perplexity\": perplexity,\n                \"loss\": nll,\n            }\n\n        def aggregation(self):\n            return {\n                \"exact_match\": mean,\n                \"contains_match\": mean,\n                \"bleu\": mean,\n                \"rouge1\": mean,\n                \"rouge2\": mean,\n                \"rougeL\": mean,\n                \"f1_overlap\": mean,\n                \"perplexity\": mean,\n                \"loss\": mean,\n            }\n\n        def should_decontaminate(self):\n            return False\n\n        def doc_to_prefix(self, doc):\n           \
+                  \ return \"\"\n\n        def higher_is_better(self):\n            return {\n                \"exact_match\": True,\n                \"contains_match\": True,\n                \"bleu\": True,\n                \"rouge1\": True,\n                \"rouge2\": True,\n                \"rougeL\": True,\n                \"f1_overlap\": True,\n                \"perplexity\": False,\n                \"loss\": False,\n            }\n\n    # =========================================================================\n    # Main Evaluation Logic\n    # =========================================================================\n\n    # --- 2. Resolve Model Path ---\n    final_model_path = None\n    if model_artifact:\n        meta = getattr(model_artifact, \"metadata\", {}) or {}\n        pvc_model_dir = meta.get(\"pvc_model_dir\")\n        if pvc_model_dir and os.path.isdir(pvc_model_dir):\n            logger.info(f\"Using model from PVC path (via metadata): {pvc_model_dir}\")\n       \
+                  \     final_model_path = pvc_model_dir\n        elif os.path.isdir(model_artifact.path):\n            logger.info(f\"Using model from artifact path: {model_artifact.path}\")\n            final_model_path = model_artifact.path\n        else:\n            logger.warning(f\"Artifact path not found: {model_artifact.path}, checking metadata...\")\n            if pvc_model_dir:\n                logger.info(f\"Falling back to PVC path from metadata: {pvc_model_dir}\")\n                final_model_path = pvc_model_dir\n\n    if not final_model_path and model_path:\n        logger.info(f\"Using model from string path/ID: {model_path}\")\n        final_model_path = model_path\n\n    if not final_model_path:\n        raise ValueError(\"No model provided! You must pass either 'model_path' (string) or 'model_artifact' (input).\")\n\n    # Verify model directory has config.json (required by vLLM)\n    config_path = os.path.join(final_model_path, \"config.json\")\n    if not os.path.exists(config_path):\n\
+                  \        logger.error(f\"Model directory missing config.json: {final_model_path}\")\n        if os.path.isdir(final_model_path):\n            logger.error(f\"Directory contents: {os.listdir(final_model_path)}\")\n        else:\n            logger.error(\"Path is NOT A DIRECTORY\")\n        raise ValueError(f\"Invalid model directory - no config.json found at {final_model_path}\")\n\n    # --- 3. Prepare eval dataset info and custom task ---\n    eval_dataset_info = {}\n    eval_jsonl_path = None\n    custom_task = None\n    prompt_response_log = []\n\n    if eval_dataset:\n        eval_meta = getattr(eval_dataset, \"metadata\", {}) or {}\n        eval_dataset_info = {\n            \"num_examples\": eval_meta.get(\"num_examples\", \"unknown\"),\n            \"split\": eval_meta.get(\"split\", \"eval\"),\n            \"pvc_path\": eval_meta.get(\"pvc_path\", eval_dataset.path),\n        }\n        logger.info(\n            f\"Eval dataset: {eval_dataset_info['num_examples']}\
+                  \ examples from {eval_dataset_info['split']} split\"\n        )\n        logger.info(f\"Eval dataset path: {eval_dataset_info['pvc_path']}\")\n\n        candidate_paths = [\n            eval_dataset_info[\"pvc_path\"],\n            eval_dataset.path,\n        ]\n\n        for candidate in candidate_paths:\n            if candidate and os.path.exists(candidate):\n                if os.path.isfile(candidate):\n                    eval_jsonl_path = candidate\n                    break\n                elif os.path.isdir(candidate):\n                    for f in os.listdir(candidate):\n                        if f.endswith(\".jsonl\") or f.endswith(\".json\"):\n                            eval_jsonl_path = os.path.join(candidate, f)\n                            break\n                    if eval_jsonl_path:\n                        break\n\n        if eval_jsonl_path and os.path.exists(eval_jsonl_path):\n            logger.info(f\"Found eval JSONL for custom evaluation: {eval_jsonl_path}\"\
+                  )\n\n            try:\n                with open(eval_jsonl_path, \"r\") as f:\n                    sample_data = []\n                    for i, line in enumerate(f):\n                        if i >= 10:\n                            break\n                        line = line.strip()\n                        if line:\n                            sample_data.append(json.loads(line))\n\n                is_valid, valid_count, error_msg = validate_chat_format(sample_data, logger)\n\n                if not is_valid:\n                    logger.error(\"=\" * 60)\n                    logger.error(\"CUSTOM EVAL SKIPPED - Invalid dataset format!\")\n                    logger.error(\"=\" * 60)\n                    logger.error(f\"Error: {error_msg}\")\n                else:\n                    logger.info(f\"Dataset format validated: {valid_count}/10 samples checked OK\")\n                    custom_task = ChatHoldoutTask(\n                        dataset_path=eval_jsonl_path,\n\
+                  \                        task_name=\"custom_holdout_eval\",\n                        max_gen_toks=custom_eval_max_tokens,\n                        log_prompts=log_samples,\n                        prompts_log=prompt_response_log,\n                    )\n                    logger.info(\"Custom holdout evaluation task created\")\n            except json.JSONDecodeError as e:\n                logger.error(f\"Failed to parse eval dataset as JSONL: {e}\")\n            except Exception as e:\n                logger.error(f\"Error validating eval dataset: {e}\")\n        else:\n            logger.warning(\"Could not find eval JSONL file for custom evaluation. Skipping custom eval.\")\n\n    # --- 4. Input Sanitization ---\n    def parse_input(val, default):\n        if val is None:\n            return default\n        if isinstance(val, str):\n            try:\n                return json.loads(val)\n            except json.JSONDecodeError:\n                return val\n     \
+                  \   return val\n\n    tasks_list = parse_input(task_names, [])\n    m_args = parse_input(model_args, {})\n    _ = parse_input(gen_kwargs, {})  # Reserved for future use\n    limit_val = None if limit == -1 else limit\n\n    # --- 5. Build task dict ---\n    task_dict = {}\n\n    if tasks_list:\n        logger.info(f\"Adding benchmark tasks: {tasks_list}\")\n        benchmark_task_dict = get_task_dict(tasks_list)\n        task_dict.update(benchmark_task_dict)\n\n    if custom_task:\n        task_dict[\"custom_holdout_eval\"] = custom_task\n        logger.info(\"Added custom holdout task to evaluation\")\n\n    if not task_dict:\n        raise ValueError(\"No tasks to evaluate! Provide task_names or eval_dataset.\")\n\n    logger.info(f\"Total tasks to evaluate: {len(task_dict)}\")\n\n    # --- 6. Load Model ---\n    logger.info(\"Loading model with vLLM backend...\")\n    start_time = time.time()\n\n    try:\n        vllm_model_args = {\n            \"pretrained\": final_model_path,\n\
+                  \            \"trust_remote_code\": True,\n            \"gpu_memory_utilization\": 0.8,\n            \"dtype\": \"auto\",\n        }\n        vllm_model_args.update(m_args)\n\n        model_class = get_model(\"vllm\")\n\n        if batch_size == \"auto\":\n            bs = \"auto\"\n        else:\n            try:\n                bs = int(batch_size)\n            except ValueError:\n                bs = \"auto\"\n\n        additional_config = {\n            \"batch_size\": bs,\n            \"device\": None,\n        }\n\n        loaded_model = model_class.create_from_arg_obj(vllm_model_args, additional_config)\n        logger.info(f\"Model loaded successfully in {time.time() - start_time:.2f}s\")\n    except Exception as e:\n        logger.error(f\"Failed to load model: {e}\")\n        raise RuntimeError(f\"Model loading failed: {e}\")\n\n    # --- 7. Run Evaluation ---\n    logger.info(\"Starting evaluation...\")\n    start_time = time.time()\n\n    try:\n        results\
+                  \ = evaluate(\n            lm=loaded_model,\n            task_dict=task_dict,\n            limit=limit_val,\n            verbosity=verbosity,\n        )\n    except Exception as e:\n        logger.error(f\"Evaluation failed: {str(e)}\")\n        raise RuntimeError(f\"Fatal error in evaluation: {e}\")\n\n    duration = time.time() - start_time\n    logger.info(f\"Evaluation completed in {duration:.2f}s\")\n\n    # --- 8. Output Processing ---\n    def clean_for_json(obj):\n        if isinstance(obj, (int, float, str, bool, type(None))):\n            return obj\n        elif hasattr(obj, \"item\"):\n            return obj.item()\n        elif isinstance(obj, dict):\n            return {k: clean_for_json(v) for k, v in obj.items()}\n        elif isinstance(obj, list):\n            return [clean_for_json(item) for item in obj]\n        return str(obj)\n\n    clean_results = clean_for_json(results)\n\n    # --- Log Evaluation Metadata ---\n    output_metrics.log_metric(\"eval_duration_seconds\"\
+                  , round(duration, 2))\n    output_metrics.log_metric(\"eval_tasks_count\", len(task_dict))\n\n    custom_eval_ran = custom_task is not None and \"custom_holdout_eval\" in str(clean_results.get(\"results\", {}))\n    output_metrics.log_metric(\"custom_eval_enabled\", 1 if custom_eval_ran else 0)\n\n    try:\n        output_metrics.metadata[\"eval_benchmark_tasks\"] = \",\".join(tasks_list)\n        output_metrics.metadata[\"eval_custom_task\"] = \"custom_holdout_eval\" if custom_task else \"none\"\n        output_metrics.metadata[\"eval_model_path\"] = final_model_path\n        output_metrics.metadata[\"eval_batch_size\"] = str(batch_size)\n        output_metrics.metadata[\"eval_limit\"] = str(limit_val) if limit_val else \"all\"\n        if eval_dataset_info:\n            output_metrics.metadata[\"eval_dataset_examples\"] = str(eval_dataset_info.get(\"num_examples\", \"\"))\n            output_metrics.metadata[\"eval_dataset_path\"] = eval_dataset_info.get(\"pvc_path\"\
+                  , \"\")\n            output_metrics.metadata[\"eval_custom_data_used\"] = \"true\" if custom_eval_ran else \"false\"\n    except Exception as e:\n        logger.warning(f\"Could not set metadata: {e}\")\n\n    # --- Log Task Metrics ---\n    if \"results\" in clean_results:\n        for task_name, metrics in clean_results[\"results\"].items():\n            display_name = metrics.get(\"alias\", task_name)\n\n            if task_name == \"custom_holdout_eval\":\n                prefix = \"holdout\"\n                logger.info(\"=== CUSTOM HOLDOUT EVALUATION RESULTS ===\")\n            else:\n                prefix = display_name\n\n            for key, value in metrics.items():\n                if isinstance(value, (int, float)) and key != \"alias\":\n                    safe_key = f\"{prefix}_{key}\".replace(\" \", \"_\").replace(\"/\", \"_\")\n                    output_metrics.log_metric(safe_key, value)\n\n                    if task_name == \"custom_holdout_eval\":\n\
+                  \                        logger.info(f\"  {key}: {value:.4f}\" if isinstance(value, float) else f\"  {key}: {value}\")\n\n        if custom_eval_ran and \"custom_holdout_eval\" in clean_results[\"results\"]:\n            custom_results = clean_results[\"results\"][\"custom_holdout_eval\"]\n            exact_match = custom_results.get(\"exact_match,none\", custom_results.get(\"exact_match\", \"N/A\"))\n            contains_match = custom_results.get(\"contains_match,none\", custom_results.get(\"contains_match\", \"N/A\"))\n            logger.info(f\"=== HOLDOUT EXACT MATCH: {exact_match} ===\")\n            logger.info(f\"=== HOLDOUT CONTAINS MATCH: {contains_match} ===\")\n            logger.info(\"This metric shows how well the model performs on YOUR held-out data.\")\n\n    # --- Save Artifacts ---\n    output_results.name = \"eval_results.json\"\n    with open(output_results.path, \"w\") as f:\n        json.dump(clean_results, f, indent=2)\n\n    if log_samples and custom_task\
+                  \ and len(prompt_response_log) > 0:\n        try:\n            output_samples.name = \"eval_samples.json\"\n            with open(output_samples.path, \"w\") as f:\n                json.dump(prompt_response_log, f, indent=2)\n            logger.info(f\"Prompt/response log saved with {len(prompt_response_log)} samples\")\n        except Exception as e:\n            logger.warning(f\"Failed to save prompt/response log: {e}\")\n    elif log_samples and \"samples\" in clean_results:\n        output_samples.name = \"eval_samples.json\"\n        with open(output_samples.path, \"w\") as f:\n            json.dump(clean_results[\"samples\"], f, indent=2)\n\n"
+                env:
+                - name: VLLM_ATTENTION_BACKEND
+                  value: FLASH_ATTN
+                - name: VLLM_USE_FLASHINFER_SAMPLER
+                  value: '0'
+                - name: FLASHINFER_ENABLE_AOT
+                  value: '1'
+                image: registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d
+                resources:
+                  accelerator:
+                    count: '1'
+                    resourceCount: '1'
+                    resourceType: nvidia.com/gpu
+                    type: nvidia.com/gpu
         pipelineInfo:
           description: 7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom techniques. Includes data quality filter, distributed training, benchmark evaluation via EvalHub + MLflow, holdout evaluation, and model registry with full provenance.
           name: finetuning-pipeline
@@ -1009,46 +1025,14 @@ spec:
                         constant: '{{$.workspace_path}}'
                 taskInfo:
                   name: evalhub-evaluator-kserve
-              holdout-llm-evaluator:
-                cachingOptions: {}
-                componentRef:
-                  name: comp-holdout-llm-evaluator
-                dependentTasks:
-                - dataset-download
-                - evalhub-evaluator-kserve
-                - train-model
-                inputs:
-                  artifacts:
-                    eval_dataset:
-                      taskOutputArtifact:
-                        outputArtifactKey: eval_dataset
-                        producerTask: dataset-download
-                    model_artifact:
-                      taskOutputArtifact:
-                        outputArtifactKey: output_model
-                        producerTask: train-model
-                  parameters:
-                    batch_size:
-                      componentInputParameter: holdout_eval_batch_size
-                    enforce_eager:
-                      componentInputParameter: holdout_enforce_eager
-                    limit:
-                      componentInputParameter: holdout_eval_limit
-                    log_samples:
-                      runtimeValue:
-                        constant: true
-                    task_names:
-                      componentInputParameter: holdout_eval_tasks
-                taskInfo:
-                  name: holdout-llm-evaluator
               kubeflow-model-registry:
                 cachingOptions: {}
                 componentRef:
                   name: comp-kubeflow-model-registry
                 dependentTasks:
                 - evalhub-evaluator-kserve
-                - holdout-llm-evaluator
                 - train-model
+                - universal-llm-evaluator
                 inputs:
                   artifacts:
                     eval_metrics:
@@ -1204,6 +1188,42 @@ spec:
                       componentInputParameter: use_liger
                 taskInfo:
                   name: train-model
+              universal-llm-evaluator:
+                cachingOptions: {}
+                componentRef:
+                  name: comp-universal-llm-evaluator
+                dependentTasks:
+                - dataset-download
+                - evalhub-evaluator-kserve
+                - train-model
+                inputs:
+                  artifacts:
+                    eval_dataset:
+                      taskOutputArtifact:
+                        outputArtifactKey: eval_dataset
+                        producerTask: dataset-download
+                    model_artifact:
+                      taskOutputArtifact:
+                        outputArtifactKey: output_model
+                        producerTask: train-model
+                  parameters:
+                    batch_size:
+                      componentInputParameter: holdout_eval_batch_size
+                    limit:
+                      componentInputParameter: holdout_eval_limit
+                    log_samples:
+                      runtimeValue:
+                        constant: true
+                    model_args:
+                      runtimeValue:
+                        constant:
+                          enforce_eager: '{{$.inputs.parameters[''pipelinechannel--holdout_enforce_eager'']}}'
+                    pipelinechannel--holdout_enforce_eager:
+                      componentInputParameter: holdout_enforce_eager
+                    task_names:
+                      componentInputParameter: holdout_eval_tasks
+                taskInfo:
+                  name: universal-llm-evaluator
           inputDefinitions:
             parameters:
               annotations:
@@ -1520,24 +1540,6 @@ spec:
                     secretNameParameter:
                       runtimeValue:
                         constant: hf-token
-                exec-holdout-llm-evaluator:
-                  imagePullPolicy: IfNotPresent
-                  nodeSelector:
-                    labels:
-                      nvidia.com/gpu.present: 'true'
-                  secretAsEnv:
-                  - keyToEnv:
-                    - envVar: HF_TOKEN
-                      secretKey: HF_TOKEN
-                    optional: true
-                    secretName: hf-token
-                    secretNameParameter:
-                      runtimeValue:
-                        constant: hf-token
-                  tolerations:
-                  - effect: NoSchedule
-                    key: nvidia.com/gpu
-                    operator: Exists
                 exec-kubeflow-model-registry:
                   imagePullPolicy: IfNotPresent
                 exec-train-model:
@@ -1564,6 +1566,24 @@ spec:
                     secretNameParameter:
                       runtimeValue:
                         constant: oci-pull-secret-model-download
+                  - keyToEnv:
+                    - envVar: HF_TOKEN
+                      secretKey: HF_TOKEN
+                    optional: true
+                    secretName: hf-token
+                    secretNameParameter:
+                      runtimeValue:
+                        constant: hf-token
+                  tolerations:
+                  - effect: NoSchedule
+                    key: nvidia.com/gpu
+                    operator: Exists
+                exec-universal-llm-evaluator:
+                  imagePullPolicy: IfNotPresent
+                  nodeSelector:
+                    labels:
+                      nvidia.com/gpu.present: 'true'
+                  secretAsEnv:
                   - keyToEnv:
                     - envVar: HF_TOKEN
                       secretKey: HF_TOKEN

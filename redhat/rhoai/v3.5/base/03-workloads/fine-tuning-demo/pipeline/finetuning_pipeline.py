@@ -42,7 +42,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "local_components"))
 
 from local_components.train_model import train_model
 from local_components.data_quality_filter import data_quality_filter
-from local_components.holdout_eval import holdout_llm_evaluator
 
 _PIPELINES_COMPONENTS = os.environ.get(
     "PIPELINES_COMPONENTS_PATH",
@@ -55,6 +54,7 @@ from components.deployment.kubeflow_model_registry import (
     kubeflow_model_registry as model_registry,
 )
 from components.evaluation.evalhub.kserve import evalhub_evaluator_kserve
+from components.evaluation.lm_eval import universal_llm_evaluator
 
 # =============================================================================
 # PVC Configuration — from pipeline-config.yaml
@@ -363,16 +363,16 @@ def finetuning_pipeline(
     kfp.kubernetes.set_image_pull_policy(eval_task, "IfNotPresent")
 
     # =========================================================================
-    # Phase 4b: Holdout Evaluation (local CUDA-capable component)
+    # Phase 4b: Holdout Evaluation (upstream component + CUDA image via post-compile patch)
     # =========================================================================
-    holdout_eval_task = holdout_llm_evaluator(
+    holdout_eval_task = universal_llm_evaluator(
         model_artifact=training_task.outputs["output_model"],
         eval_dataset=dataset_task.outputs["eval_dataset"],
         task_names=holdout_eval_tasks,
         batch_size=holdout_eval_batch_size,
         limit=holdout_eval_limit,
         log_samples=True,
-        enforce_eager=holdout_enforce_eager,
+        model_args={"enforce_eager": holdout_enforce_eager},
     )
     holdout_eval_task.after(eval_task)
     holdout_eval_task.set_caching_options(False)
@@ -381,6 +381,12 @@ def finetuning_pipeline(
     holdout_eval_task.set_accelerator_limit(1)
     kfp.kubernetes.add_node_selector(holdout_eval_task, "nvidia.com/gpu.present", "true")
     kfp.kubernetes.add_toleration(holdout_eval_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
+
+    # vLLM JIT workarounds — eval image (ubi9) lacks CUDA toolkit;
+    # post-compile patch in build_pipeline.py swaps to CUDA image.
+    holdout_eval_task.set_env_variable("VLLM_ATTENTION_BACKEND", "FLASH_ATTN")
+    holdout_eval_task.set_env_variable("VLLM_USE_FLASHINFER_SAMPLER", "0")
+    holdout_eval_task.set_env_variable("FLASHINFER_ENABLE_AOT", "1")
 
     # HF token for all steps that may download gated models or datasets
     for _task in [dataset_task, training_task, eval_task, holdout_eval_task]:

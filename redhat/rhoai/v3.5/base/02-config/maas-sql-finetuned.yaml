@@ -24,12 +24,12 @@ spec:
     - name: qwen25-sql-finetuned
       namespace: fine-tuning-demo
       tokenRateLimits:
-        - limit: 500000
+        - limit: 1000000000
           window: 1h
     - name: qwen25-base
       namespace: fine-tuning-demo
       tokenRateLimits:
-        - limit: 500000
+        - limit: 1000000000
           window: 1h
   owner:
     groups:

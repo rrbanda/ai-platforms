@@ -15,6 +15,6 @@ spec:
     - name: gemma4-12b-agentic
       namespace: gemma4-agentic
       tokenRateLimits:
-        - limit: 1000
-          window: 1m
+        - limit: 1000000000
+          window: 1h
   priority: 30

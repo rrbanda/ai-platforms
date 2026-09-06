@@ -15,26 +15,26 @@ spec:
     - name: gemini-3.7-flash
       namespace: gemini-external
       tokenRateLimits:
-        - limit: 500000
+        - limit: 1000000000
           window: 1h
     - name: gemini-3.5-flash
       namespace: gemini-external
       tokenRateLimits:
-        - limit: 500000
+        - limit: 1000000000
           window: 1h
     - name: gemini-3.5-flash-lite
       namespace: gemini-external
       tokenRateLimits:
-        - limit: 1000000
+        - limit: 1000000000
           window: 1h
     - name: gemini-2.5-flash
       namespace: gemini-external
       tokenRateLimits:
-        - limit: 500000
+        - limit: 1000000000
           window: 1h
     - name: gemini-2.5-pro
       namespace: gemini-external
       tokenRateLimits:
-        - limit: 200000
+        - limit: 1000000000
           window: 1h
   priority: 10

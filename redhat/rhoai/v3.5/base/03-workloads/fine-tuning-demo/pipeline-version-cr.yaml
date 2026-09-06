@@ -908,7 +908,7 @@ spec:
                 - name: VLLM_ATTENTION_BACKEND
                   value: FLASH_ATTN
                 - name: VLLM_USE_FLASHINFER_SAMPLER
-                  value: 'false'
+                  value: '0'
                 - name: FLASHINFER_ENABLE_AOT
                   value: '1'
                 image: registry.access.redhat.com/ubi9/python-311:latest

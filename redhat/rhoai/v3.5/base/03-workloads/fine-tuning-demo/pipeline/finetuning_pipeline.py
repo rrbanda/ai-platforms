@@ -436,7 +436,7 @@ def finetuning_pipeline(
     # /usr/local/cuda). vLLM's FlashInfer JIT and deep_gemm both need nvcc.
     # Disable all JIT-compiled kernel paths to use pre-compiled alternatives.
     holdout_eval_task.set_env_variable("VLLM_ATTENTION_BACKEND", "FLASH_ATTN")
-    holdout_eval_task.set_env_variable("VLLM_USE_FLASHINFER_SAMPLER", "false")
+    holdout_eval_task.set_env_variable("VLLM_USE_FLASHINFER_SAMPLER", "0")
     holdout_eval_task.set_env_variable("FLASHINFER_ENABLE_AOT", "1")
 
     # HF token for all steps that may download gated models or datasets

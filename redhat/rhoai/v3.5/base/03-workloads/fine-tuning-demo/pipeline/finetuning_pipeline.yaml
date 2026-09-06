@@ -2378,10 +2378,10 @@ spec:
             - name: VLLM_ATTENTION_BACKEND
               value: FLASH_ATTN
             - name: VLLM_USE_FLASHINFER_SAMPLER
-              value: 'false'
+              value: '0'
             - name: FLASHINFER_ENABLE_AOT
               value: '1'
-            image: registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d
+            image: registry.access.redhat.com/ubi9/python-311:latest
             resources:
               accelerator:
                 count: '1'

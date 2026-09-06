@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from ..data import (
+from shared.data import (
     _extract_tar,
     _find_hf_model,
     _get_oci_auth,

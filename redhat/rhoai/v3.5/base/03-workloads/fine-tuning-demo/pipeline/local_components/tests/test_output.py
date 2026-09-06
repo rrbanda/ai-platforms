@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from ..output import (
+from shared.output import (
     extract_metrics_from_jsonl,
     find_model_dir,
     persist_model,

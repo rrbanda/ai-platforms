@@ -23,4 +23,4 @@ clean: ## Remove compiled artifacts
 	rm -f $(PIPELINE_DIR)/finetuning_pipeline.yaml
 
 test: ## Run pipeline unit tests
-	cd $(PIPELINE_DIR)/local_components && python3 -m pytest shared/tests/ -v --tb=short
+	cd $(PIPELINE_DIR)/local_components && python3 -m pytest tests/ -v --tb=short

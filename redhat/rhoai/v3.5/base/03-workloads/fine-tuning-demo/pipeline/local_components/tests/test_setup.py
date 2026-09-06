@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from ..setup import configure_env, create_logger, init_k8s, parse_kv, setup_hf_token
+from shared.setup import configure_env, create_logger, init_k8s, parse_kv, setup_hf_token
 
 
 @pytest.fixture

@@ -7,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from ..training import _log_job_details, compute_nproc, safe_int, select_runtime, wait_for_training_job
+from shared.training import _log_job_details, compute_nproc, safe_int, select_runtime, wait_for_training_job
 
 
 @dataclass

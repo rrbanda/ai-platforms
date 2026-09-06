@@ -7,7 +7,7 @@ class TestLoRA:
     """Tests for the LoRA technique module."""
 
     def _mod(self):
-        from ..techniques import lora
+        from shared.techniques import lora
         return lora
 
     def test_defaults(self):
@@ -81,7 +81,7 @@ class TestSFT:
     """Tests for the SFT technique module."""
 
     def _mod(self):
-        from ..techniques import sft
+        from shared.techniques import sft
         return sft
 
     def test_defaults(self):
@@ -115,7 +115,7 @@ class TestOSFT:
     """Tests for the OSFT technique module."""
 
     def _mod(self):
-        from ..techniques import osft
+        from shared.techniques import osft
         return osft
 
     def test_defaults(self):
@@ -174,7 +174,7 @@ class TestCustom:
     """Tests for the custom technique module."""
 
     def _mod(self):
-        from ..techniques import custom
+        from shared.techniques import custom
         return custom
 
     def test_defaults(self):
@@ -192,25 +192,25 @@ class TestTechniqueDispatch:
     """Tests for the technique dispatch in __init__.py."""
 
     def test_supported_techniques(self):
-        from ..techniques import SUPPORTED_TECHNIQUES
+        from shared.techniques import SUPPORTED_TECHNIQUES
         assert "lora" in SUPPORTED_TECHNIQUES
         assert "sft" in SUPPORTED_TECHNIQUES
         assert "osft" in SUPPORTED_TECHNIQUES
         assert "custom" in SUPPORTED_TECHNIQUES
 
     def test_get_lora_direct(self):
-        from ..techniques import lora
+        from shared.techniques import lora
         assert lora.ALGORITHM_NAME == "LORA_SFT"
 
     def test_get_sft_direct(self):
-        from ..techniques import sft
+        from shared.techniques import sft
         assert sft.ALGORITHM_NAME == "SFT"
 
     def test_get_osft_direct(self):
-        from ..techniques import osft
+        from shared.techniques import osft
         assert osft.ALGORITHM_NAME == "OSFT"
 
     def test_unknown_technique_raises(self):
-        from ..techniques import get_technique_module
+        from shared.techniques import get_technique_module
         with pytest.raises(ValueError, match="Unknown technique"):
             get_technique_module("unknown")

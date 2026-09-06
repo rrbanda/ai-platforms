@@ -1,0 +1,77 @@
+# Pipeline Upload Job
+#
+# Registers the fine-tuning pipeline in the DSPA by uploading
+# the compiled YAML via the KFP REST API. Managed by ArgoCD.
+#
+# The Job reads the pipeline YAML from the finetuning-pipeline-yaml
+# ConfigMap and uploads it using a ServiceAccount token for auth.
+#
+# Runs once after DSPA is ready. ArgoCD PostSync hook ensures
+# correct ordering. Auto-deletes on success.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pipeline-upload
+  namespace: fine-tuning-demo
+  labels:
+    app: finetuning-pipeline
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: default
+      containers:
+        - name: upload
+          image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for DSPA API server..."
+              for i in $(seq 1 30); do
+                if curl -sk -o /dev/null -w "%{http_code}" \
+                  https://ds-pipeline-dspa.fine-tuning-demo.svc.cluster.local:8443/apis/v2beta1/pipelines \
+                  -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" | grep -q "200"; then
+                  echo "DSPA ready"
+                  break
+                fi
+                echo "  Attempt $i/30..."
+                sleep 10
+              done
+
+              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              DSPA="https://ds-pipeline-dspa.fine-tuning-demo.svc.cluster.local:8443"
+
+              echo "Uploading pipeline..."
+              RESULT=$(curl -sk -X POST "${DSPA}/apis/v2beta1/pipelines/upload" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -F "uploadfile=@/pipeline/pipeline.yaml;filename=finetuning-pipeline.yaml" \
+                -F "name=finetuning-pipeline" \
+                -F "description=7-phase fine-tuning pipeline: dataset, quality filter, model cache, training, benchmark eval + safety, holdout eval, registry" \
+                2>&1)
+
+              echo "$RESULT"
+
+              if echo "$RESULT" | grep -q "pipeline_id"; then
+                echo "Pipeline registered successfully"
+              elif echo "$RESULT" | grep -q "already exists"; then
+                echo "Pipeline already exists — OK"
+              else
+                echo "Upload may have failed — check DSPA logs"
+                exit 1
+              fi
+          volumeMounts:
+            - name: pipeline-yaml
+              mountPath: /pipeline
+              readOnly: true
+      volumes:
+        - name: pipeline-yaml
+          configMap:
+            name: finetuning-pipeline-yaml

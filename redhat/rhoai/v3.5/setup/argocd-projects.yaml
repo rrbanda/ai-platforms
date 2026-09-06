@@ -72,6 +72,10 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: models-as-a-service
       server: https://kubernetes.default.svc
+    - namespace: nfs-provisioner
+      server: https://kubernetes.default.svc
+    - namespace: rhoai-model-registries
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: opendatahub.io
       kind: OdhDashboardConfig
@@ -83,6 +87,20 @@ spec:
       kind: MLflow
     - group: ''
       kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: security.openshift.io
+      kind: SecurityContextConstraints
+    - group: ''
+      kind: PersistentVolume
+    - group: v1
+      kind: ConfigMap
+    - group: modelregistry.opendatahub.io
+      kind: ModelRegistry
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
@@ -113,6 +131,8 @@ spec:
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
     - group: rbac.authorization.k8s.io
       kind: ClusterRoleBinding
   namespaceResourceWhitelist:

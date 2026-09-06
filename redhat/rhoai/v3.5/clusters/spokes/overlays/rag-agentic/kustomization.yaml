@@ -2,5 +2,4 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../profiles/rhoai-platform.yaml
-  - ../../../workloads/autorag/kustomization.yaml
+  - ../../profiles/connected/platform.yaml

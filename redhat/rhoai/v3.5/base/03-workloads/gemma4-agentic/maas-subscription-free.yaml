@@ -17,4 +17,4 @@ spec:
       tokenRateLimits:
         - limit: 1000
           window: 1m
-  priority: 10
+  priority: 30

@@ -20,6 +20,9 @@ spec:
     - coding-v1
     - model-validation
     - standard-llm-evals-v1
+  env:
+    - name: MLFLOW_TRACKING_URI
+      value: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443"
   mcp:
     enabled: true
     transport: http

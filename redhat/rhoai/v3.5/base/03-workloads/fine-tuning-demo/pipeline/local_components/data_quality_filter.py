@@ -375,6 +375,11 @@ def data_quality_filter(
         try:
             import mlflow
 
+            token_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            if os.path.exists(token_path):
+                with open(token_path) as f:
+                    os.environ["MLFLOW_TRACKING_TOKEN"] = f.read().strip()
+
             mlflow.set_tracking_uri(mlflow_tracking_uri)
             mlflow.set_experiment(mlflow_experiment_name)
 

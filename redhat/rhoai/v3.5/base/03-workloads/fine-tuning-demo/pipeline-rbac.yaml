@@ -143,3 +143,23 @@ roleRef:
   kind: Role
   name: registry-user-fine-tuning-demo
   apiGroup: rbac.authorization.k8s.io
+---
+# MLflow access — pipeline SA needs experiments/datasets create for MLflow tracking
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fine-tuning-pipeline-mlflow-access
+  namespace: fine-tuning-demo
+  labels:
+    app: fine-tuning-pipeline
+subjects:
+  - kind: ServiceAccount
+    name: pipeline-runner-dspa
+    namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: ds-pipeline-dspa
+    namespace: fine-tuning-demo
+roleRef:
+  kind: ClusterRole
+  name: mlflow-operator-mlflow-edit
+  apiGroup: rbac.authorization.k8s.io

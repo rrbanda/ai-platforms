@@ -975,13 +975,17 @@ spec:
               \ dataset as an MLflow artifact with quality\n    #   metadata so it\
               \ can be browsed and reused from the MLflow UI.\n    # =====================================================================\n\
               \    if mlflow_tracking_uri:\n        try:\n            import mlflow\n\
-              \n            mlflow.set_tracking_uri(mlflow_tracking_uri)\n       \
-              \     mlflow.set_experiment(mlflow_experiment_name)\n\n            dataset_name\
-              \ = input_pvc_path or \"cleaned_dataset\"\n            if hasattr(input_dataset,\
-              \ \"metadata\"):\n                src = (getattr(input_dataset, \"metadata\"\
-              , {}) or {}).get(\"dataset_uri\", \"\")\n                if src:\n \
-              \                   dataset_name = src.replace(\"hf://\", \"\").replace(\"\
-              /\", \"_\")\n\n            with mlflow.start_run(run_name=f\"dataset_{dataset_name}_{total_output}ex\"\
+              \n            token_path = \"/var/run/secrets/kubernetes.io/serviceaccount/token\"\
+              \n            if os.path.exists(token_path):\n                with open(token_path)\
+              \ as f:\n                    os.environ[\"MLFLOW_TRACKING_TOKEN\"] =\
+              \ f.read().strip()\n\n            mlflow.set_tracking_uri(mlflow_tracking_uri)\n\
+              \            mlflow.set_experiment(mlflow_experiment_name)\n\n     \
+              \       dataset_name = input_pvc_path or \"cleaned_dataset\"\n     \
+              \       if hasattr(input_dataset, \"metadata\"):\n                src\
+              \ = (getattr(input_dataset, \"metadata\", {}) or {}).get(\"dataset_uri\"\
+              , \"\")\n                if src:\n                    dataset_name =\
+              \ src.replace(\"hf://\", \"\").replace(\"/\", \"_\")\n\n           \
+              \ with mlflow.start_run(run_name=f\"dataset_{dataset_name}_{total_output}ex\"\
               ):\n                mlflow.log_param(\"source_uri\", (getattr(input_dataset,\
               \ \"metadata\", {}) or {}).get(\"dataset_uri\", \"unknown\"))\n    \
               \            mlflow.log_param(\"input_examples\", total_input)\n   \
@@ -2265,11 +2269,14 @@ spec:
               \      {elapsed:.1f}s\")\n    log.info(\"=\" * 60)\n\n    # =====================================================================\n\
               \    # 6. Log to MLflow (optional)\n    # =====================================================================\n\
               \    if mlflow_tracking_uri:\n        try:\n            import mlflow\n\
-              \n            mlflow.set_tracking_uri(mlflow_tracking_uri)\n       \
-              \     mlflow.set_experiment(mlflow_experiment_name)\n\n            with\
-              \ mlflow.start_run(run_name=f\"format_{base_model.replace('/', '_')}_{total_output}ex\"\
-              ):\n                mlflow.log_param(\"base_model\", base_model)\n \
-              \               mlflow.log_param(\"system_prompt\", system_prompt)\n\
+              \n            token_path = \"/var/run/secrets/kubernetes.io/serviceaccount/token\"\
+              \n            if os.path.exists(token_path):\n                with open(token_path)\
+              \ as f:\n                    os.environ[\"MLFLOW_TRACKING_TOKEN\"] =\
+              \ f.read().strip()\n\n            mlflow.set_tracking_uri(mlflow_tracking_uri)\n\
+              \            mlflow.set_experiment(mlflow_experiment_name)\n\n     \
+              \       with mlflow.start_run(run_name=f\"format_{base_model.replace('/',\
+              \ '_')}_{total_output}ex\"):\n                mlflow.log_param(\"base_model\"\
+              , base_model)\n                mlflow.log_param(\"system_prompt\", system_prompt)\n\
               \                mlflow.log_param(\"max_seq_len\", max_seq_len)\n  \
               \              mlflow.log_param(\"input_examples\", total_input)\n \
               \               mlflow.log_param(\"output_examples\", total_output)\n\

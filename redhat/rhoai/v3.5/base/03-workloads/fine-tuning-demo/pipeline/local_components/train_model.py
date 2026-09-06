@@ -139,8 +139,8 @@ def train_model(
         "XDG_CACHE_HOME": "/tmp",
         "TRITON_CACHE_DIR": "/tmp/.triton",
         "HF_HOME": "/tmp/.cache/huggingface",
-        "HF_DATASETS_CACHE": "/tmp/.cache/huggingface/datasets",
-        "TRANSFORMERS_CACHE": "/tmp/.cache/huggingface/transformers",
+        "HF_DATASETS_CACHE": os.path.join(cache, "datasets"),
+        "TRANSFORMERS_CACHE": os.path.join(cache, "transformers"),
         "NCCL_DEBUG": "INFO",
         "PYTHONUNBUFFERED": "1",
     }
@@ -315,7 +315,18 @@ def train_model(
 
     tech.log_metrics(output_metrics, params)
 
-    plot_training_loss([], output_loss_chart.path)
+    metrics_files = getattr(tech, "METRICS_FILES", [])
+    loss = []
+    for mf in metrics_files:
+        mf_path = os.path.join(ckpt_dir, mf)
+        if os.path.exists(mf_path):
+            from output import extract_metrics_from_jsonl
+            tm, loss = extract_metrics_from_jsonl(mf_path)
+            for k, v in tm.items():
+                output_metrics.log_metric(f"training_{k}", v)
+            break
+
+    plot_training_loss(loss, output_loss_chart.path)
     persist_model(ckpt_dir, pvc_path, training_base_model, output_model, log)
 
     return f"{technique} training completed"

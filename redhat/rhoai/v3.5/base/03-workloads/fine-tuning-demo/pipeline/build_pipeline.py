@@ -79,6 +79,45 @@ def compile_pipeline(config: dict) -> str:
     return pipeline_yaml
 
 
+def apply_post_compile_patches(config: dict, yaml_path: str) -> None:
+    """Apply post-compile patches to fix upstream component issues."""
+    patches = config.get("post_compile_patches")
+    if not patches:
+        print("No post-compile patches configured.")
+        return
+
+    with open(yaml_path) as f:
+        content = f.read()
+
+    original = content
+    applied = []
+
+    # Patch eval image: replace the ubi9 image that follows FLASHINFER_ENABLE_AOT
+    eval_image = patches.get("eval_image_override")
+    if eval_image:
+        old_block = "value: '1'\n            image: registry.access.redhat.com/ubi9/python-311:latest"
+        new_block = f"value: '1'\n            image: {eval_image}"
+        if old_block in content:
+            content = content.replace(old_block, new_block, 1)
+            applied.append(f"eval image -> {eval_image[:60]}...")
+
+    # Patch package versions
+    for old_pin, new_pin in (patches.get("package_overrides") or {}).items():
+        old_str = f"'{old_pin}'"
+        new_str = f"'{new_pin}'"
+        if old_str in content:
+            content = content.replace(old_str, new_str)
+            applied.append(f"{old_pin} -> {new_pin}")
+
+    if content != original:
+        with open(yaml_path, "w") as f:
+            f.write(content)
+        for p in applied:
+            print(f"  Patched: {p}")
+    else:
+        print("  No patches needed (already up to date).")
+
+
 def generate_pipeline_cr(config: dict, output_dir: str) -> str:
     """Generate the Pipeline CR YAML."""
     cr = {
@@ -173,6 +212,10 @@ def main():
 
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), args.output_dir)
     compiled_yaml = compile_pipeline(config)
+
+    print("\nApplying post-compile patches...")
+    apply_post_compile_patches(config, compiled_yaml)
+
     generate_pipeline_cr(config, output_dir)
     generate_pipeline_version_cr(config, compiled_yaml, output_dir)
 

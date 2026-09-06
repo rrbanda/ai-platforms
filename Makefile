@@ -1,4 +1,4 @@
-.PHONY: pipeline clean validate help
+.PHONY: pipeline clean validate test help
 
 PIPELINE_DIR := redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline
 PIPELINES_COMPONENTS ?= ../pipelines-components
@@ -21,3 +21,6 @@ validate: ## Validate config and dry-run
 
 clean: ## Remove compiled artifacts
 	rm -f $(PIPELINE_DIR)/finetuning_pipeline.yaml
+
+test: ## Run pipeline unit tests
+	cd $(PIPELINE_DIR)/local_components && python3 -m pytest shared/tests/ -v --tb=short

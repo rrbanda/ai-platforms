@@ -1,26 +1,25 @@
 # Pipeline Configuration
 #
-# Externalized compile-time values for the fine-tuning pipeline.
-# Edit this file to change container images, package versions, or
-# default parameter values without modifying Python source code.
+# Authoritative source for compile-time and runtime defaults.
+# The pipeline Python source loads this file at compile time.
+# After editing, run: make pipeline
 #
-# After editing, run: make pipeline (or ./scripts/build-pipeline.sh)
+# Post-compile patches are applied by build_pipeline.py to fix
+# upstream component issues without forking pipelines-components.
 
 # =============================================================================
-# Container Images (updated when RHOAI ships a new version)
+# Container Images
 # =============================================================================
 images:
-  # Base image for pipeline executor pods (dataset download, model download, registry)
   pipeline_base: "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"
-  # Base image for training component (same image, used by train_model)
   training_base: "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"
-  # Base image for data quality filter
   quality_filter_base: "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"
-  # Base image for holdout eval (lm-eval with unitxt)
   eval_base: "registry.access.redhat.com/ubi9/python-311:latest"
+  # CUDA-capable image for holdout eval (has nvcc for vLLM JIT)
+  eval_cuda: "registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d"
 
 # =============================================================================
-# Package Dependencies (pinned versions for reproducibility)
+# Package Dependencies
 # =============================================================================
 packages:
   training:
@@ -38,24 +37,25 @@ packages:
 # =============================================================================
 pipeline:
   name: "finetuning-pipeline"
-  version: "v4"
+  version: "v5"
   description: >-
     7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom
-    techniques. Includes data quality filter (dedup + quality scoring),
-    model pre-caching, distributed training, benchmark evaluation with
-    safety benchmarks via EvalHub + MLflow, holdout evaluation, and
-    model registry with full provenance.
+    techniques. Includes data quality filter, distributed training,
+    benchmark evaluation via EvalHub + MLflow, holdout evaluation,
+    and model registry with full provenance.
 
 # =============================================================================
-# Infrastructure Defaults (per-cluster, override in overlays)
+# Infrastructure
 # =============================================================================
 infrastructure:
-  pvc_mount_path: "/mnt/shared"
-  pvc_name: "fine-tuning-shared"
+  pvc_size: "50Gi"
+  pvc_storage_class: "nfs-csi"
+  pvc_access_modes:
+    - "ReadWriteMany"
   namespace: "fine-tuning-demo"
 
 # =============================================================================
-# Service Endpoints (per-cluster, override in overlays)
+# Service Endpoints
 # =============================================================================
 services:
   evalhub_url: "https://evalhub.redhat-ods-applications.svc.cluster.local:8443"
@@ -64,7 +64,7 @@ services:
   registry_port: 8443
 
 # =============================================================================
-# Default Run Parameters (data scientist overrides at run-time)
+# Default Run Parameters
 # =============================================================================
 defaults:
   technique: "lora"
@@ -89,7 +89,6 @@ defaults:
 # =============================================================================
 evaluation:
   benchmarks:
-    # Accuracy (leaderboard-v2)
     - id: "leaderboard_ifeval"
       provider_id: "lm_evaluation_harness"
     - id: "leaderboard_bbh"
@@ -100,7 +99,6 @@ evaluation:
       provider_id: "lm_evaluation_harness"
     - id: "leaderboard_math_hard"
       provider_id: "lm_evaluation_harness"
-    # Safety & fairness
     - id: "truthfulqa_mc1"
       provider_id: "lm_evaluation_harness"
     - id: "toxigen"
@@ -114,3 +112,17 @@ evaluation:
   gpu_count: 1
   cpu: "2"
   memory: "32Gi"
+
+# =============================================================================
+# Post-Compile Patches
+#
+# Applied by build_pipeline.py after KFP compilation to fix upstream
+# component issues in pipelines-components without forking the repo.
+# =============================================================================
+post_compile_patches:
+  # The pipelines-components eval component uses ubi9/python-311 which
+  # has no CUDA toolkit. Override with CUDA image for holdout eval.
+  eval_image_override: "registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d"
+  # Package version overrides for stale pins in upstream components
+  package_overrides:
+    "model-registry==0.3.4": "model-registry>=0.3.6"

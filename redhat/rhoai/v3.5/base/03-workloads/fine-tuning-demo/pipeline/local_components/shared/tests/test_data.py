@@ -445,10 +445,10 @@ class TestDownloadOciModel:
         model_ref = "oci://registry.io/model:v1"
 
         with (
-            mock.patch("components.training.finetuning.shared.data._get_oci_auth", return_value=None),
-            mock.patch("components.training.finetuning.shared.data._skopeo_copy") as mock_skopeo,
-            mock.patch("components.training.finetuning.shared.data._extract_tar"),
-            mock.patch("components.training.finetuning.shared.data._find_hf_model", return_value="/pvc/model/hf"),
+            mock.patch("shared.data._get_oci_auth", return_value=None),
+            mock.patch("shared.data._skopeo_copy") as mock_skopeo,
+            mock.patch("shared.data._extract_tar"),
+            mock.patch("shared.data._find_hf_model", return_value="/pvc/model/hf"),
             mock.patch("os.path.isdir", return_value=True),
         ):
             result = download_oci_model(model_ref, pvc_path, log)
@@ -463,10 +463,10 @@ class TestDownloadOciModel:
         model_ref = "oci://registry.io/model:v1"
 
         with (
-            mock.patch("components.training.finetuning.shared.data._get_oci_auth", return_value=None),
-            mock.patch("components.training.finetuning.shared.data._skopeo_copy"),
-            mock.patch("components.training.finetuning.shared.data._extract_tar"),
-            mock.patch("components.training.finetuning.shared.data._find_hf_model", return_value=None),
+            mock.patch("shared.data._get_oci_auth", return_value=None),
+            mock.patch("shared.data._skopeo_copy"),
+            mock.patch("shared.data._extract_tar"),
+            mock.patch("shared.data._find_hf_model", return_value=None),
             mock.patch("os.path.isdir", return_value=False),
         ):
             result = download_oci_model(model_ref, pvc_path, log)

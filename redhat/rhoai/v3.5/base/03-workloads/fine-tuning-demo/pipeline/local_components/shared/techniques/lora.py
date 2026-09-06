@@ -9,6 +9,10 @@ ALGORITHM_NAME = "LORA_SFT"
 IS_SINGLE_NODE = True
 DEFAULT_LR = 2e-4
 DEFAULT_EPOCHS = 3
+DEFAULT_MEMORY = "32Gi"
+DEFAULT_MAX_TOKENS = 32000
+DEFAULT_CPU = "4"
+METRICS_FILES = []  # Blocked on training_hub exposing metrics for unsloth
 
 
 def build_params(common, **kw):

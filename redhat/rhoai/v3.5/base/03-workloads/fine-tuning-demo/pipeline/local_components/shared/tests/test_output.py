@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from components.training.finetuning.shared.output import (
+from ..output import (
     extract_metrics_from_jsonl,
     find_model_dir,
     persist_model,

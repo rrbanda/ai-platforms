@@ -8,6 +8,10 @@ ALGORITHM_NAME = "SFT"
 IS_SINGLE_NODE = False
 DEFAULT_LR = 5e-6
 DEFAULT_EPOCHS = 1
+DEFAULT_MEMORY = "64Gi"
+DEFAULT_MAX_TOKENS = 10000
+DEFAULT_CPU = "4"
+METRICS_FILES = ["training_params_and_metrics_global0.jsonl", "training_metrics_0.jsonl"]
 
 
 def build_params(common, **kw):
@@ -33,26 +37,31 @@ def train_func(**p):
     """SFT training function — serialized to run inside the TrainJob pod.
 
     Calls training_hub.sft() with optional FSDP sharding configuration.
+    Uses NFS-safe output pattern via nfs_safe_output helper.
     """
     a = dict(p)
     fsdp = a.pop("fsdp_sharding_strategy", None)
-    from training_hub import sft as tr
 
-    print("[PY] Launching SFT training...", flush=True)
-    if fsdp:
-        try:
-            from instructlab.training.config import FSDPOptions, ShardingStrategies
+    def _sft_inner(**inner_p):
+        from training_hub import sft as tr
+        print("[PY] Launching SFT training...", flush=True)
+        if fsdp:
+            try:
+                from instructlab.training.config import FSDPOptions, ShardingStrategies
+                sm = {
+                    "FULL_SHARD": ShardingStrategies.FULL_SHARD,
+                    "HYBRID_SHARD": ShardingStrategies.HYBRID_SHARD,
+                    "NO_SHARD": ShardingStrategies.NO_SHARD,
+                }
+                if fsdp.upper() in sm:
+                    inner_p["fsdp_options"] = FSDPOptions(sharding_strategy=sm[fsdp.upper()])
+            except ImportError as exc:
+                raise RuntimeError(f"FSDP support unavailable: {exc}") from exc
+        return tr(**inner_p)
 
-            sm = {
-                "FULL_SHARD": ShardingStrategies.FULL_SHARD,
-                "HYBRID_SHARD": ShardingStrategies.HYBRID_SHARD,
-                "NO_SHARD": ShardingStrategies.NO_SHARD,
-            }
-            if fsdp.upper() in sm:
-                a["fsdp_options"] = FSDPOptions(sharding_strategy=sm[fsdp.upper()])
-        except ImportError as exc:
-            raise RuntimeError(f"FSDP support unavailable: {exc}") from exc
-    return tr(**a)
+    from techniques import nfs_safe_output
+    ckpt_dir = a.get("ckpt_output_dir", "")
+    return nfs_safe_output(_sft_inner, a, ckpt_dir)
 
 
 def log_metrics(output_metrics, params, **kw):

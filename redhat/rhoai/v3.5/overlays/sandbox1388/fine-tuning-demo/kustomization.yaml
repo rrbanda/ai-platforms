@@ -5,3 +5,4 @@ resources:
   - sealed-kubernetes-credentials.yaml
   - sealed-hf-token.yaml
   - sealed-s3-secret.yaml
+  - sealed-gemini-api-key.yaml

@@ -48,11 +48,19 @@ spec:
               description: Path to input JSONL on PVC (alternative to artifact).
               isOptional: true
               parameterType: STRING
+            llm_judge_api_key:
+              defaultValue: ''
+              isOptional: true
+              parameterType: STRING
             llm_judge_endpoint:
               defaultValue: ''
               description: 'OpenAI-compatible API endpoint for the judge model
 
                 (e.g., http://vllm-judge.namespace.svc.cluster.local:8000/v1).'
+              isOptional: true
+              parameterType: STRING
+            llm_judge_model:
+              defaultValue: judge
               isOptional: true
               parameterType: STRING
             max_repetition_ratio:
@@ -707,6 +715,7 @@ spec:
               \ float = 0.5,\n    export_to_pvc: bool = True,\n    shared_log_file:\
               \ str = \"pipeline_log.txt\",\n    # -- Optional LLM Judge for hallucination\
               \ detection --\n    enable_llm_judge: bool = False,\n    llm_judge_endpoint:\
+              \ str = \"\",\n    llm_judge_model: str = \"judge\",\n    llm_judge_api_key:\
               \ str = \"\",\n    # -- Optional MLflow dataset tracking --\n    mlflow_tracking_uri:\
               \ str = \"\",\n    mlflow_experiment_name: str = \"finetuning-datasets\"\
               ,\n):\n    \"\"\"Clean and deduplicate an instruction-tuning dataset.\n\
@@ -829,7 +838,9 @@ spec:
               \ Useful for\n    # synthetic/generated data where factual grounding\
               \ matters.\n    # Uses SDG Hub's LLM integration pattern.\n    # =====================================================================\n\
               \    llm_judge_rejected = 0\n    if enable_llm_judge and llm_judge_endpoint:\n\
-              \        log_message(f\"LLM Judge enabled \u2014 endpoint: {llm_judge_endpoint}\"\
+              \        if not llm_judge_api_key:\n            llm_judge_api_key =\
+              \ os.environ.get(\"GEMINI_API_KEY\", \"\")\n        log_message(f\"\
+              LLM Judge enabled \u2014 endpoint: {llm_judge_endpoint}, model: {llm_judge_model}\"\
               )\n        try:\n            import requests\n\n            judge_system_prompt\
               \ = (\n                \"You are a training data quality judge. Score\
               \ the following \"\n                \"instruction-response pair from\
@@ -846,14 +857,18 @@ spec:
               \ = [\n                    {\"role\": \"system\", \"content\": judge_system_prompt},\n\
               \                    {\"role\": \"user\", \"content\": f\"Instruction:\
               \ {prompt}\\n\\nResponse: {response}\"},\n                ]\n\n    \
-              \            try:\n                    resp = requests.post(\n     \
-              \                   f\"{llm_judge_endpoint.rstrip('/')}/chat/completions\"\
-              ,\n                        json={\n                            \"model\"\
-              : \"judge\",\n                            \"messages\": judge_messages,\n\
-              \                            \"max_tokens\": 5,\n                  \
-              \          \"temperature\": 0.0,\n                        },\n     \
-              \                   timeout=30,\n                    )\n           \
-              \         score_text = resp.json()[\"choices\"][0][\"message\"][\"content\"\
+              \            try:\n                    judge_headers = {\"Content-Type\"\
+              : \"application/json\"}\n                    if llm_judge_api_key:\n\
+              \                        judge_headers[\"Authorization\"] = f\"Bearer\
+              \ {llm_judge_api_key}\"\n\n                    resp = requests.post(\n\
+              \                        f\"{llm_judge_endpoint.rstrip('/')}/chat/completions\"\
+              ,\n                        headers=judge_headers,\n                \
+              \        json={\n                            \"model\": llm_judge_model,\n\
+              \                            \"messages\": judge_messages,\n       \
+              \                     \"max_tokens\": 5,\n                         \
+              \   \"temperature\": 0.0,\n                        },\n            \
+              \            timeout=30,\n                    )\n                  \
+              \  score_text = resp.json()[\"choices\"][0][\"message\"][\"content\"\
               ].strip()\n                    score = int(\"\".join(c for c in score_text\
               \ if c.isdigit())[:2] or \"5\")\n                except Exception:\n\
               \                    score = 5\n\n                if score >= 5:\n \
@@ -2463,6 +2478,8 @@ spec:
                     constant: true
                 llm_judge_endpoint:
                   componentInputParameter: llm_judge_endpoint
+                llm_judge_model:
+                  componentInputParameter: llm_judge_model
                 min_assistant_tokens:
                   runtimeValue:
                     constant: 5.0
@@ -2864,6 +2881,10 @@ spec:
             defaultValue: ''
             isOptional: true
             parameterType: STRING
+          llm_judge_model:
+            defaultValue: judge
+            isOptional: true
+            parameterType: STRING
           lora_alpha:
             defaultValue: 32.0
             isOptional: true
@@ -3033,6 +3054,15 @@ spec:
           executors:
             exec-data-quality-filter:
               imagePullPolicy: IfNotPresent
+              secretAsEnv:
+              - keyToEnv:
+                - envVar: api-key
+                  secretKey: GEMINI_API_KEY
+                optional: true
+                secretName: gemini-api-key
+                secretNameParameter:
+                  runtimeValue:
+                    constant: gemini-api-key
             exec-dataset-download:
               imagePullPolicy: IfNotPresent
               secretAsEnv:

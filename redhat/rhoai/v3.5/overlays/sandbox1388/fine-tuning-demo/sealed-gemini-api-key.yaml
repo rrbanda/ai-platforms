@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gemini-api-key
+  namespace: fine-tuning-demo
+spec:
+  encryptedData:
+    api-key: AgA4cwQlWJC8Ec00QMEml6RcrOAUdbrHjhKnzJFK14i0kiCgsbhdr9ALw5omdWbXXmG11wg7mQ0/iZhfWOGLECc3qIxkCkUniaSnOg6ppSaRrwGP7WIzt3i23xR9x71e87jPvk+tt7s9msvVTNxGgR3/90W8NKVPy1W4Cel0R5+bv64XtbBd/vMV60MwWZKhnkNnkxZlpELBaggh/2R9iwuWBHT5bZaVwcR4/Mcu5CxFxaU7+2hnnqmFMxWaX+Damb7VZBHPviFcvd5u0UapLc9uMCazryVHWTX50CUSTsLR0TV9UO76hFumJR735ScitStHnqCGMwWuMyvaec0a2Y8KVQ3iMUyp5LdM5ssnwOUXSjB3CmGxLhVmWz8fMDgUJydfvRL/9ZRQTiMKI0qL0oiyM721UGAsjlGfYe0SU7Zoxf7fsl53QSNGUOOQTwlr6P+GYmaWY1h5kfnjmcgMTbF8GsgL0CFtSXkE2P8hgGC1n4cj1NtawZwI1Aa1MY9494OJi24xKjHl8pNbqOV/px9cqYv5/boFZnznreSLS0MamaAHXSCe0tqFIlgMQXLMm3x/eDB28LYpoY0rrSpAdNB5hxvYlRCnKY+zRL2uNlFakXnfnNWo16nr/atxg9w+SsMGo6CKurUbf888X70cyoZDiYSgh8nqjSfsp0cCS/slaScFhWI5BdzwGyFafPjxZ8BVmmNEuHWHv2a79o8kaRRIylOBvVrAj9tyvFLq+mRb82DXL9iYKkmMvU3ikJ7I0wH4Yxt8UVM/YcE2uXv3BHjAWLIQ
+  template:
+    metadata:
+      name: gemini-api-key
+      namespace: fine-tuning-demo

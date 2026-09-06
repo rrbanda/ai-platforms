@@ -37,6 +37,8 @@ def data_quality_filter(
     # -- Optional LLM Judge for hallucination detection --
     enable_llm_judge: bool = False,
     llm_judge_endpoint: str = "",
+    llm_judge_model: str = "judge",
+    llm_judge_api_key: str = "",
     # -- Optional MLflow dataset tracking --
     mlflow_tracking_uri: str = "",
     mlflow_experiment_name: str = "finetuning-datasets",
@@ -245,7 +247,9 @@ def data_quality_filter(
     # =====================================================================
     llm_judge_rejected = 0
     if enable_llm_judge and llm_judge_endpoint:
-        log_message(f"LLM Judge enabled — endpoint: {llm_judge_endpoint}")
+        if not llm_judge_api_key:
+            llm_judge_api_key = os.environ.get("GEMINI_API_KEY", "")
+        log_message(f"LLM Judge enabled — endpoint: {llm_judge_endpoint}, model: {llm_judge_model}")
         try:
             import requests
 
@@ -271,10 +275,15 @@ def data_quality_filter(
                 ]
 
                 try:
+                    judge_headers = {"Content-Type": "application/json"}
+                    if llm_judge_api_key:
+                        judge_headers["Authorization"] = f"Bearer {llm_judge_api_key}"
+
                     resp = requests.post(
                         f"{llm_judge_endpoint.rstrip('/')}/chat/completions",
+                        headers=judge_headers,
                         json={
-                            "model": "judge",
+                            "model": llm_judge_model,
                             "messages": judge_messages,
                             "max_tokens": 5,
                             "temperature": 0.0,

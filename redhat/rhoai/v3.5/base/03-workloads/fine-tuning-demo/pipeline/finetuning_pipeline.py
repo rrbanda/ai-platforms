@@ -134,6 +134,7 @@ def finetuning_pipeline(
     similarity_threshold: float = 0.85,
     enable_llm_judge: bool = False,
     llm_judge_endpoint: str = "",
+    llm_judge_model: str = "judge",
 
     # =========================================================================
     # PHASE 2: MODEL SELECTION
@@ -265,11 +266,19 @@ def finetuning_pipeline(
         shared_log_file="pipeline_log.txt",
         enable_llm_judge=enable_llm_judge,
         llm_judge_endpoint=llm_judge_endpoint,
+        llm_judge_model=llm_judge_model,
         mlflow_tracking_uri=f"https://mlflow.redhat-ods-applications.svc.cluster.local:8443" if mlflow_experiment else "",
         mlflow_experiment_name="finetuning-datasets",
     )
     quality_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(quality_task, "IfNotPresent")
+
+    kfp.kubernetes.use_secret_as_env(
+        quality_task,
+        secret_name="gemini-api-key",
+        secret_key_to_env={"GEMINI_API_KEY": "api-key"},
+        optional=True,
+    )
 
     # =========================================================================
     # Phase 3: Training (dispatches to LoRA/SFT/OSFT/custom)

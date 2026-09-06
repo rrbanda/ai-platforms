@@ -139,8 +139,8 @@ def train_model(
         "XDG_CACHE_HOME": "/tmp",
         "TRITON_CACHE_DIR": "/tmp/.triton",
         "HF_HOME": "/tmp/.cache/huggingface",
-        "HF_DATASETS_CACHE": os.path.join(cache, "datasets"),
-        "TRANSFORMERS_CACHE": os.path.join(cache, "transformers"),
+        "HF_DATASETS_CACHE": "/tmp/.cache/huggingface/datasets",
+        "TRANSFORMERS_CACHE": "/tmp/.cache/huggingface/transformers",
         "NCCL_DEBUG": "INFO",
         "PYTHONUNBUFFERED": "1",
     }

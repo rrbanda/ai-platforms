@@ -60,8 +60,8 @@ from components.evaluation.lm_eval import universal_llm_evaluator
 # All tasks use dsl.WORKSPACE_PATH_PLACEHOLDER for the mount path.
 # =============================================================================
 PVC_SIZE = "50Gi"
-PVC_STORAGE_CLASS = "gp3-csi"
-PVC_ACCESS_MODES = ["ReadWriteOnce"]
+PVC_STORAGE_CLASS = "nfs-csi"
+PVC_ACCESS_MODES = ["ReadWriteMany"]
 PIPELINE_NAME = "finetuning-pipeline"
 
 

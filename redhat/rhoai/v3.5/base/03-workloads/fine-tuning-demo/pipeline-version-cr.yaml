@@ -1584,6 +1584,6 @@ spec:
           kubernetes:
             pvcSpecPatch:
               accessModes:
-              - ReadWriteOnce
-              storageClassName: gp3-csi
+              - ReadWriteMany
+              storageClassName: nfs-csi
           size: 50Gi

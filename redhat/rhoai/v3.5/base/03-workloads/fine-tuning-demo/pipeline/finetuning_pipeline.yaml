@@ -2374,6 +2374,9 @@ spec:
               \ in clean_results:\n        output_samples.name = \"eval_samples.json\"\
               \n        with open(output_samples.path, \"w\") as f:\n            json.dump(clean_results[\"\
               samples\"], f, indent=2)\n\n"
+            env:
+            - name: VLLM_ATTENTION_BACKEND
+              value: FLASH_ATTN
             image: registry.access.redhat.com/ubi9/python-311:latest
             resources:
               accelerator:

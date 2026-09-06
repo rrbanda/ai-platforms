@@ -431,6 +431,10 @@ def finetuning_pipeline(
     )
     kfp.kubernetes.add_toleration(holdout_eval_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
 
+    # vLLM: use Flash Attention backend — the eval image lacks nvcc so
+    # FlashInfer JIT compilation fails. FLASH_ATTN is pre-compiled.
+    holdout_eval_task.set_env_variable("VLLM_ATTENTION_BACKEND", "FLASH_ATTN")
+
     # HF token for all steps that may download gated models or datasets
     for _task in [dataset_task, training_task, eval_task, holdout_eval_task]:
         kfp.kubernetes.use_secret_as_env(

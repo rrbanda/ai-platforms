@@ -1863,9 +1863,9 @@ spec:
               , \"huggingface\")\n    default_env: Dict[str, str] = {\n        \"\
               XDG_CACHE_HOME\": \"/tmp\",\n        \"TRITON_CACHE_DIR\": \"/tmp/.triton\"\
               ,\n        \"HF_HOME\": \"/tmp/.cache/huggingface\",\n        \"HF_DATASETS_CACHE\"\
-              : os.path.join(cache, \"datasets\"),\n        \"TRANSFORMERS_CACHE\"\
-              : os.path.join(cache, \"transformers\"),\n        \"NCCL_DEBUG\": \"\
-              INFO\",\n        \"PYTHONUNBUFFERED\": \"1\",\n    }\n\n    merged_env\
+              : \"/tmp/.cache/huggingface/datasets\",\n        \"TRANSFORMERS_CACHE\"\
+              : \"/tmp/.cache/huggingface/transformers\",\n        \"NCCL_DEBUG\"\
+              : \"INFO\",\n        \"PYTHONUNBUFFERED\": \"1\",\n    }\n\n    merged_env\
               \ = configure_env(training_envs, default_env, log)\n    setup_hf_token(merged_env,\
               \ training_base_model, log)\n\n    ds_dir = os.path.join(pvc_path, \"\
               dataset\", \"train\")\n    os.makedirs(ds_dir, exist_ok=True)\n    resolve_dataset(dataset,\

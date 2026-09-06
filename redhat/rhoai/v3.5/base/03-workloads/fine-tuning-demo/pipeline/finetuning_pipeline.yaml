@@ -1728,13 +1728,13 @@ spec:
               \\n[Registering to Model Registry...]\")\n\n        # Ensure address\
               \ has scheme for client URL building\n        server_addr = registry_address\n\
               \        if not server_addr.startswith(\"http://\") and not server_addr.startswith(\"\
-              https://\"):\n            server_addr = f\"http://{server_addr}\"\n\
+              https://\"):\n            server_addr = f\"https://{server_addr}\"\n\
               \        # Create client (HTTP/insecure)\n        client = ModelRegistry(\n\
               \            server_address=server_addr,\n            port=registry_port,\n\
-              \            author=author,\n            is_secure=False,  # HTTP\n\
-              \        )\n\n        # Collect metrics into metadata if provided\n\
-              \        version_metadata = {}\n        eval_summary = {}\n        try:\n\
-              \            # -------------------------------------------------------------------------\n\
+              \            author=author,\n            is_secure=True,  # HTTPS with\
+              \ auto SA token\n        )\n\n        # Collect metrics into metadata\
+              \ if provided\n        version_metadata = {}\n        eval_summary =\
+              \ {}\n        try:\n            # -------------------------------------------------------------------------\n\
               \            # PROVENANCE (logged here, passed as direct params to register_model)\n\
               \            # -------------------------------------------------------------------------\n\
               \            # Auto-detect namespace if not provided\n            resolved_namespace\

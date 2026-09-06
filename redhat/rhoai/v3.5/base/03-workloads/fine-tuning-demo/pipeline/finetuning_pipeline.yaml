@@ -1714,17 +1714,18 @@ spec:
               \\n\\n\"],\n                },\n                metric_list=[\n    \
               \                {\"metric\": \"exact_match\", \"aggregation\": \"mean\"\
               , \"higher_is_better\": True},\n                ],\n            )\n\
-              \            super().__init__(config=config, **kwargs)\n\n        def\
-              \ download(self, *args, **kwargs):\n            pass\n\n        def\
-              \ has_training_docs(self):\n            return False\n\n        def\
-              \ has_validation_docs(self):\n            return False\n\n        def\
-              \ has_test_docs(self):\n            return True\n\n        def _load_data(self):\n\
-              \            if self._dataset is None:\n                with open(self._data_path)\
-              \ as f:\n                    self._dataset = [json.loads(line) for line\
-              \ in f if line.strip()]\n                logger.info(f\"Loaded {len(self._dataset)}\
-              \ examples from {self._data_path}\")\n            return self._dataset\n\
-              \n        def test_docs(self):\n            return self._load_data()\n\
-              \n        def doc_to_text(self, doc):\n            messages = doc.get(\"\
+              \            super().__init__(config=config, seed=42, **kwargs)\n\n\
+              \        def download(self, *args, **kwargs):\n            pass\n\n\
+              \        def has_training_docs(self):\n            return False\n\n\
+              \        def has_validation_docs(self):\n            return False\n\n\
+              \        def has_test_docs(self):\n            return True\n\n     \
+              \   def _load_data(self):\n            if self._dataset is None:\n \
+              \               with open(self._data_path) as f:\n                 \
+              \   self._dataset = [json.loads(line) for line in f if line.strip()]\n\
+              \                logger.info(f\"Loaded {len(self._dataset)} examples\
+              \ from {self._data_path}\")\n            return self._dataset\n\n  \
+              \      def test_docs(self):\n            return self._load_data()\n\n\
+              \        def doc_to_text(self, doc):\n            messages = doc.get(\"\
               messages\", doc.get(\"conversations\", []))\n            prompt = \"\
               \"\n            for msg in messages:\n                if msg[\"role\"\
               ] == \"assistant\":\n                    break\n                prompt\

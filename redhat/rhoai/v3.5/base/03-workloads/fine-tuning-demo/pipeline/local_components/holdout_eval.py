@@ -196,7 +196,7 @@ def holdout_llm_evaluator(
                     {"metric": "exact_match", "aggregation": "mean", "higher_is_better": True},
                 ],
             )
-            super().__init__(config=config, **kwargs)
+            super().__init__(config=config, seed=42, **kwargs)
 
         def download(self, *args, **kwargs):
             pass

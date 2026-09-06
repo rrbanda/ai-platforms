@@ -104,6 +104,12 @@ subjects:
   - kind: ServiceAccount
     name: ds-pipeline-dspa
     namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: ds-pipeline-workflow-controller-dspa
+    namespace: fine-tuning-demo
+  - kind: ServiceAccount
+    name: pipeline-runner-dspa
+    namespace: fine-tuning-demo
 roleRef:
   kind: Role
   name: fine-tuning-pipeline-runner

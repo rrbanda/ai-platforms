@@ -149,6 +149,16 @@ def train_func(**p):
                     json.dump(cfg, f, indent=2)
 
         print("[PY] Copying merged model to PVC...", flush=True)
+        # Clean ckpt_dir first — remove old checkpoint subdirs and adapter files
+        # so persist_model only finds the clean merged model.
+        for entry in os.listdir(ckpt_dir):
+            p = os.path.join(ckpt_dir, entry)
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+            elif entry.endswith((".safetensors", ".bin")) or entry in (
+                "adapter_config.json", "model.safetensors.index.json",
+            ):
+                os.remove(p)
         for fn in os.listdir(local_merge):
             src = os.path.join(local_merge, fn)
             dst = os.path.join(ckpt_dir, fn)

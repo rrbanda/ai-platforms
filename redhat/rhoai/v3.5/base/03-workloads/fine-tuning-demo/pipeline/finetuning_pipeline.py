@@ -374,6 +374,8 @@ def finetuning_pipeline(
     training_task.after(model_download_task)
     training_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(training_task, "IfNotPresent")
+    kfp.kubernetes.add_toleration(training_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
+    kfp.kubernetes.add_node_selector(training_task, "nvidia.com/gpu.present", "true")
 
     kfp.kubernetes.use_secret_as_env(
         task=training_task,
@@ -438,6 +440,7 @@ def finetuning_pipeline(
     kfp.kubernetes.add_node_selector(
         holdout_eval_task, "nvidia.com/gpu.present", "true"
     )
+    kfp.kubernetes.add_toleration(holdout_eval_task, key="nvidia.com/gpu", operator="Exists", effect="NoSchedule")
 
     # HF token for all steps that may download gated models or datasets
     for _task in [dataset_task, model_download_task, training_task, eval_task, holdout_eval_task]:

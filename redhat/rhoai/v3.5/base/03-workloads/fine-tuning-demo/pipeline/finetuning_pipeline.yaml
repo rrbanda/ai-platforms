@@ -2957,6 +2957,9 @@ platforms:
           imagePullPolicy: IfNotPresent
         exec-train-model:
           imagePullPolicy: IfNotPresent
+          nodeSelector:
+            labels:
+              nvidia.com/gpu.present: 'true'
           secretAsEnv:
           - keyToEnv:
             - envVar: KUBERNETES_SERVER_URL
@@ -2984,6 +2987,10 @@ platforms:
             secretNameParameter:
               runtimeValue:
                 constant: hf-token
+          tolerations:
+          - effect: NoSchedule
+            key: nvidia.com/gpu
+            operator: Exists
         exec-universal-llm-evaluator:
           imagePullPolicy: IfNotPresent
           nodeSelector:
@@ -2998,6 +3005,10 @@ platforms:
             secretNameParameter:
               runtimeValue:
                 constant: hf-token
+          tolerations:
+          - effect: NoSchedule
+            key: nvidia.com/gpu
+            operator: Exists
     pipelineConfig:
       workspace:
         kubernetes:

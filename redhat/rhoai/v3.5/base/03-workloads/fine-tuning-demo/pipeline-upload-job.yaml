@@ -37,7 +37,7 @@ spec:
               echo "Waiting for DSPA API server..."
               for i in $(seq 1 30); do
                 if curl -sk -o /dev/null -w "%{http_code}" \
-                  https://ds-pipeline-dspa.fine-tuning-demo.svc.cluster.local:8443/apis/v2beta1/pipelines \
+                  http://ds-pipeline-dspa.fine-tuning-demo.svc.cluster.local:8888/apis/v2beta1/pipelines \
                   -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" | grep -q "200"; then
                   echo "DSPA ready"
                   break
@@ -47,7 +47,7 @@ spec:
               done
 
               TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-              DSPA="https://ds-pipeline-dspa.fine-tuning-demo.svc.cluster.local:8443"
+              DSPA="http://ds-pipeline-dspa.fine-tuning-demo.svc.cluster.local:8888"
 
               echo "Uploading pipeline..."
               RESULT=$(curl -sk -X POST "${DSPA}/apis/v2beta1/pipelines/upload" \

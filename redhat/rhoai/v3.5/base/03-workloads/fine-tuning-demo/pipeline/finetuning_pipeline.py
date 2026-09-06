@@ -53,7 +53,7 @@ from components.data_processing.dataset_download import dataset_download
 from components.deployment.kubeflow_model_registry import (
     kubeflow_model_registry as model_registry,
 )
-from components.evaluation.evalhub.kserve import evalhub_evaluator_kserve
+from local_components.evalhub_eval import evalhub_evaluator_kserve
 from components.evaluation.lm_eval import universal_llm_evaluator
 
 # =============================================================================

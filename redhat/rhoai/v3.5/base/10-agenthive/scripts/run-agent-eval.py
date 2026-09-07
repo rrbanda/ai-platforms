@@ -95,10 +95,10 @@ def run_evaluation():
 
     eval_data = load_eval_dataset()
 
-    print(f"\nRunning MLflow agent evaluation...")
+    print("\nRunning MLflow agent evaluation...")
     print(f"  Samples: {len(eval_data)}")
-    print(f"  Scorers: Correctness, Faithfulness, RelevanceToQuery")
-    print(f"  Judge model: Gemini (via OpenAI-compatible API)")
+    print("  Scorers: Correctness, Faithfulness, RelevanceToQuery")
+    print("  Judge model: Gemini (via OpenAI-compatible API)")
 
     with mlflow.start_run(run_name="rfp-agent-baseline-v1") as run:
         # Log evaluation metadata
@@ -154,9 +154,9 @@ def run_evaluation_manual():
 
     eval_data = load_eval_dataset()
 
-    print(f"\nRunning manual agent evaluation (MLflow tracking)...")
+    print("\nRunning manual agent evaluation (MLflow tracking)...")
     print(f"  Samples: {len(eval_data)}")
-    print(f"  Judge: Gemini via API")
+    print("  Judge: Gemini via API")
 
     judge_prompt_correctness = """You are an expert evaluator. Score the following answer for CORRECTNESS against the expected answer.
 
@@ -166,7 +166,7 @@ Actual Answer: {actual_answer}
 
 Score from 1-5 where:
 1 = Completely wrong
-2 = Mostly wrong with some correct elements  
+2 = Mostly wrong with some correct elements
 3 = Partially correct
 4 = Mostly correct with minor issues
 5 = Fully correct and complete
@@ -327,7 +327,7 @@ Respond with ONLY a JSON object: {{"score": <number>, "reasoning": "<brief expla
         print(f"Run ID: {run.info.run_id}")
 
         # Print per-sample scores for log traceability
-        print(f"\n--- Per-Sample Scores ---")
+        print("\n--- Per-Sample Scores ---")
         for i, sample in enumerate(eval_data):
             q = sample["inputs"]["question"][:55]
             c = correctness_scores[i]
@@ -351,22 +351,24 @@ def main():
         mlflow = setup_mlflow()
         # Try the full genai.evaluate() first
         try:
-            from mlflow.genai.scorers import Correctness
-            print("MLflow genai scorers available — using mlflow.genai.evaluate()")
-            results = run_evaluation()
+            import importlib.util
+            if importlib.util.find_spec("mlflow.genai.scorers"):
+                print("MLflow genai scorers available — using mlflow.genai.evaluate()")
+                run_evaluation()
+            else:
+                raise ImportError("mlflow.genai.scorers not found")
         except (ImportError, AttributeError) as e:
             print(f"MLflow genai scorers not available ({e})")
             print("Falling back to manual LLM-as-judge evaluation...")
-            results = run_evaluation_manual()
+            run_evaluation_manual()
     except Exception as e:
         print(f"MLflow connection failed ({e})")
         print("Running manual evaluation with local output only...")
-        # Can still run locally without MLflow tracking
         os.environ.setdefault("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
         import mlflow
         mlflow.set_tracking_uri("sqlite:///mlflow.db")
         mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
-        results = run_evaluation_manual()
+        run_evaluation_manual()
 
     print("\nDone.")
 

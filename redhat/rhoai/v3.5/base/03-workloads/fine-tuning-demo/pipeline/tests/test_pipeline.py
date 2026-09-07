@@ -12,7 +12,6 @@ Or in CI:
 
 import os
 import sys
-import textwrap
 
 import pytest
 import yaml

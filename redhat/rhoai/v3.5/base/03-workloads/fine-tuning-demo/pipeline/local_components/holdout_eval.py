@@ -73,7 +73,6 @@ def holdout_llm_evaluator(
     import json
     import logging
     import multiprocessing
-    import os
     import random
     import time
 

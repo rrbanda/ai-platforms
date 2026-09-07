@@ -25,11 +25,9 @@ Required environment variables:
   TEXT_EXTRACTION_ID   - Text extraction task ID (for locating extracted text in S3)
 """
 
-import json
 import logging
 import os
 import sys
-from pathlib import Path
 
 import boto3
 from botocore.client import Config as BotoConfig

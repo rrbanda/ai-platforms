@@ -79,7 +79,6 @@ def data_quality_filter(
     import time
     from difflib import SequenceMatcher
 
-    import pandas as pd
 
     logging.basicConfig(
         level=logging.INFO,
@@ -355,7 +354,7 @@ def data_quality_filter(
 
     log_message("")
     log_message("=" * 60)
-    log_message(f"Data Quality Summary:")
+    log_message("Data Quality Summary:")
     log_message(f"  Input:            {total_input:,} examples")
     log_message(f"  Format rejected:  {format_rejected:,}")
     log_message(f"  Exact duplicates: {exact_dupes:,}")

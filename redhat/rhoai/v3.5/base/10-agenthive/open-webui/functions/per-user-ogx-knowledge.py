@@ -12,7 +12,6 @@ queries it independently via its own startup.sh discovery.
 
 from pydantic import BaseModel, Field
 import requests
-import json
 import re
 
 

@@ -18,7 +18,6 @@ Usage:
 import argparse
 import fnmatch
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -117,7 +116,7 @@ def generate_report(scenarios: list[dict]) -> str:
     """Generate the full evaluation report."""
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [
-        f"# RHOAI Copilot Evaluation Report",
+        "# RHOAI Copilot Evaluation Report",
         f"**Generated:** {timestamp}",
         f"**Scenarios:** {len(scenarios)}",
         "",

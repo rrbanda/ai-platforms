@@ -27,7 +27,6 @@ def build_params(common, **kw):
 def train_func(**p):
     """Bring-your-own training demo. Uses NFS-safe output pattern."""
     def _custom_inner(**ip):
-        import os
         print("[PY] Launching custom training (bring-your-own demo)...", flush=True)
 
         import torch

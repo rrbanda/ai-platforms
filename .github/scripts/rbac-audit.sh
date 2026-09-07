@@ -12,7 +12,7 @@ echo "=== RBAC Audit (advisory) ==="
 while IFS= read -r f; do
   [[ "$f" == */chart/templates/* ]] && continue
   [[ "$f" == */.git/* ]] && continue
-  LINE=$(grep -n 'resources.*"\*"\|verbs.*"\*"\|resources:.*\*\|verbs:.*\*' "$f" 2>/dev/null | head -1)
+  LINE=$(grep -n 'resources.*"\*"\|verbs.*"\*"\|resources:.*\*\|verbs:.*\*' "$f" 2>/dev/null | head -1 || true)
   if [ -n "$LINE" ]; then
     REL="${f#$REPO_ROOT/}"
     echo "WARN: wildcard RBAC in $REL: $LINE"

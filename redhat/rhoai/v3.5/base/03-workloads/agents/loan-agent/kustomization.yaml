@@ -14,6 +14,7 @@ resources:
   - sealed-openshell-client-tls.yaml
   - network-policy-open-webui.yaml
   - network-policy-router.yaml
+  - seed-autorag-job.yaml
 
 configMapGenerator:
 - name: loan-agent-openshell-policy

@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-loan-knowledge-base
+  namespace: loan-agent
+  labels:
+    app: loan-agent
+    component: autorag-seed
+  annotations:
+    # Run as a one-shot post-sync hook via ArgoCD.
+    # To re-seed after corpus updates: delete this Job and ArgoCD will recreate it.
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  # Retain completed/failed pods for 24h for log inspection, then GC
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: loan-agent
+        component: autorag-seed
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: openshell-sandbox
+      containers:
+      - name: seed
+        image: image-registry.openshift-image-registry.svc:5000/loan-agent/small-business-loan-agent:latest
+        imagePullPolicy: Always
+        command:
+        - python3
+        - tools/seed_autorag.py
+        env:
+        - name: AUTORAG_BASE_URL
+          value: http://autorag-ogx-service.autorag.svc.cluster.local:8321
+        - name: AUTORAG_SSL_VERIFY
+          value: "false"
+        - name: PYTHONPATH
+          value: /app
+        workingDir: /app
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL

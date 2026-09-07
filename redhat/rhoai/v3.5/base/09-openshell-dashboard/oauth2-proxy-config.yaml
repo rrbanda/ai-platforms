@@ -21,7 +21,7 @@ data:
     redirect_url = "https://openshell-dashboard-openshell-dashboard.apps.CLUSTER_DOMAIN/oauth2/callback"
 
     http_address = "0.0.0.0:4180"
-    upstream = "http://127.0.0.1:8080"
+    upstreams = ["http://127.0.0.1:8080"]
 
     email_domains = ["*"]
     skip_provider_button = true

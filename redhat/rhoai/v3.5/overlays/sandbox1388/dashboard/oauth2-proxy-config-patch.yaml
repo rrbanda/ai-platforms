@@ -20,3 +20,4 @@ data:
     cookie_samesite = "lax"
     scope = "openid profile email"
     ssl_insecure_skip_verify = true
+    insecure_oidc_allow_unverified_email = true

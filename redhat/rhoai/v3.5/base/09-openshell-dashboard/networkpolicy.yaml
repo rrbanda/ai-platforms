@@ -41,13 +41,15 @@ spec:
       ports:
         - port: 50051
           protocol: TCP
-    # Allow oauth2-proxy -> IdP (HTTPS on 443 or Keycloak internal 8443)
+    # Allow oauth2-proxy -> IdP (HTTPS on 443, Keycloak internal 8443/8080)
     - to:
         - namespaceSelector: {}
       ports:
         - port: 443
           protocol: TCP
         - port: 8443
+          protocol: TCP
+        - port: 8080
           protocol: TCP
         - port: 5556
           protocol: TCP

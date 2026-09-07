@@ -56,6 +56,7 @@ spec:
         standardFlowEnabled: true
         directAccessGrantsEnabled: false
         serviceAccountsEnabled: false
+        secret: "Uaj99GWOV5UPmFQQS3AyOmIOuAd-8GSjwefrtCN93_Q"
         redirectUris:
           - "https://openshell-dashboard-openshell-dashboard.apps.*/oauth2/callback"
         webOrigins:

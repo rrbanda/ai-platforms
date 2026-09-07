@@ -1,0 +1,78 @@
+name: "CD: Submit Pipeline Run"
+
+on:
+  workflow_run:
+    workflows: ["Fine-Tuning Pipeline CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_name:
+        description: "Pipeline run name (auto-generated if empty)"
+        required: false
+        default: ""
+      technique:
+        description: "Training technique"
+        required: false
+        default: "lora"
+        type: choice
+        options:
+          - lora
+          - sft
+          - osft
+      dry_run:
+        description: "Dry run (validate but don't submit)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DSPA_URL: https://ds-pipeline-dspa-fine-tuning-demo.apps.ocp.qn6c5.sandbox1388.opentlc.com
+  NAMESPACE: fine-tuning-demo
+
+permissions:
+  contents: read
+
+jobs:
+  submit-run:
+    name: Submit Pipeline Run
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install --quiet pyyaml
+
+      - name: Submit pipeline run
+        env:
+          OPENSHIFT_PIPELINE_TOKEN: ${{ secrets.OPENSHIFT_PIPELINE_TOKEN }}
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          RUN_NAME: ${{ inputs.run_name || '' }}
+        run: |
+          ARGS="--dspa-url ${{ env.DSPA_URL }} --namespace ${{ env.NAMESPACE }}"
+          ARGS="$ARGS --config redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline/pipeline-config.yaml"
+
+          if [ -n "${{ inputs.technique }}" ]; then
+            ARGS="$ARGS --technique ${{ inputs.technique }}"
+          fi
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          python .github/scripts/submit-pipeline-run.py $ARGS
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "### Dry Run Complete" >> "$GITHUB_STEP_SUMMARY"
+            echo "No pipeline run was submitted." >> "$GITHUB_STEP_SUMMARY"
+          fi

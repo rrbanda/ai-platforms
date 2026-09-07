@@ -9,3 +9,5 @@ resources:
   - dspa.yaml
   - s3-connection-sealed-secret.yaml
   - llm-api-sealed-secret.yaml
+  - network-policy-loan-agent.yaml
+  - route.yaml

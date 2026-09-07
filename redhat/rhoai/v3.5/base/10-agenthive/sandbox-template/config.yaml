@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-agent-config
+  labels:
+    app.kubernetes.io/part-of: example-agent
+data:
+  config.yaml: |
+    model:
+      default: "gemini-2.5-pro"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+      provider: custom
+      api_key: "${OPENAI_API_KEY}"
+    mcp_servers:
+      openshift:
+        url: "${OPENSHIFT_MCP_URL}"
+        timeout: 60
+        connect_timeout: 30
+    gateway:
+      enabled: false
+    tools:
+      code_execution:
+        enabled: "on"
+        backend: local
+      file_operations:
+        enabled: "on"
+      web_search:
+        enabled: "off"
+      browser:
+        enabled: "off"
+    toolsets:
+      skills: true
+      memory: true
+      session_search: true
+      delegation: true
+      cronjob: true
+      kanban: false
+    skills:
+      enabled: true
+      directory: /sandbox/.hermes/skills
+    display:
+      skin:
+        branding:
+          agent_name: "Example Agent"
+          welcome: "Replace this template with your agent."
+          response_label: "Example Agent"
+    dashboard:
+      title: "Example Agent"
+      subtitle: "AgentHive template"

@@ -1,0 +1,104 @@
+name: "Build Layer 1: hermes-runtime"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'redhat/rhoai/v3.5/base/10-agenthive/image/Containerfile.runtime'
+      - 'redhat/rhoai/v3.5/base/10-agenthive/image/HERMES_VERSION'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force rebuild even if version already exists"
+        required: false
+        default: "false"
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/hermes-runtime
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-runtime:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.hermes_version }}
+      image_exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Hermes version
+        id: version
+        run: |
+          VERSION=$(cat redhat/rhoai/v3.5/base/10-agenthive/image/HERMES_VERSION | tr -d '[:space:]')
+          echo "hermes_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Hermes version: ${VERSION}"
+
+      - name: Check if image already exists
+        id: check
+        if: ${{ inputs.force_rebuild != true && inputs.force_rebuild != 'true' }}
+        run: |
+          if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.hermes_version }} > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image already exists for version ${{ steps.version.outputs.hermes_version }}, skipping build"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+      - name: Login to GHCR
+        if: steps.check.outputs.exists != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build hermes-runtime
+        if: steps.check.outputs.exists != 'true'
+        uses: redhat-actions/buildah-build@v2
+        id: build
+        with:
+          image: ${{ env.IMAGE_NAME }}
+          tags: |
+            ${{ steps.version.outputs.hermes_version }}
+            latest
+          containerfiles: ./redhat/rhoai/v3.5/base/10-agenthive/image/Containerfile.runtime
+          context: ./redhat/rhoai/v3.5/base/10-agenthive/image
+          platforms: linux/amd64
+          build-args: |
+            HERMES_VERSION=${{ steps.version.outputs.hermes_version }}
+
+      - name: Push to GHCR
+        if: steps.check.outputs.exists != 'true'
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ${{ env.REGISTRY }}
+
+      - name: Scan pushed image for vulnerabilities
+        if: steps.check.outputs.exists != 'true'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.hermes_version }}
+          severity: CRITICAL,HIGH
+          exit-code: 0
+          format: table
+
+      - name: Summary
+        run: |
+          echo "### hermes-runtime build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Version: \`${{ steps.version.outputs.hermes_version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.hermes_version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.check.outputs.exists }}" = "true" ]; then
+            echo "- Status: Already existed, skipped build" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Status: Built and pushed" >> "$GITHUB_STEP_SUMMARY"
+          fi

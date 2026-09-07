@@ -1,0 +1,213 @@
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /lib64
+    - /bin
+    - /sbin
+    - /etc
+    - /var/log
+    - /proc
+    - /dev/urandom
+    - /opt/openshell
+  read_write:
+    - /sandbox
+    - /tmp
+    - /dev/null
+    - /dev/pts
+    - /mnt
+    - /run
+    - /opt/app-root
+
+landlock:
+  compatibility: best_effort
+
+process:
+  run_as_user: ""
+  run_as_group: ""
+
+network_policies:
+  gemini_api:
+    name: Gemini API (reasoning LLM)
+    endpoints:
+      - host: generativelanguage.googleapis.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**
+
+  pypi:
+    name: Python Package Index (pip install)
+    endpoints:
+      - host: pypi.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: files.pythonhosted.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**
+
+  openshell_gateway:
+    name: OpenShell gateway
+    endpoints:
+      - host: openshell.openshell.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**
+
+  cluster_dns:
+    name: Cluster DNS
+    endpoints:
+      - host: "172.30.0.10"
+        port: 53
+      - host: "172.30.0.10"
+        port: 5353
+    binaries:
+      - path: /**
+
+  ogx_embeddings:
+    name: OGX Server (RAG vector search and embeddings)
+    endpoints:
+      - host: rfp-ogx-service.rfp-agent.svc.cluster.local
+        port: 8321
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: rfp-ogx-service.rfp-agent.svc
+        port: 8321
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: autorag-llamastack-service.autorag.svc.cluster.local
+        port: 8321
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**
+
+  milvus:
+    name: Milvus Vector Database (RAG retrieval)
+    endpoints:
+      - host: milvus-service.autorag.svc.cluster.local
+        port: 19530
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**
+
+  document_sharing:
+    name: Document sharing platforms (RFP file downloads)
+    endpoints:
+      - host: drive.google.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: docs.google.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: storage.googleapis.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: www.googleapis.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: sharepoint.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: onedrive.live.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: www.dropbox.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: dl.dropboxusercontent.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: app.box.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: dl.boxcloud.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**
+
+  web_content:
+    name: Web content for search grounding and research
+    endpoints:
+      - host: www.redhat.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: access.redhat.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: developers.redhat.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: docs.redhat.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: www.google.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: en.wikipedia.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+      - host: raw.githubusercontent.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /**

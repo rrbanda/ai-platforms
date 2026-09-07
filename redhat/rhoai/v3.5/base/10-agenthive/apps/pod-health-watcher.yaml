@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pod-health-watcher
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: rhoai-workloads
+  source:
+    repoURL: https://github.com/rrbanda/ai-platforms.git
+    targetRevision: main
+    path: redhat/rhoai/v3.5/base/03-workloads/agents/pod-health-watcher
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pod-health-watcher
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: ServiceAccount
+      jsonPointers:
+        - /imagePullSecrets
+        - /secrets
+    - group: route.openshift.io
+      kind: Route
+      jsonPointers:
+        - /spec/host
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

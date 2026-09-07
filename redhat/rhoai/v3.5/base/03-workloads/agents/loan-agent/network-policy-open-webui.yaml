@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: loan-agent-allow-open-webui
+  namespace: loan-agent
+spec:
+  podSelector:
+    matchLabels:
+      app: loan-agent
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: open-webui
+    ports:
+    - port: 8080
+      protocol: TCP

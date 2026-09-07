@@ -1,0 +1,35 @@
+name: daily-health-report
+description: Generate a comprehensive platform health report every morning
+trigger:
+  type: cron
+  schedule: "0 8 * * *"  # 08:00 UTC daily
+tier: 1  # Read-only, no confirmation needed
+
+steps:
+  - name: check-argocd-applications
+    skill: monitor/argocd-health-check
+    description: List all applications and their sync/health status
+
+  - name: check-platform-status
+    skill: administer/rhoai-platform-status
+    description: Verify DSC components and operator health
+
+  - name: check-workloads
+    skill: develop/workbench-troubleshooter
+    description: Scan for workbenches in error state
+    parameters:
+      mode: scan-all
+
+  - name: check-models
+    skill: deploy/rhoai-model-lifecycle
+    description: Verify all inference services are healthy
+    parameters:
+      mode: health-check
+
+  - name: generate-report
+    skill: monitor/daily-report-generator
+    description: Compile findings into a structured report
+
+escalation:
+  on_failure: log-and-continue
+  on_critical: alert-channel

@@ -1,0 +1,42 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: ensure-pod-resource-limits
+  namespace: rfp-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  # Kyverno fills these if omitted; Argo then stays OutOfSync and
+  # retriggers PostSync ingest (which deletes named stores) on every heal.
+  admission: true
+  background: false
+  validationFailureAction: Audit
+  rules:
+    - name: add-missing-container-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      skipBackgroundRequests: true
+      mutate:
+        patchStrategicMerge:
+          spec:
+            containers:
+              - (name): "*"
+                resources:
+                  limits:
+                    +(cpu): "2"
+                    +(memory): 8Gi
+                  requests:
+                    +(cpu): 100m
+                    +(memory): 64Mi
+            initContainers:
+              - (name): "*"
+                resources:
+                  limits:
+                    +(cpu): "2"
+                    +(memory): 8Gi
+                  requests:
+                    +(cpu): 100m
+                    +(memory): 64Mi

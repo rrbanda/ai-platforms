@@ -1,0 +1,106 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - ../config
+
+resources:
+  - minio/
+  - milvus/
+  - ogx/
+  - dspa/
+  - networkpolicies/
+  - rbac/
+  - ingest/
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.S3_BUCKET
+    targets:
+      - select:
+          kind: DataSciencePipelinesApplication
+          name: dspa
+        fieldPaths:
+          - spec.objectStorage.externalStorage.bucket
+      - select:
+          kind: Job
+          name: corpus-ingest
+        fieldPaths:
+          - spec.template.spec.containers.[name=ingest].env.[name=MINIO_BUCKET].value
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.S3_ENDPOINT
+    targets:
+      - select:
+          kind: Job
+          name: corpus-ingest
+        fieldPaths:
+          - spec.template.spec.containers.[name=ingest].env.[name=MINIO_ENDPOINT].value
+      - select:
+          kind: Job
+          name: purge-retired-knowledge
+        fieldPaths:
+          - spec.template.spec.containers.[name=purge].env.[name=MINIO_ENDPOINT].value
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.REPO_URL
+    targets:
+      - select:
+          kind: Job
+          name: corpus-ingest
+        fieldPaths:
+          - spec.template.spec.initContainers.[name=git-clone].env.[name=REPO_URL].value
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.REPO_BRANCH
+    targets:
+      - select:
+          kind: Job
+          name: corpus-ingest
+        fieldPaths:
+          - spec.template.spec.initContainers.[name=git-clone].env.[name=REPO_BRANCH].value
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.OGX_SERVICE_URL
+    targets:
+      - select:
+          kind: Job
+          name: corpus-ingest
+        fieldPaths:
+          - spec.template.spec.containers.[name=ingest].env.[name=OGX_SERVICE_URL].value
+      - select:
+          kind: Job
+          name: purge-retired-knowledge
+        fieldPaths:
+          - spec.template.spec.containers.[name=purge].env.[name=OGX_SERVICE_URL].value
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.EVAL_NAMESPACE
+    targets:
+      - select:
+          kind: NetworkPolicy
+          name: allow-eval-to-ogx
+        fieldPaths:
+          - spec.ingress.0.from.0.namespaceSelector.matchLabels.kubernetes\.io/metadata\.name
+      - select:
+          kind: ClusterRoleBinding
+          name: eval-runner-mlflow-integration
+        fieldPaths:
+          - subjects.0.namespace
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.S3_HOST
+    targets:
+      - select:
+          kind: DataSciencePipelinesApplication
+          name: dspa
+        fieldPaths:
+          - spec.objectStorage.externalStorage.host

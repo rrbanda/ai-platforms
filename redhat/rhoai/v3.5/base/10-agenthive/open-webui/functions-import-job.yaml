@@ -1,0 +1,106 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: open-webui-functions-import
+  namespace: open-webui
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    agenthive.io/functions-rev: "1"
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: import
+        image: registry.access.redhat.com/ubi9/python-311:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -euo pipefail
+          pip install --quiet requests
+
+          python3 - <<'IMPORT'
+          import json, os, requests, time
+
+          url = os.environ["WEBUI_URL"].rstrip("/")
+          email = os.environ["ADMIN_EMAIL"]
+          password = os.environ["ADMIN_PASSWORD"]
+
+          for attempt in range(10):
+              try:
+                  r = requests.get(f"{url}/health", timeout=5)
+                  if r.ok:
+                      break
+              except Exception:
+                  pass
+              print(f"waiting for Open WebUI ({attempt+1}/10)...")
+              time.sleep(5)
+
+          r = requests.post(
+              f"{url}/api/v1/auths/signin",
+              json={"email": email, "password": password},
+              timeout=10,
+          )
+          r.raise_for_status()
+          token = r.json()["token"]
+          print("authenticated as admin")
+
+          with open("/config/per-user-ogx-knowledge.json") as f:
+              functions = json.load(f)
+
+          for func in functions:
+              fid = func["id"]
+              headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+              check = requests.get(f"{url}/api/v1/functions/id/{fid}", headers=headers, timeout=10)
+              if check.ok:
+                  r = requests.post(
+                      f"{url}/api/v1/functions/id/{fid}/update",
+                      headers=headers,
+                      json=func,
+                      timeout=10,
+                  )
+                  print(f"updated {fid}: {r.status_code}")
+              else:
+                  r = requests.post(
+                      f"{url}/api/v1/functions/create",
+                      headers=headers,
+                      json=func,
+                      timeout=10,
+                  )
+                  print(f"created {fid}: {r.status_code}")
+
+              requests.post(
+                  f"{url}/api/v1/functions/id/{fid}/toggle",
+                  headers=headers,
+                  timeout=10,
+              )
+
+          print("functions import complete")
+          IMPORT
+        env:
+        - name: WEBUI_URL
+          value: "http://open-webui.open-webui.svc.cluster.local:8080"
+        - name: ADMIN_EMAIL
+          value: "admin@example.com"
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: open-webui-admin
+              key: password
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: functions
+          mountPath: /config
+      volumes:
+      - name: functions
+        configMap:
+          name: open-webui-functions

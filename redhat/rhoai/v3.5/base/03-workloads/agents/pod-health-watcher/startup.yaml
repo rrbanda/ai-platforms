@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-health-watcher-startup
+  labels:
+    app.kubernetes.io/part-of: pod-health-watcher
+data:
+  startup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export HOME=/sandbox
+    export HERMES_HOME=/sandbox/.hermes
+    export PATH="/sandbox/.venv/bin:/usr/local/bin:${PATH}"
+
+    if ! command -v hermes >/dev/null 2>&1; then
+      echo "ERROR: hermes not found. Rebuild image." >&2
+      exit 1
+    fi
+
+    echo "Hermes $(hermes --version 2>&1 || true)"
+
+    SKILLS="pod-health-watcher pod-failure-diagnoser pod-auto-remediate incident-escalator"
+
+    mkdir -p \
+      /sandbox/.hermes/skills \
+      /sandbox/.hermes/memory \
+      /sandbox/.hermes/sessions \
+      /sandbox/.hermes/profiles \
+      /sandbox/.hermes/auto-skills \
+      /sandbox/.hermes/db \
+      /sandbox/data \
+      /sandbox/output/health \
+      /sandbox/output/incidents
+
+    for s in $SKILLS; do
+      mkdir -p "/sandbox/.hermes/skills/$s"
+      cp "/mnt/skill-$s/SKILL.md" "/sandbox/.hermes/skills/$s/SKILL.md"
+    done
+
+    cp /mnt/soul/SOUL.md /sandbox/.hermes/SOUL.md
+    cp /mnt/config/config.yaml /sandbox/.hermes/config.yaml
+
+    python3 <<PY
+    import os, yaml
+    with open("/sandbox/.hermes/config.yaml") as f:
+        cfg = yaml.safe_load(f)
+
+    cfg.setdefault("skills", {})["directory"] = "/sandbox/.hermes/skills"
+
+    cfg.setdefault("model", {})
+    cfg["model"]["default"] = os.environ.get("LLM_MODEL", "gemini-2.5-pro")
+    cfg["model"]["base_url"] = os.environ.get("OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+    cfg["model"]["provider"] = "custom"
+    cfg["model"]["api_key"] = os.environ.get("OPENAI_API_KEY", "")
+
+    mcp_url = os.environ.get(
+        "OPENSHIFT_MCP_URL",
+        "http://openshift-mcp-v2.openshift-mcp-server.svc.cluster.local:8080/mcp",
+    )
+    cfg.setdefault("mcp_servers", {}).setdefault("openshift", {})
+    cfg["mcp_servers"]["openshift"]["url"] = mcp_url
+
+    with open("/sandbox/.hermes/config.yaml", "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+    print(f"Config updated: model={cfg['model']['default']}, mcp={mcp_url}")
+    print("Skills:", ", ".join(sorted(os.listdir("/sandbox/.hermes/skills"))))
+    PY
+
+    echo "=== Starting Hermes gateway (background) ==="
+    hermes gateway run > /tmp/hermes-gateway.log 2>&1 &
+    sleep 5
+
+    CRON_PROMPT='Run pod-health-watcher. Collapse duplicate Jobs. Write /sandbox/output/health/latest.md with the file-write tool. Never execute_code for reports. Do not [SILENT] if degraded.'
+    echo "Registering repeating every-5-min pod health cron"
+    hermes cron remove pod-health-scan 2>/dev/null || true
+    hermes cron create --name "pod-health-scan" --skill pod-health-watcher --continuity \
+      "every 5m" "$CRON_PROMPT" \
+      2>&1 || echo "WARN: cron create failed; agent can register it on first session"
+
+    echo "=== Starting Hermes dashboard ==="
+    exec hermes dashboard \
+      --host "${HERMES_DASHBOARD_HOST:-0.0.0.0}" \
+      --port "${HERMES_DASHBOARD_PORT:-9119}" \
+      --no-open --skip-build --insecure

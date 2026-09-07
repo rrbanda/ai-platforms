@@ -1,0 +1,159 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rhoai-copilot-config
+  labels:
+    app.kubernetes.io/part-of: rhoai-copilot
+data:
+  config.yaml: |
+    # RHOAI Copilot - Agent Configuration
+    # Environment variables (${VAR}) are resolved at runtime by entrypoint.sh.
+
+    model:
+      default: "gemini-2.5-flash"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+      provider: custom
+      api_key: "${OPENAI_API_KEY}"
+
+    mcp_servers:
+      argocd:
+        command: "argocd-mcp"
+        args: ["stdio"]
+        env:
+          ARGOCD_BASE_URL: "${ARGOCD_BASE_URL}"
+          ARGOCD_API_TOKEN: "${ARGOCD_API_TOKEN}"
+          ARGOCD_INSECURE: "true"
+        timeout: 60
+        connect_timeout: 30
+        supports_parallel_tool_calls: true
+        tools:
+          resources: false
+          prompts: false
+          include:
+            - list_applications
+            - get_application
+            - get_application_resource_tree
+            - get_application_managed_resources
+            - get_application_workload_logs
+            - get_resource_events
+            - get_resource_actions
+            - list_clusters
+            - get_appproject
+            - sync_application
+
+      rhoai:
+        url: "${RHOAI_MCP_URL}"
+        timeout: 60
+        connect_timeout: 30
+        tools:
+          include:
+            - list_data_science_projects
+            - get_project_details
+            - get_project_status
+            - get_cluster_resources
+            - cluster_summary
+            - project_summary
+            - list_workbenches
+            - get_workbench
+            - get_workbench_url
+            - list_notebook_images
+            - list_inference_services
+            - get_inference_service
+            - list_serving_runtimes
+            - get_model_endpoint
+            - prepare_model_deployment
+            - check_deployment_prerequisites
+            - estimate_serving_resources
+            - list_registered_models
+            - get_registered_model
+            - list_model_versions
+            - get_model_artifacts
+            - list_training_jobs
+            - get_training_progress
+            - list_training_runtimes
+            - estimate_resources
+            - list_data_connections
+            - list_storage
+            - get_pipeline_server
+            - explore_cluster
+            - diagnose_resource
+            - multi_resource_status
+            - resource_status
+            - list_resource_names
+            - create_workbench
+            - start_workbench
+            - stop_workbench
+            - create_s3_data_connection
+            - deploy_model
+
+      openshift:
+        url: "${OPENSHIFT_MCP_URL}"
+        timeout: 60
+        connect_timeout: 30
+
+      mlflow:
+        url: "${MLFLOW_MCP_URL}"
+        timeout: 60
+        connect_timeout: 30
+
+      github:
+        command: "npx"
+        args: ["-y", "@modelcontextprotocol/server-github"]
+        env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+        timeout: 30
+        connect_timeout: 15
+        tools:
+          include:
+            - create_pull_request
+            - get_file_contents
+            - push_files
+            - create_branch
+            - list_branches
+            - search_code
+            - create_or_update_file
+            - list_commits
+
+    gateway:
+      enabled: false
+
+    tools:
+      code_execution:
+        enabled: "on"
+        backend: local
+      file_operations:
+        enabled: "on"
+      web_search:
+        enabled: "off"
+      browser:
+        enabled: "off"
+
+    toolsets:
+      skills: true
+      memory: true
+      session_search: true
+      delegation: true
+      cronjob: true
+      kanban: false
+
+    delegation:
+      max_concurrent_children: 3
+
+    memory:
+      enabled: true
+      providers: []
+
+    skills:
+      enabled: true
+      directory: /sandbox/.hermes/skills
+      curator:
+        enabled: true
+    display:
+      skin:
+        branding:
+          agent_name: "RHOAI Copilot"
+          welcome: "I manage the full lifecycle of Red Hat OpenShift AI. How can I help?"
+          response_label: "RHOAI Copilot"
+    dashboard:
+      title: "RHOAI Copilot"
+      subtitle: "AI operations agent for OpenShift AI"

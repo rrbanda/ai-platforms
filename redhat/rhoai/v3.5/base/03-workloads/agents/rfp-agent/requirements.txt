@@ -1,0 +1,40 @@
+# Core: Hermes Agent is installed via uv in the Containerfile (v0.20.x requires uv build)
+# See Containerfile for the pinned version
+
+# Data processing (common across agent use cases)
+pandas
+openpyxl
+requests
+aiohttp
+
+# Cloud/storage
+boto3
+
+# Database
+psycopg2-binary
+
+# PDF processing
+PyPDF2
+
+# Web framework (for custom agent APIs)
+fastapi
+uvicorn
+
+# YAML config handling
+pyyaml
+
+# MLflow integration (tracing/evaluation)
+mlflow
+
+# MCP support
+mcp
+
+# Knowledge retrieval (vector search)
+pymilvus>=2.4.0
+
+# Document parsing and export (used by RFP and other agent skills)
+python-docx
+mammoth
+pypandoc-binary
+xhtml2pdf
+openpyxl

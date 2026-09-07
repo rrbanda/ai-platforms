@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rfp-openshell
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: rhoai-platform
+  source:
+    chart: helm-chart
+    repoURL: ghcr.io/nvidia/openshell
+    targetRevision: 0.0.111
+    helm:
+      releaseName: openshell
+      skipCrds: true
+      values: |
+        podSecurityContext:
+          fsGroup: null
+        securityContext:
+          runAsUser: null
+        server:
+          auth:
+            allowUnauthenticatedUsers: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshell
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+        - /spec/persistentVolumeClaimRetentionPolicy
+    - group: ""
+      kind: ServiceAccount
+      jsonPointers:
+        - /imagePullSecrets
+        - /secrets
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

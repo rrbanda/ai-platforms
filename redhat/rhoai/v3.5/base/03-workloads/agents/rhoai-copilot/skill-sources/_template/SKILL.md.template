@@ -1,0 +1,36 @@
+# [Skill Name]
+
+## Description
+
+[One paragraph explaining what this skill does and why it exists.]
+
+## Trigger Conditions
+
+- [User request pattern that activates this skill]
+- [System state that requires this skill]
+
+## Required MCP Tools
+
+- **[MCP Server Name]**: `tool_name_1`, `tool_name_2`
+
+## Procedure
+
+1. [First step]
+2. [Second step]
+3. [Continue until complete]
+
+## Output Format
+
+[Describe the expected output — table, YAML, report, etc.]
+
+## Safety Constraints
+
+- [Skill-specific safety rule]
+
+## Disconnected Environment Notes
+
+[Any adjustments needed for air-gapped clusters, or "No special handling required."]
+
+## Related Skills
+
+- [`skill-name`](../phase/skill-name/) — [relationship description]

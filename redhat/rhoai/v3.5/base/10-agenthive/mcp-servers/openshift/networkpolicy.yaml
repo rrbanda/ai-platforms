@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openshift-mcp-v2
+  namespace: openshift-mcp-server
+  labels:
+    app.kubernetes.io/part-of: agenthive
+spec:
+  podSelector:
+    matchLabels:
+      app: openshift-mcp-v2
+  # Ingress-only: agents may call :8080. Do not default-deny egress — OVN would
+  # block cluster DNS (5353) and the host-network kube-apiserver that this
+  # server must reach with cluster-reader.
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rhoai-copilot
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: pod-health-watcher
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: stale-image-finder
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: pr-review-bot
+      ports:
+        - protocol: TCP
+          port: 8080

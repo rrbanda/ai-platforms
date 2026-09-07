@@ -1,0 +1,86 @@
+[
+  {
+    "question": "Is Red Hat OpenShift AI 3.5 Generally Available according to the Self-Managed release notes?",
+    "correct_answers": [
+      "No. The 3.5 Self-Managed release notes are Early Access (EA2 / EA1). Do not call 3.5 GA. 3.4 is the GA stream in the 3.4.2 notes."
+    ],
+    "correct_answer_document_ids": ["rhoai-version-status-3.3-3.5.md"]
+  },
+  {
+    "question": "When did Models-as-a-Service become Generally Available in OpenShift AI, and what was its status in 3.3?",
+    "correct_answers": [
+      "MaaS is Technology Preview in 3.3 and Generally Available in 3.4. Several MaaS add-ons (vLLM-on-MaaS, external OIDC, showback dashboard, external providers) remain Technology Preview in 3.4/3.5 notes."
+    ],
+    "correct_answer_document_ids": ["rhoai-serving-llmd-maas.md", "rhoai-version-status-3.3-3.5.md"]
+  },
+  {
+    "question": "What is the status of NeMo Guardrails in OpenShift AI 3.3 versus 3.4?",
+    "correct_answers": [
+      "Technology Preview in 3.3. Fully supported in 3.4. Deployed via TrustyAI. MCP Gateway integration of NeMo Guardrails is Technology Preview in 3.5 EA2 notes."
+    ],
+    "correct_answer_document_ids": ["rhoai-guardrails-mlflow-autorag.md", "rhoai-version-status-3.3-3.5.md"]
+  },
+  {
+    "question": "Is AutoRAG Generally Available in OpenShift AI 3.4 or 3.5?",
+    "correct_answers": [
+      "No. Official 3.4 release notes list AutoRAG as Technology Preview. 3.5 EA notes do not promote it to GA."
+    ],
+    "correct_answer_document_ids": ["rhoai-guardrails-mlflow-autorag.md", "rhoai-version-status-3.3-3.5.md"]
+  },
+  {
+    "question": "Can OpenShift AI run in a disconnected environment, and what OpenShift version does llm-d need?",
+    "correct_answers": [
+      "Yes. The 3.5 disconnected book requires mirroring images to a private registry, then installing the Operator. Distributed Inference with llm-d requires OpenShift 4.20 or later. Open Data Hub must not be installed on the cluster."
+    ],
+    "correct_answer_document_ids": ["rhoai-disconnected-3.5.md"]
+  },
+  {
+    "question": "Which default projects does the OpenShift AI Operator create?",
+    "correct_answers": [
+      "redhat-ods-operator for the Operator, redhat-ods-applications for the dashboard and required components, rhods-notebooks for default basic workbenches. Do not install ISV apps in those namespaces."
+    ],
+    "correct_answer_document_ids": ["rhoai-architecture-dsc-workbenches.md"]
+  },
+  {
+    "question": "How do administrators enable MLflow on OpenShift AI 3.4 or later?",
+    "correct_answers": [
+      "Set the mlflowoperator component to Managed on the DataScienceCluster. MLflow is fully supported from 3.4. The deprecated mlflow dashboard feature flag is no longer required."
+    ],
+    "correct_answer_document_ids": ["rhoai-architecture-dsc-workbenches.md", "rhoai-guardrails-mlflow-autorag.md"]
+  },
+  {
+    "question": "Is vLLM a separate Red Hat product for an OpenShift AI RFP, and can it be used as the MaaS runtime?",
+    "correct_answers": [
+      "vLLM is the inference engine inside Red Hat OpenShift AI, not a separate Red Hat SKU. Using the vLLM runtime through Models-as-a-Service is Technology Preview in 3.4/3.5 notes (vLLMDeploymentOnMaaS flag)."
+    ],
+    "correct_answer_document_ids": ["rhoai-serving-llmd-maas.md", "product-naming-canonical.md"]
+  },
+  {
+    "question": "What is the correct customer-facing name for Praxis?",
+    "correct_answers": [
+      "Red Hat AI gateway. Never use Praxis in customer-facing documents."
+    ],
+    "correct_answer_document_ids": ["product-naming-canonical.md"]
+  },
+  {
+    "question": "What is Red Hat's list price per GPU-hour for OpenShift AI?",
+    "correct_answers": [
+      "Not in product documentation. Mark HUMAN INPUT REQUIRED. Do not invent a price."
+    ],
+    "correct_answer_document_ids": []
+  },
+  {
+    "question": "Which OpenShift AI 3.x release first supports migration from 2.25.4?",
+    "correct_answers": [
+      "3.3.2 is the first 3.x release that supports migration from OpenShift AI 2.25.4 and later. 3.0 made a direct upgrade from 2.25 technically complex. 2.25 remains an EUS stream."
+    ],
+    "correct_answer_document_ids": ["rhoai-version-status-3.3-3.5.md"]
+  },
+  {
+    "question": "In OpenShift AI 3.5 EA2, is the Responses API on OGX Generally Available?",
+    "correct_answers": [
+      "Yes, the 3.5 EA2 notes say the Responses API is generally available on OGX and OpenAI-compatible. 3.5 EA1 notes say OGX replaces Llama Stack. On 3.4 the Responses API was Technology Preview."
+    ],
+    "correct_answer_document_ids": ["rhoai-version-status-3.3-3.5.md"]
+  }
+]

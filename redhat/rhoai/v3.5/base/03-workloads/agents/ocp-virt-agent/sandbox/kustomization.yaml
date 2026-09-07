@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ocp-virt-agent
+
+resources:
+  - serviceaccount.yaml
+  - sandbox.yaml
+  - startup.yaml
+  - agent-config.yaml
+  - service.yaml
+  - route.yaml
+  - route-openai.yaml
+  - restart-hook.yaml
+  - restart-rbac.yaml
+  - mlflow-rbac.yaml
+  - agent-secrets.yaml
+  - openshell-client-tls.yaml
+
+configMapGenerator:
+- name: ocp-virt-migration-agent-openshell-policy
+  files:
+  - sandbox-policy.rego
+  - policy.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

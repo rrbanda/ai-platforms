@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-rh-rfp-strategy
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    # RFP Strategy
+
+    > Map each requirement to available capabilities, identify gaps, determine coverage levels, and produce a response strategy. This is Phase 3 of the RFP workflow.
+
+    ## When to Use
+
+    - After analysis is complete and user confirms proceeding
+    - User says "create response plan", "map capabilities", "gap analysis"
+    - **RFI:** produce a short coverage line per row (AUTO / SCAFFOLD / HUMAN). Do not force a services vs technology narrative template.
+
+    ## Prerequisites
+
+    Before running strategy:
+    1. Use `rh-knowledge-retrieval` to search for capabilities matching each requirement
+    2. Load `rh-product-naming` to verify all product names and status
+
+    ## Coverage Matrix
+
+    For EACH requirement from the analysis phase:
+
+    | Req ID | Requirement Summary | Coverage | Knowledge Source | Confidence |
+    |--------|---------------------|----------|------------------|------------|
+    | D1 | [deliverable name] | STRONG | [source document] | AUTO |
+    | D2 | [deliverable name] | PARTIAL | [source, general] | SCAFFOLD |
+    | D3 | [deliverable name] | GAP | — | HUMAN |
+
+    ### Coverage Levels
+
+    | Level | Definition | Action |
+    |-------|-----------|--------|
+    | **STRONG** | Knowledge base has specific, detailed content | Auto-generate response section |
+    | **PARTIAL** | Related content that can be adapted | Scaffold with draft, flag for review |
+    | **GAP** | No knowledge base content addresses this | Flag for human input |
+    | **HUMAN REQUIRED** | Requires org-specific data (pricing, legal, references) | Don't attempt |
+
+    ## Methodology Reference
+
+    Use the knowledge retrieval skill to search for methodology content. Standard engagement phases:
+
+    1. **Mobilization** (Weeks 1-2) — onboarding, access, baseline
+    2. **Assessment & Planning** (Weeks 2-4) — current state, roadmap, wave plan
+    3. **Execution** (60-80% of engagement) — wave-based delivery, pattern reuse
+    4. **Transition** (Final 2-4 weeks) — documentation, training, sustainability
+
+    ### Operating Models
+
+    | Model | Best For |
+    |-------|----------|
+    | Federated | Large-scale remediation across multiple teams |
+    | Dedicated Team | Focused engagements with clear scope |
+    | Staff Augmentation | Supplementing existing teams |
+
+    ## Capabilities Quick-Reference
+
+    Search the knowledge base for detailed content. High-level mapping:
+
+    | Domain | Key Products/Components |
+    |--------|------------------------|
+    | AI Platform | Red Hat OpenShift AI, vLLM, model registry |
+    | Inference | vLLM, llm-d, Red Hat AI gateway |
+    | Agent Security | OpenShell, OpenShift Sandboxed Containers, MCP Gateway |
+    | DevSecOps | ACS, Pipelines (Tekton), GitOps (ArgoCD), Quay |
+    | Automation | Ansible Automation Platform |
+    | Compliance | TrustyAI, Garak, Insights |
+
+    ## Strategy Output
+
+    Present to the user:
+
+    ```markdown
+    ## Response Strategy
+
+    **RFP Type:** [Services / Technology / Hybrid]
+    **Recommended Template:** [services / technology]
+
+    ### Coverage Summary
+
+    | Level | Count | % | Action |
+    |-------|-------|---|--------|
+    | STRONG (auto-generate) | [N] | [X%] | Agent writes full response |
+    | PARTIAL (scaffold) | [N] | [X%] | Agent drafts, human refines |
+    | GAP (human input) | [N] | [X%] | Human must provide content |
+    | HUMAN REQUIRED | [N] | [X%] | Pricing, legal, references |
+
+    ### Sections I Can Auto-Generate
+    1. [Section] — from [source]
+    2. [Section] — from [source]
+
+    ### Sections Needing Human Input
+    1. [Section] — reason: [why]
+    2. [Section] — reason: [why]
+
+    ### Recommended Approach
+    [Brief narrative on sequencing and strategy]
+
+    ---
+    Proceed to Drafting phase?
+    ```
+
+    ## User Redirects
+
+    The user may adjust at this point:
+    - "Focus only on technical sections" → skip governance/staffing
+    - "I'll handle pricing" → mark pricing as SKIP
+    - "Use this past proposal as reference" → ingest additional context
+    - "Tight deadline, scaffold everything" → lower bar to SCAFFOLD for all
+
+    Adapt accordingly.
+
+    ## Next Phase
+
+    After user approves strategy, proceed with `rh-rfp-drafting` for section generation.

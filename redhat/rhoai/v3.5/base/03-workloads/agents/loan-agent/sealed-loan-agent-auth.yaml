@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: loan-agent-auth
+  namespace: loan-agent
+spec:
+  encryptedData:
+    llm-api-key: AgA02YbbrZ1XpbGbvFXKzjCoRO4+00ks5mz1BpCet+KfpUmghMtERiHFEIABK6aqZOS7n58FAj+mnXzOyANCGJXOXRJsVWF4OL/ZbM4CuAbNMod+DMjDoTOYFjvvgsQHNXfWWzSGMDmb2Ti8RSMCLlp6RkD9/D2N8c1ZHhdtoHbIXcQPEa64duUb28QQ5XzvoohtrHJX4GjxvqYj05lITlT+5kd3uCU/IEszpq3AMh080btJ4BtyWdRCiElV7f1yP+9ybEhAHu0nZtvwBK+e1B0VseOGfKWk3m6NG+1L/cMlrrlb56ENhUiZo1Updov1mgyfR4KIFRGwhLYhkXWJmwpnwxNu3/uzFDFTLm3xJQtjgG+khkgyy7YXVOnpGlVqPxUxheUUA1bm58wqvGn3LRCM+r7PmZbzZnfKZg+sxbuuo0TSmW5PPAEpgwZp1f+4iHH/Nhzaf7QSb9FK92/wLeZZgjrgtCuxtlQLnAytMSCnTasbXTADa/Jro0+vgEYjw6nrw66ohZirXtTHL2O4eSRr3UGauOe+mKyfazTK2tLrwTFiEqXEF1F7uK1Qeu79R8ctPjIigzv4pmOXGQUMDrSW6NRGQz7YUDpP+n1CW1BkjTia9olcd/pWiyUNwd4r1E7dR0m37dmD+8N5bt3pFtIgmcQvmQvgv5I0nhe+XSglZDbWzx7/8RTX2ametlzjkQoue2sQu0KImW9AMzj/EkYmOk0LMi2TGIgmWAfljdFcqoZJUMVexWPOBvEFsAwcGMPYDFwWSH7fgSXdyerK+1ltsaZD
+  template:
+    metadata:
+      name: loan-agent-auth
+      namespace: loan-agent

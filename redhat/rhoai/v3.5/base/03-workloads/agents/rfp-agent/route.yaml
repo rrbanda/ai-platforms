@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rfp-agent
+  labels:
+    app: rfp-agent
+    app.kubernetes.io/part-of: rfp-agent
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains
+spec:
+  to:
+    kind: Service
+    name: rfp-agent-dashboard
+  port:
+    targetPort: dashboard
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,310 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-rh-rfp-drafting
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    # RFP Drafting
+
+    > Generate the proposal response section by section, mirroring the customer's format and marking each section with confidence level. This is Phase 4 of the RFP workflow.
+
+    ## When to Use
+
+    - After strategy is approved and user confirms proceeding
+    - User says "draft the response", "generate the proposal", "write the RFP response", "fill the RFI"
+
+    ## RFI mode
+
+    If document job is **RFI / questionnaire**, fill the matrix only:
+
+    | ID | Answer | Citation | Evidence |
+    |----|--------|----------|----------|
+    | Qn | Yes / Partial / No / HUMAN | `filename.md` | one sentence from that file |
+
+    Rules:
+
+    - Follow `rfi-questionnaire-response-pattern.md`
+    - Never `[GROUNDED]` without a filename
+    - Do not emit services/technology narrative templates
+    - Pricing, legal, unapproved metrics, missing lifecycle → HUMAN
+    - Gateway name: **Red Hat AI gateway** (never Praxis, never "Model Serving" as the Praxis replacement)
+
+    Then pause for `rh-accuracy-review`.
+
+    ## General Rules
+
+    1. **Mirror the customer's format** — if the RFP specifies response sections, match them exactly
+    2. **One section at a time** — generate sequentially so the user can review/redirect
+    3. **Mark every section** with `[AUTO-GENERATED]`, `[SCAFFOLD - NEEDS REVIEW]`, or `[HUMAN INPUT REQUIRED]`
+    4. **Cite knowledge sources** — track which knowledge base document powered each section
+    5. **No fabrication** — if the knowledge base doesn't support a claim, say so
+    6. **Use customer's language** — their terminology, their deliverable IDs
+    7. **Verify naming** — use `rh-product-naming` for all Red Hat product references
+
+    ## Writing Standards
+
+    - **Specific over general** — "deploys via Helm chart in under 5 minutes" not "easy to deploy"
+    - **Evidence over assertion** — "benchmark showed 87% cache hit rate" not "high performance"
+    - **No marketing fluff** — no "industry-leading", "best-in-class", "revolutionary", "seamless"
+    - **Traceable claims** — every fact must exist in the knowledge base
+    - **Anti-patterns:** never use "unlock", "empower", "cutting-edge", "next-generation"
+
+    ## Output Format
+
+    Default output is Markdown. For final delivery:
+    - DOCX: use `pandoc input.md -o output.docx` (pandoc is available in the sandbox)
+    - PDF: HTML then `xhtml2pdf` (weasyprint is not installed)
+
+    ---
+
+    ## TEMPLATE: Services RFP Response
+
+    Use when RFP is primarily asking for staffing, delivery, methodology, governance.
+
+    ```markdown
+    # [Response Title — Match Customer's RFP Title]
+
+    **Submitted by:** Red Hat, Inc.
+    **Date:** [Submission date]
+    **RFP Reference:** [Customer's reference number]
+    **Prepared for:** [Customer organization]
+
+    ---
+
+    ## 1. Executive Summary
+    [AUTO-GENERATED from scope + capabilities]
+
+    ### Understanding of Requirements
+    [Restate customer's need in their language. Reference specific scope items.]
+
+    ### Our Approach
+    [3-4 sentences: engagement model, operating model, key differentiators]
+
+    ### Key Differentiators
+    - [Specific to THIS RFP]
+    - [Specific to THIS RFP]
+    - [Specific to THIS RFP]
+
+    ---
+
+    ## 2. Technical Approach
+
+    ### 2.1 Engagement Model
+    [Phases, workstreams, governance. Map to customer's deliverables.]
+
+    ### 2.2 Methodology
+
+    | Phase | Activities | Deliverables | Duration |
+    |-------|-----------|--------------|----------|
+    | Mobilization | [activities] | D1, D2 | [weeks] |
+    | Assessment | [activities] | D3, D4 | [weeks] |
+    | Execution | [activities] | D5-D10 | [weeks] |
+    | Transition | [activities] | D11-D14 | [weeks] |
+
+    ### 2.3 Tools and Platforms
+    [Only tools in the knowledge base]
+
+    ### 2.4 Operating Model
+    [Mirror customer's described model]
+
+    ---
+
+    ## 3. Staffing Plan
+    [SCAFFOLD - NEEDS REVIEW]
+
+    ### 3.1 Team Structure
+
+    | Role | Count | Level | Key Qualifications |
+    |------|-------|-------|-------------------|
+    | Program Manager | 1 | Senior | PMP, 10+ yrs |
+    | Technical Lead | [N] | Senior | RHCE, 12+ yrs |
+    | [Domain] Engineer | [N] | Mid-Senior | [certs] |
+
+    ### 3.2 Ramp-Up Timeline
+
+    | Week | Staff | Activities |
+    |------|-------|-----------|
+    | 1-2 | Core (N) | Onboarding, access |
+    | 3-4 | Full (N) | Assessment begins |
+    | 5+ | Steady (N) | Execution |
+
+    ---
+
+    ## 4. Delivery Timeline
+
+    | Customer Milestone | Our Activity | Start | End | Dependencies |
+    |-------------------|--------------|-------|-----|--------------|
+    | M1 | [activity] | [date] | [date] | [deps] |
+
+    ---
+
+    ## 5. Governance Model
+
+    | Body | Frequency | Participants | Purpose |
+    |------|-----------|-------------|---------|
+    | Steering Committee | Monthly | Exec sponsors | Strategic decisions |
+    | Program Review | Weekly | PMs + leads | Progress, risks |
+    | Technical Review | Weekly | Tech leads | Quality, architecture |
+
+    ---
+
+    ## 6. Risk Mitigation
+
+    | Risk | Likelihood | Impact | Mitigation |
+    |------|-----------|--------|-----------|
+    | [risk] | H/M/L | H/M/L | [approach] |
+
+    ---
+
+    ## 7. Pricing
+    [HUMAN INPUT REQUIRED]
+
+    | Milestone | Deliverables | Basis | Amount |
+    |-----------|-------------|-------|--------|
+    | [M1] | D1-D3 | Fixed | [ENTER] |
+
+    ---
+
+    ## 8. Compliance Responses
+    [SCAFFOLD - NEEDS REVIEW]
+
+    ---
+
+    ## 9. Qualifications & References
+    [SCAFFOLD - NEEDS REVIEW]
+    References: [HUMAN INPUT REQUIRED]
+    ```
+
+    ---
+
+    ## TEMPLATE: Technology RFP Response
+
+    Use when RFP is primarily asking about technical capabilities, architecture, integration.
+
+    ```markdown
+    # [Response Title — Match Customer's RFP Title]
+
+    **Submitted by:** Red Hat, Inc.
+    **Date:** [Submission date]
+    **RFP Reference:** [Customer's reference number]
+    **Prepared for:** [Customer organization]
+
+    ---
+
+    ## 1. Executive Summary
+
+    ### Understanding of Requirements
+    [Restate customer's technical challenge in their language.]
+
+    ### Solution Overview
+    [2-3 paragraphs: proposed solution, how it addresses needs, why superior.]
+
+    ---
+
+    ## 2. Capability Matrix
+    [AUTO-GENERATED from knowledge base]
+
+    | # | RFP Requirement | Red Hat Solution | Status | Deployment |
+    |---|-----------------|-----------------|--------|-----------|
+    | R1 | [requirement] | [product/component] | GA | [method] |
+    | R2 | [requirement] | [product/component] | Tech Preview | [method] |
+    | R3 | [requirement] | — | GAP | — |
+
+    ### Gap Analysis
+    [For each gap: what's missing, alternatives, roadmap caveats]
+
+    ---
+
+    ## 3. Architecture
+
+    ### 3.1 Solution Architecture
+    [Diagram — ASCII for markdown, SVG for HTML]
+
+    ### 3.2 Component Descriptions
+
+    | Component | Purpose | Interfaces | Dependencies |
+    |-----------|---------|-----------|--------------|
+    | [name] | [what] | [APIs] | [needs] |
+
+    ### 3.3 Data Flow
+    [How data moves through the system, security boundaries]
+
+    ### 3.4 Security Model
+    [Layers, auth, authz, encryption, audit]
+
+    ---
+
+    ## 4. Component Maturity
+
+    | Component | Status | GA Since | Support Model |
+    |-----------|--------|----------|---------------|
+    | [product] | GA | [date] | Premium |
+    | [product] | Tech Preview | — | Best-effort |
+
+    ---
+
+    ## 5. Deployment & Operations
+
+    ### 5.1 Installation
+
+    | Component | Method | Time | Prerequisites |
+    |-----------|--------|------|---------------|
+    | [component] | Helm | ~5 min | K8s 1.28+ |
+
+    ### 5.2 Infrastructure Requirements
+
+    | Resource | Minimum | Recommended |
+    |----------|---------|-------------|
+    | CPU | [cores] | [cores] |
+    | Memory | [GB] | [GB] |
+    | GPU | [if needed] | [type] |
+
+    ### 5.3 Day-2 Operations
+    - Monitoring, updates, scaling, backup/DR
+
+    ---
+
+    ## 6. Integration
+
+    ### APIs and Protocols
+
+    | Interface | Protocol | Authentication |
+    |-----------|----------|---------------|
+    | [API] | REST/gRPC/MCP | [method] |
+
+    ---
+
+    ## 7. Evidence & Benchmarks
+    [AUTO-GENERATED if knowledge base has data]
+
+    | Metric | Result | Conditions |
+    |--------|--------|-----------|
+    | [metric] | [result] | [environment] |
+
+    ---
+
+    ## 8. Pricing
+    [HUMAN INPUT REQUIRED]
+
+    | Component | Tier | Annual Cost |
+    |-----------|------|------------|
+    | [product] | [tier] | [ENTER] |
+    ```
+
+    ---
+
+    ## Section Generation Process
+
+    For each section:
+    1. Search knowledge base with `rh-knowledge-retrieval` for relevant content
+    2. Check `rh-product-naming` for all product references
+    3. Generate section using retrieved content
+    4. Mark with confidence level
+    5. Present to user for review before moving to next section
+
+    ## Next Phase
+
+    After all sections are drafted, proceed with `rh-rfp-review` for accuracy verification.

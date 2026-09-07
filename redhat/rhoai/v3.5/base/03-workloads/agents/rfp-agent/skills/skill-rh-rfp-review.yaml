@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-rh-rfp-review
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    # RFP Review
+
+    > Final review gate: verify accuracy, check completeness, validate naming, and produce a readiness checklist. This is Phase 5 of the RFP workflow.
+
+    ## When to Use
+
+    - After drafting is complete
+    - User says "review accuracy", "verify claims", "fact check", "check completeness"
+    - Before final delivery of any RFP response
+
+    ## Review Steps
+
+    ### Step 1: Accuracy Check
+
+    Run `rh-accuracy-review` on the full draft (RFI matrix or narrative). Do not skip it.
+    Every `[GROUNDED]` claim must have a retrieval `document_id`. Citation `none` is a fail.
+
+    | Claim | Source | Verdict |
+    |-------|--------|---------|
+    | [exact text] | [document, section] | [VERDICT] |
+
+    **Verdicts:**
+    - **ACCURATE** — matches knowledge base exactly
+    - **INACCURATE** — contradicts knowledge base (provide correction)
+    - **NEEDS NUANCE** — partially correct but oversimplifies
+    - **UNVERIFIABLE** — no source supports or contradicts (potential hallucination)
+    - **OUTDATED** — was accurate but may have changed
+
+    ### Step 2: Product Naming Check
+
+    Load `rh-product-naming` and scan the entire response:
+
+    - Every product/project name uses correct customer-facing form
+    - No internal/upstream names leaked (Praxis, Kagenti, etc.)
+    - Status terms (GA, Tech Preview) are accurate
+    - No deprecated products proposed as solutions
+
+    ### Step 3: Completeness Check
+
+    Cross-reference against the analysis from Phase 2:
+
+    | Requirement ID | Response Section | Coverage |
+    |---------------|-----------------|----------|
+    | D1 | Section 2.1 | Addressed |
+    | D2 | Section 2.3 | Addressed |
+    | D3 | — | MISSING |
+
+    For MISSING items: add scaffolded section or flag as `[HUMAN INPUT REQUIRED]`.
+
+    ### Step 4: Consistency Check
+
+    - Staffing numbers match methodology descriptions
+    - Timeline dates are consistent across sections
+    - Deliverable references are correct (D1 means same thing throughout)
+    - Governance model matches what's described in approach
+
+    ### Step 5: Format Compliance
+
+    - All required sections present (from customer's format requirements)
+    - Sections in customer-specified order
+    - Page limits respected (if specified)
+    - Required attachments included or flagged
+
+    ### Step 6: Tone and Language
+
+    - No marketing language or buzzwords
+    - Language matches RFP formality
+    - Customer's terminology used consistently
+    - Technical accuracy prioritized over persuasion
+
+    ## Common Mistakes to Catch
+
+    1. **Name confusion** — upstream project name instead of product name
+    2. **Status inflation** — Technology Preview described as GA
+    3. **Component confusion** — attributing functionality to wrong component
+    4. **Stat inflation** — community stats that may be outdated
+    5. **CVE errors** — wrong numbers, dates, or severity
+    6. **Causal errors** — claiming X causes Y incorrectly
+    7. **Scope errors** — claiming something works everywhere when it's limited
+
+    ## Readiness Checklist Output
+
+    ```markdown
+    ## Response Readiness Checklist
+
+    ### Accuracy
+    - [ ] All auto-generated claims verified against knowledge base
+    - [ ] Product names match canonical reference
+    - [ ] Statistics and dates are current
+    - [ ] No unverifiable claims remain unflagged
+
+    ### Completeness
+    - [ ] Every deliverable has a response section
+    - [ ] Every milestone addressed in timeline
+    - [ ] Every compliance question has a response (or HUMAN flag)
+    - [ ] Pricing template structure matches customer format
+
+    ### Quality
+    - [ ] No marketing buzzwords
+    - [ ] Customer's terminology used throughout
+    - [ ] Deliverable IDs referenced consistently
+    - [ ] Internal consistency (numbers, dates, references)
+
+    ### Human Review Required
+    - [ ] Pricing numbers inserted
+    - [ ] Named references and contacts added
+    - [ ] Legal terms reviewed
+    - [ ] Org-specific compliance answers verified
+    - [ ] Final executive approval
+
+    ### Delivery
+    - [ ] Output format matches customer requirements
+    - [ ] Submission method noted (email, portal, etc.)
+    - [ ] Deadline: [DATE] ([N] days remaining)
+    ```
+
+    ## Review Summary Output
+
+    ```markdown
+    ## Review Summary
+
+    - **Total claims reviewed:** N
+    - **Accurate:** N (X%)
+    - **Inaccurate:** N (corrections applied)
+    - **Needs nuance:** N
+    - **Unverifiable:** N (flagged)
+    - **Product naming issues:** N (fixed)
+
+    ## Recommended Changes
+    1. [Change with source citation]
+    2. [Change with source citation]
+    ```
+
+    ## Final Delivery
+
+    After review is complete:
+    1. Present readiness checklist
+    2. List all `[HUMAN INPUT REQUIRED]` sections still pending
+    3. Generate final output (markdown → docx via pandoc if requested)
+    4. Note submission deadline and method
+
+    The response is NOT ready for submission until all `[HUMAN INPUT REQUIRED]` sections are addressed by a human.

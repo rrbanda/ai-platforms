@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pr-review-bot
+  labels:
+    app: pr-review-bot
+    app.kubernetes.io/part-of: pr-review-bot
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains
+spec:
+  to:
+    kind: Service
+    name: pr-review-bot-dashboard
+  port:
+    targetPort: dashboard
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

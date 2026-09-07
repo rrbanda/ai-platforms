@@ -1,0 +1,70 @@
+---
+apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  annotations:
+    createdAt: Thursday, 13-Aug-26 07:11:51 UTC
+    createdBy: oc-mirror v2
+    oc-mirror_version: 4.20.0-202607290013.p2.g9b18640.assembly.stream.el9-9b18640
+  name: idms-operator-0
+spec:
+  imageDigestMirrors:
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/openshift4
+    source: registry.redhat.io/openshift4
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/rhaii
+    source: registry.redhat.io/rhaii
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/ubi9
+    source: registry.redhat.io/ubi9
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/nvidia
+    source: nvcr.io/nvidia
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/cert-manager
+    source: registry.redhat.io/cert-manager
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/nvidia
+    source: registry.connect.redhat.com/nvidia
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/rhoai
+    source: registry.redhat.io/rhoai
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/cluster-observability-operator
+    source: registry.redhat.io/cluster-observability-operator
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/rhel9
+    source: registry.redhat.io/rhel9
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/rhelai1
+    source: registry.redhat.io/rhelai1
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/openshift-service-mesh-dev-preview-beta
+    source: registry.redhat.io/openshift-service-mesh-dev-preview-beta
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/nvidia/cloud-native
+    source: nvcr.io/nvidia/cloud-native
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/openshift-service-mesh-tech-preview
+    source: registry.redhat.io/openshift-service-mesh-tech-preview
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/openshift-service-mesh
+    source: registry.redhat.io/openshift-service-mesh
+---
+apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  annotations:
+    createdAt: Thursday, 13-Aug-26 07:11:51 UTC
+    createdBy: oc-mirror v2
+    oc-mirror_version: 4.20.0-202607290013.p2.g9b18640.assembly.stream.el9-9b18640
+  name: idms-generic-0
+spec:
+  imageDigestMirrors:
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/modh
+    source: quay.io/modh
+  - mirrors:
+    - ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/rhoai
+    source: registry.redhat.io/rhoai

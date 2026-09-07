@@ -1,0 +1,29 @@
+# DSCInitialization — cluster-level RHOAI bootstrap. Applied before the
+# DataScienceCluster; the operator will not reconcile a DSC without it.
+#
+# The trustedCABundle block is the piece that matters in a disconnected
+# environment: RHOAI injects an `odh-trusted-ca-bundle` ConfigMap into every
+# namespace it manages, and workbenches, pipeline pods and model servers mount
+# it. Without the mirror registry's CA in customCABundle, anything inside a
+# data science project that talks to the mirror over TLS fails with an unknown
+# authority error — even though the cluster's own image pulls succeed, because
+# those use the node trust store configured in phase 30.
+#
+# The customCABundle placeholder below is filled in by
+# scripts/50-configure-rhoai.sh from MIRROR_REGISTRY_CA_FILE.
+apiVersion: dscinitialization.opendatahub.io/v1
+kind: DSCInitialization
+metadata:
+  name: default-dsci
+spec:
+  applicationsNamespace: redhat-ods-applications
+  monitoring:
+    managementState: Managed
+    namespace: redhat-ods-monitoring
+  trustedCABundle:
+    managementState: Managed
+    customCABundle: |
+      -----BEGIN CERTIFICATE-----
+      <your mirror registry CA — scripts/rhoai/50-configure-rhoai.sh inserts this
+       from MIRROR_REGISTRY_CA_FILE>
+      -----END CERTIFICATE-----

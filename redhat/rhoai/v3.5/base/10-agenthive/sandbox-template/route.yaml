@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: example-agent
+  labels:
+    app: example-agent
+    app.kubernetes.io/part-of: example-agent
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains
+spec:
+  to:
+    kind: Service
+    name: example-agent-dashboard
+  port:
+    targetPort: dashboard
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

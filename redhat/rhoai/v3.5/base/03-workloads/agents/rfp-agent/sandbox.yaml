@@ -1,0 +1,258 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: rfp-agent
+  labels:
+    app: rfp-agent
+    app.kubernetes.io/name: rfp-agent
+    app.kubernetes.io/part-of: rfp-agent
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+    agenthive.io/dashboard-password-rev: "2026-08-24"
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: rfp-agent
+    spec:
+      containers:
+      - name: agent
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        command:
+        - bash
+        - /mnt/startup/startup.sh
+        env:
+        - name: OPENSHELL_SANDBOX
+          value: rfp-agent
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: "true"
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: "1001310000"
+        - name: OPENSHELL_SANDBOX_GID
+          value: "1001310000"
+        - name: HOME
+          value: /sandbox
+        - name: HERMES_HOME
+          value: /sandbox/.hermes
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: rfp-agent-auth
+              optional: true
+        - name: OPENAI_BASE_URL
+          value: https://generativelanguage.googleapis.com/v1beta/openai/
+        - name: LLM_MODEL
+          value: gemini-2.5-pro
+        - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+          value: admin
+        - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: dashboard-password
+              name: rfp-agent-auth
+        - name: HERMES_DASHBOARD_HOST
+          value: 0.0.0.0
+        - name: HERMES_DASHBOARD_PORT
+          value: "9119"
+        - name: API_SERVER_ENABLED
+          value: "true"
+        - name: API_SERVER_HOST
+          value: 0.0.0.0
+        - name: API_SERVER_PORT
+          value: "8642"
+        - name: API_SERVER_MODEL_NAME
+          value: rfp-agent
+        - name: API_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-server-key
+              name: rfp-agent-auth
+        - name: OGX_BASE_URL
+          value: http://rfp-ogx-service.rfp-agent.svc.cluster.local:8321
+        - name: VECTOR_STORE_NAME
+          value: rfp_knowledge_v1
+        # AutoRAG documents-rag-optimization-pipeline-wc6f2 Pattern2 (faithfulness 0.6642)
+        - name: OGX_VECTOR_STORE_ID
+          value: ""
+        - name: RAG_TOP_K
+          value: "5"
+        - name: PATH
+          value: /sandbox/.venv/bin:/usr/local/bin:/usr/bin:/bin
+        ports:
+        - containerPort: 9119
+          name: dashboard
+          protocol: TCP
+        - containerPort: 8642
+          name: api
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          tcpSocket:
+            port: 9119
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          runAsUser: 0
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /sandbox
+          name: workspace
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /mnt/soul
+          name: soul
+        - mountPath: /mnt/config
+          name: config
+        - mountPath: /mnt/skill-rh-knowledge-retrieval
+          name: skill-rh-knowledge-retrieval
+        - mountPath: /mnt/skill-rh-rfp-intake
+          name: skill-rh-rfp-intake
+        - mountPath: /mnt/skill-rh-rfp-analysis
+          name: skill-rh-rfp-analysis
+        - mountPath: /mnt/skill-rh-rfp-strategy
+          name: skill-rh-rfp-strategy
+        - mountPath: /mnt/skill-rh-rfp-drafting
+          name: skill-rh-rfp-drafting
+        - mountPath: /mnt/skill-rh-rfp-review
+          name: skill-rh-rfp-review
+        - mountPath: /mnt/skill-rh-product-naming
+          name: skill-rh-product-naming
+        - mountPath: /mnt/skill-rh-accuracy-review
+          name: skill-rh-accuracy-review
+      initContainers:
+      - name: openshell-supervisor-install
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        imagePullPolicy: IfNotPresent
+        command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      - name: workspace-init
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        command:
+        - sh
+        - -c
+        - |
+          if [ ! -f /workspace-pvc/.workspace-initialized ]; then
+            [ -d /sandbox ] && tar -C /sandbox -cf - . | tar -C /workspace-pvc -xpf -
+            touch /workspace-pvc/.workspace-initialized
+          fi
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /workspace-pvc
+          name: workspace
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      volumes:
+      - name: openshell-supervisor-bin
+        emptyDir: {}
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - name: openshell-policy
+        configMap:
+          name: rfp-agent-openshell-policy
+      - name: startup
+        configMap:
+          name: rfp-agent-startup
+          defaultMode: 493
+      - name: soul
+        configMap:
+          name: rfp-agent-soul
+      - name: config
+        configMap:
+          name: rfp-agent-config
+      - name: skill-rh-knowledge-retrieval
+        configMap:
+          name: skill-rh-knowledge-retrieval
+      - name: skill-rh-rfp-intake
+        configMap:
+          name: skill-rh-rfp-intake
+      - name: skill-rh-rfp-analysis
+        configMap:
+          name: skill-rh-rfp-analysis
+      - name: skill-rh-rfp-strategy
+        configMap:
+          name: skill-rh-rfp-strategy
+      - name: skill-rh-rfp-drafting
+        configMap:
+          name: skill-rh-rfp-drafting
+      - name: skill-rh-rfp-review
+        configMap:
+          name: skill-rh-rfp-review
+      - name: skill-rh-product-naming
+        configMap:
+          name: skill-rh-product-naming
+      - name: skill-rh-accuracy-review
+        configMap:
+          name: skill-rh-accuracy-review
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi

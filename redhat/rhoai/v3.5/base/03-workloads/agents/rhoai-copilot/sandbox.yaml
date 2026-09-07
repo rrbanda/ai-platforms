@@ -1,0 +1,497 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  labels:
+    app: rhoai-copilot
+    app.kubernetes.io/name: rhoai-copilot
+    app.kubernetes.io/part-of: rhoai-copilot
+  name: rhoai-copilot
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+    agenthive.io/dashboard-password-rev: "2026-08-24"
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: rhoai-copilot
+    spec:
+      containers:
+      - command:
+        - bash
+        - /mnt/startup/startup.sh
+        env:
+        - name: OPENSHELL_SANDBOX
+          value: rhoai-copilot
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: 'true'
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: '1001310000'
+        - name: OPENSHELL_SANDBOX_GID
+          value: '1001310000'
+        - name: HOME
+          value: /sandbox
+        - name: HERMES_HOME
+          value: /sandbox/.hermes
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: rhoai-copilot-auth
+              optional: true
+        - name: OPENAI_BASE_URL
+          value: https://generativelanguage.googleapis.com/v1beta/openai/
+        - name: LLM_MODEL
+          value: gemini-2.5-pro
+        - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+          value: admin
+        - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: dashboard-password
+              name: rhoai-copilot-auth
+        - name: HERMES_DASHBOARD_HOST
+          value: 0.0.0.0
+        - name: HERMES_DASHBOARD_PORT
+          value: '9119'
+        - name: API_SERVER_ENABLED
+          value: 'true'
+        - name: API_SERVER_HOST
+          value: 0.0.0.0
+        - name: API_SERVER_PORT
+          value: '8642'
+        - name: API_SERVER_MODEL_NAME
+          value: rhoai-copilot
+        - name: API_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-server-key
+              name: rhoai-copilot-auth
+        - name: OPENSHIFT_MCP_URL
+          value: http://openshift-mcp-v2.openshift-mcp-server.svc.cluster.local:8080/mcp
+        - name: RHOAI_MCP_URL
+          value: http://rhoai-mcp.rhoai-copilot.svc:8000/mcp
+        - name: MLFLOW_MCP_URL
+          value: http://mlflow-mcp.redhat-ods-applications.svc.cluster.local:8080/mcp
+        - name: ARGOCD_BASE_URL
+          value: https://openshift-gitops-server.openshift-gitops.svc
+        - name: ARGOCD_INSECURE
+          value: "true"
+        - name: ARGOCD_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: argocd-api-token
+              name: rhoai-copilot-auth
+              optional: true
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: github-token
+              name: rhoai-copilot-auth
+              optional: true
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: rhoai-copilot-auth
+              optional: true
+        - name: PATH
+          value: /sandbox/.venv/bin:/usr/local/bin:/usr/bin:/bin
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        name: agent
+        ports:
+        - containerPort: 9119
+          name: dashboard
+          protocol: TCP
+        - containerPort: 8642
+          name: api
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          tcpSocket:
+            port: 9119
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        securityContext:
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /sandbox
+          name: workspace
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /mnt/soul
+          name: soul
+        - mountPath: /mnt/config
+          name: config
+        - mountPath: /mnt/skill-argocd-diagnose-sync
+          name: skill-argocd-diagnose-sync
+          readOnly: true
+        - mountPath: /mnt/skill-argocd-health-check
+          name: skill-argocd-health-check
+          readOnly: true
+        - mountPath: /mnt/skill-automl-trainer
+          name: skill-automl-trainer
+          readOnly: true
+        - mountPath: /mnt/skill-autorag-optimizer
+          name: skill-autorag-optimizer
+          readOnly: true
+        - mountPath: /mnt/skill-capacity-forecaster
+          name: skill-capacity-forecaster
+          readOnly: true
+        - mountPath: /mnt/skill-daily-report-generator
+          name: skill-daily-report-generator
+          readOnly: true
+        - mountPath: /mnt/skill-distributed-training-setup
+          name: skill-distributed-training-setup
+          readOnly: true
+        - mountPath: /mnt/skill-experiment-tracker
+          name: skill-experiment-tracker
+          readOnly: true
+        - mountPath: /mnt/skill-feature-store-setup
+          name: skill-feature-store-setup
+          readOnly: true
+        - mountPath: /mnt/skill-garak-security-scanner
+          name: skill-garak-security-scanner
+          readOnly: true
+        - mountPath: /mnt/skill-genai-playground-guide
+          name: skill-genai-playground-guide
+          readOnly: true
+        - mountPath: /mnt/skill-gitops-config-generator
+          name: skill-gitops-config-generator
+          readOnly: true
+        - mountPath: /mnt/skill-gitops-repo-scaffold
+          name: skill-gitops-repo-scaffold
+          readOnly: true
+        - mountPath: /mnt/skill-hardware-profile-manager
+          name: skill-hardware-profile-manager
+          readOnly: true
+        - mountPath: /mnt/skill-incident-runbook
+          name: skill-incident-runbook
+          readOnly: true
+        - mountPath: /mnt/skill-kserve-model-deployer
+          name: skill-kserve-model-deployer
+          readOnly: true
+        - mountPath: /mnt/skill-kueue-quota-manager
+          name: skill-kueue-quota-manager
+          readOnly: true
+        - mountPath: /mnt/skill-llmd-deployment-manager
+          name: skill-llmd-deployment-manager
+          readOnly: true
+        - mountPath: /mnt/skill-lm-eval-runner
+          name: skill-lm-eval-runner
+          readOnly: true
+        - mountPath: /mnt/skill-maas-debug
+          name: skill-maas-debug
+          readOnly: true
+        - mountPath: /mnt/skill-maas-deploy-model
+          name: skill-maas-deploy-model
+          readOnly: true
+        - mountPath: /mnt/skill-maas-enable
+          name: skill-maas-enable
+          readOnly: true
+        - mountPath: /mnt/skill-maas-external-models
+          name: skill-maas-external-models
+          readOnly: true
+        - mountPath: /mnt/skill-maas-subscription-manager
+          name: skill-maas-subscription-manager
+          readOnly: true
+        - mountPath: /mnt/skill-model-catalog-advisor
+          name: skill-model-catalog-advisor
+          readOnly: true
+        - mountPath: /mnt/skill-model-drift-monitor
+          name: skill-model-drift-monitor
+          readOnly: true
+        - mountPath: /mnt/skill-model-promotion-workflow
+          name: skill-model-promotion-workflow
+          readOnly: true
+        - mountPath: /mnt/skill-model-registry-manager
+          name: skill-model-registry-manager
+          readOnly: true
+        - mountPath: /mnt/skill-nemo-guardrails-configurator
+          name: skill-nemo-guardrails-configurator
+          readOnly: true
+        - mountPath: /mnt/skill-ogx-rag-builder
+          name: skill-ogx-rag-builder
+          readOnly: true
+        - mountPath: /mnt/skill-pipeline-debugger
+          name: skill-pipeline-debugger
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-connected-deploy
+          name: skill-rhoai-connected-deploy
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-disconnected-deploy
+          name: skill-rhoai-disconnected-deploy
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-disconnected-helper
+          name: skill-rhoai-disconnected-helper
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-dsc-inspector
+          name: skill-rhoai-dsc-inspector
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-install-validator
+          name: skill-rhoai-install-validator
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-model-lifecycle
+          name: skill-rhoai-model-lifecycle
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-platform-status
+          name: skill-rhoai-platform-status
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-uninstall
+          name: skill-rhoai-uninstall
+          readOnly: true
+        - mountPath: /mnt/skill-rhoai-upgrade-advisor
+          name: skill-rhoai-upgrade-advisor
+          readOnly: true
+        - mountPath: /mnt/skill-serving-runtime-advisor
+          name: skill-serving-runtime-advisor
+          readOnly: true
+        - mountPath: /mnt/skill-training-planner
+          name: skill-training-planner
+          readOnly: true
+        - mountPath: /mnt/skill-workbench-provisioner
+          name: skill-workbench-provisioner
+          readOnly: true
+        - mountPath: /mnt/skill-workbench-troubleshooter
+          name: skill-workbench-troubleshooter
+          readOnly: true
+      initContainers:
+      - command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        imagePullPolicy: IfNotPresent
+        name: openshell-supervisor-install
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      - command:
+        - sh
+        - -c
+        - "if [ ! -f /workspace-pvc/.workspace-initialized ]; then\n  [ -d /sandbox ] && tar -C /sandbox -cf - . | tar -C /workspace-pvc -xpf -\n  touch /workspace-pvc/.workspace-initialized\nfi\n"
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        name: workspace-init
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /workspace-pvc
+          name: workspace
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      volumes:
+      - emptyDir: {}
+        name: openshell-supervisor-bin
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - configMap:
+          name: rhoai-copilot-openshell-policy
+        name: openshell-policy
+      - configMap:
+          defaultMode: 493
+          name: rhoai-copilot-startup
+        name: startup
+      - configMap:
+          name: rhoai-copilot-soul
+        name: soul
+      - configMap:
+          name: rhoai-copilot-config
+        name: config
+      - configMap:
+          name: skill-argocd-diagnose-sync
+        name: skill-argocd-diagnose-sync
+      - configMap:
+          name: skill-argocd-health-check
+        name: skill-argocd-health-check
+      - configMap:
+          name: skill-automl-trainer
+        name: skill-automl-trainer
+      - configMap:
+          name: skill-autorag-optimizer
+        name: skill-autorag-optimizer
+      - configMap:
+          name: skill-capacity-forecaster
+        name: skill-capacity-forecaster
+      - configMap:
+          name: skill-daily-report-generator
+        name: skill-daily-report-generator
+      - configMap:
+          name: skill-distributed-training-setup
+        name: skill-distributed-training-setup
+      - configMap:
+          name: skill-experiment-tracker
+        name: skill-experiment-tracker
+      - configMap:
+          name: skill-feature-store-setup
+        name: skill-feature-store-setup
+      - configMap:
+          name: skill-garak-security-scanner
+        name: skill-garak-security-scanner
+      - configMap:
+          name: skill-genai-playground-guide
+        name: skill-genai-playground-guide
+      - configMap:
+          name: skill-gitops-config-generator
+        name: skill-gitops-config-generator
+      - configMap:
+          name: skill-gitops-repo-scaffold
+        name: skill-gitops-repo-scaffold
+      - configMap:
+          name: skill-hardware-profile-manager
+        name: skill-hardware-profile-manager
+      - configMap:
+          name: skill-incident-runbook
+        name: skill-incident-runbook
+      - configMap:
+          name: skill-kserve-model-deployer
+        name: skill-kserve-model-deployer
+      - configMap:
+          name: skill-kueue-quota-manager
+        name: skill-kueue-quota-manager
+      - configMap:
+          name: skill-llmd-deployment-manager
+        name: skill-llmd-deployment-manager
+      - configMap:
+          name: skill-lm-eval-runner
+        name: skill-lm-eval-runner
+      - configMap:
+          name: skill-maas-debug
+        name: skill-maas-debug
+      - configMap:
+          name: skill-maas-deploy-model
+        name: skill-maas-deploy-model
+      - configMap:
+          name: skill-maas-enable
+        name: skill-maas-enable
+      - configMap:
+          name: skill-maas-external-models
+        name: skill-maas-external-models
+      - configMap:
+          name: skill-maas-subscription-manager
+        name: skill-maas-subscription-manager
+      - configMap:
+          name: skill-model-catalog-advisor
+        name: skill-model-catalog-advisor
+      - configMap:
+          name: skill-model-drift-monitor
+        name: skill-model-drift-monitor
+      - configMap:
+          name: skill-model-promotion-workflow
+        name: skill-model-promotion-workflow
+      - configMap:
+          name: skill-model-registry-manager
+        name: skill-model-registry-manager
+      - configMap:
+          name: skill-nemo-guardrails-configurator
+        name: skill-nemo-guardrails-configurator
+      - configMap:
+          name: skill-ogx-rag-builder
+        name: skill-ogx-rag-builder
+      - configMap:
+          name: skill-pipeline-debugger
+        name: skill-pipeline-debugger
+      - configMap:
+          name: skill-rhoai-connected-deploy
+        name: skill-rhoai-connected-deploy
+      - configMap:
+          name: skill-rhoai-disconnected-deploy
+        name: skill-rhoai-disconnected-deploy
+      - configMap:
+          name: skill-rhoai-disconnected-helper
+        name: skill-rhoai-disconnected-helper
+      - configMap:
+          name: skill-rhoai-dsc-inspector
+        name: skill-rhoai-dsc-inspector
+      - configMap:
+          name: skill-rhoai-install-validator
+        name: skill-rhoai-install-validator
+      - configMap:
+          name: skill-rhoai-model-lifecycle
+        name: skill-rhoai-model-lifecycle
+      - configMap:
+          name: skill-rhoai-platform-status
+        name: skill-rhoai-platform-status
+      - configMap:
+          name: skill-rhoai-uninstall
+        name: skill-rhoai-uninstall
+      - configMap:
+          name: skill-rhoai-upgrade-advisor
+        name: skill-rhoai-upgrade-advisor
+      - configMap:
+          name: skill-serving-runtime-advisor
+        name: skill-serving-runtime-advisor
+      - configMap:
+          name: skill-training-planner
+        name: skill-training-planner
+      - configMap:
+          name: skill-workbench-provisioner
+        name: skill-workbench-provisioner
+      - configMap:
+          name: skill-workbench-troubleshooter
+        name: skill-workbench-troubleshooter
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi

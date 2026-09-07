@@ -1,0 +1,150 @@
+name: "Build Layer 2: rfp-agent"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'redhat/rhoai/v3.5/base/10-agenthive/image/Containerfile.agent'
+      - 'redhat/rhoai/v3.5/base/10-agenthive/image/requirements.txt'
+      - 'redhat/rhoai/v3.5/base/10-agenthive/image/HERMES_VERSION'
+    tags:
+      - 'v*'
+  workflow_run:
+    workflows: ["Build Layer 1: hermes-runtime"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/rfp-agent
+  RUNTIME_IMAGE: ${{ github.repository_owner }}/hermes-runtime
+
+jobs:
+  build-agent:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.sha-tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Hermes version
+        id: version
+        run: |
+          VERSION=$(cat redhat/rhoai/v3.5/base/10-agenthive/image/HERMES_VERSION | tr -d '[:space:]')
+          echo "hermes_version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute SHA tag
+        id: sha-tag
+        run: echo "tag=sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Set image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=ref,event=tag
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build rfp-agent
+        uses: redhat-actions/buildah-build@v2
+        id: build
+        with:
+          image: ${{ env.IMAGE_NAME }}
+          tags: ${{ steps.meta.outputs.tags }}
+          containerfiles: ./redhat/rhoai/v3.5/base/10-agenthive/image/Containerfile.agent
+          context: ./redhat/rhoai/v3.5/base/10-agenthive/image
+          platforms: linux/amd64
+          build-args: |
+            RUNTIME_IMAGE=${{ env.REGISTRY }}/${{ env.RUNTIME_IMAGE }}:${{ steps.version.outputs.hermes_version }}
+
+      - name: Push to GHCR
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ${{ env.REGISTRY }}
+
+      - name: Scan pushed image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha-tag.outputs.tag }}
+          severity: CRITICAL,HIGH
+          exit-code: 0
+          format: table
+
+      - name: Set package visibility to public
+        continue-on-error: true
+        run: |
+          gh api users/${{ github.repository_owner }}/packages/container/rfp-agent \
+            --method PATCH -f visibility=public 2>/dev/null || true
+          gh api users/${{ github.repository_owner }}/packages/container/hermes-runtime \
+            --method PATCH -f visibility=public 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "### rfp-agent build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Runtime: \`${{ env.REGISTRY }}/${{ env.RUNTIME_IMAGE }}:${{ steps.version.outputs.hermes_version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Agent: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tags: ${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-dev:
+    needs: build-agent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | \
+            tar xz -C /usr/local/bin
+
+      - name: Pin image tag in agent directory
+        working-directory: redhat/rhoai/v3.5/base/03-workloads/agents/rfp-agent
+        run: |
+          kustomize edit set image \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-agent.outputs.image_tag }}
+
+      - name: Validate kustomize
+        run: |
+          kustomize build redhat/rhoai/v3.5/base/03-workloads/agents/rfp-agent > /dev/null
+          kustomize build redhat/rhoai/v3.5/base/10-agenthive/apps > /dev/null
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add redhat/rhoai/v3.5/base/03-workloads/agents/rfp-agent/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit"
+          else
+            git commit -m "cd: deploy rfp-agent:${{ needs.build-agent.outputs.image_tag }}"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Summary
+        run: |
+          echo "### CD: Dev Deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-agent.outputs.image_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ArgoCD will auto-sync from the updated manifests" >> "$GITHUB_STEP_SUMMARY"

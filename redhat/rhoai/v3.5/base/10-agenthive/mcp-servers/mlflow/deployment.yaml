@@ -1,0 +1,117 @@
+# MLflow MCP Server
+# Provides experiment tracking and model registry tools.
+# Prerequisites: MLflow tracking server deployed (e.g., in redhat-ods-applications).
+# Build the image first: podman build --platform linux/amd64 -t quay.io/YOUR_ORG/mlflow-mcp:3.15.0 -f mcp-servers/mlflow/Containerfile .
+# Deploy: oc apply -f mcp-servers/mlflow/deployment.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mlflow-mcp
+  namespace: redhat-ods-applications
+  labels:
+    app: mlflow-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlflow-mcp-startup
+  namespace: redhat-ods-applications
+  labels:
+    app: mlflow-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+data:
+  sitecustomize.py: |
+    """Auto-loaded by Python at startup via PYTHONPATH."""
+    import os
+
+    token_path = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+    if os.path.isfile(token_path):
+        os.environ['MLFLOW_TRACKING_TOKEN'] = open(token_path).read().strip()
+
+    os.environ.setdefault('MLFLOW_WORKSPACE', 'team-alpha')
+
+    uri = os.environ.get('MLFLOW_TRACKING_URI', '')
+    if uri and not uri.endswith('/mlflow'):
+        os.environ['MLFLOW_TRACKING_URI'] = uri + '/mlflow'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-mcp
+  namespace: redhat-ods-applications
+  labels:
+    app: mlflow-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow-mcp
+  template:
+    metadata:
+      labels:
+        app: mlflow-mcp
+    spec:
+      serviceAccountName: mlflow-mcp
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mlflow-mcp
+          image: quay.io/rbrhssa/mlflow-mcp:3.15.0-v2
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-server.redhat-ods-applications.svc:5000"
+            - name: MLFLOW_TRACKING_INSECURE_TLS
+              value: "true"
+            - name: MLFLOW_MCP_TOOLS
+              value: "all"
+            - name: PYTHONPATH
+              value: "/mnt/startup"
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+          volumeMounts:
+            - name: startup
+              mountPath: /mnt/startup
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: startup
+          configMap:
+            name: mlflow-mcp-startup
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-mcp
+  namespace: redhat-ods-applications
+  labels:
+    app: mlflow-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+spec:
+  selector:
+    app: mlflow-mcp
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http

@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - dspa.yaml
+  # Uncomment if Kyverno is installed on the cluster (requires kyverno.io CRDs):
+  # - ensure-pod-limits.yaml
+  # - skip-image-rewrite.yaml

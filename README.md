@@ -59,44 +59,73 @@ See [redhat/rhoai/v3.5/README.md](redhat/rhoai/v3.5/README.md) for full document
 
 ```
 ai-platforms/
+├── .github/workflows/              # CI/CD: lint, build, deploy, Hermes updates
 ├── redhat/rhoai/
 │   ├── v3.5/
-│   │   ├── base/                  # Cluster-agnostic manifests (no secrets)
-│   │   │   ├── app-of-apps.yaml   # Entry point: oc apply -f
-│   │   │   ├── applications/      # ArgoCD child app manifests
-│   │   │   ├── 00-operators/      # Wave 0: SM3 + MCP Gateway
-│   │   │   ├── 02-config/         # Wave 2: Dashboard, EvalHub, MLflow, etc.
-│   │   │   ├── 03-workloads/      # Wave 3: AutoRAG (OGX, Milvus, DSPA)
-│   │   │   └── 04-optional/       # Optional: Loki showback
-│   │   ├── chart/                  # Official RHOAI 3.5 Helm chart (unmodified)
-│   │   ├── overlays/              # Per-cluster sealed secrets
-│   │   │   ├── <cluster-a>/       # Each cluster gets its own overlay
+│   │   ├── base/                   # Cluster-agnostic manifests (no secrets)
+│   │   │   ├── app-of-apps.yaml    # Entry point: oc apply -f
+│   │   │   ├── applications/       # ArgoCD child app manifests
+│   │   │   ├── 00-operators/       # Wave 0: SM3 + MCP Gateway
+│   │   │   ├── 02-config/          # Wave 2: Dashboard, EvalHub, MLflow, etc.
+│   │   │   ├── 03-workloads/       # Wave 3: AutoRAG, fine-tuning, demos
+│   │   │   │   └── agents/         # OpenShell agent sandboxes
+│   │   │   │       ├── rfp-agent/          # RAG/RFP agent (7 skills, corpus)
+│   │   │   │       ├── rhoai-copilot/      # RHOAI ops agent (44 skills)
+│   │   │   │       ├── pod-health-watcher/ # Ops agent (cron 5m)
+│   │   │   │       ├── stale-image-finder/ # Ops agent (cron 6h)
+│   │   │   │       ├── pr-review-bot/      # Ops agent (cron 15m)
+│   │   │   │       └── loan-agent/         # Small-business loan agent
+│   │   │   ├── 04-mcp-infra/       # MCP Gateway infrastructure
+│   │   │   ├── 05-mcp-connect/     # MCP HTTPRoutes
+│   │   │   ├── 06-mcp-auth/        # MCP AuthPolicy + RateLimit
+│   │   │   ├── 07-mcp-guardrails/  # NeMo Guardrails
+│   │   │   ├── 08-keycloak/        # Keycloak instance + realm
+│   │   │   ├── 09-openshell/       # OpenShell Helm values
+│   │   │   ├── 10-agenthive/       # Agent platform (AgentHive)
+│   │   │   │   ├── apps/           # Agent ArgoCD app-of-apps
+│   │   │   │   ├── bootstrap/      # Agent prerequisites (CRD, DSC patches)
+│   │   │   │   ├── infra/          # MinIO, Milvus, OGX, DSPA, ingest, RBAC
+│   │   │   │   ├── open-webui/     # Chat UI + Keycloak SSO
+│   │   │   │   ├── evalhub/        # EvalHub + RAGAS/DeepEval providers
+│   │   │   │   ├── mcp-servers/    # MCP server impls (OCP, RHOAI, MLflow)
+│   │   │   │   ├── secrets/        # Agent platform sealed secrets
+│   │   │   │   ├── image/          # Hermes runtime + agent container build
+│   │   │   │   ├── scripts/        # sync-skills, ingest, eval utilities
+│   │   │   │   ├── docs/           # 9 platform guides
+│   │   │   │   ├── diagrams/       # Architecture diagrams (Mermaid + PNG)
+│   │   │   │   ├── sandbox-template/ # Agent scaffolding template
+│   │   │   │   └── config/         # Platform ConfigMap (repo URL, images)
+│   │   │   ├── 04-optional/        # Optional: Loki showback
+│   │   │   └── applications/       # ArgoCD Application manifests
+│   │   ├── chart/                   # Official RHOAI 3.5 Helm chart (unmodified)
+│   │   ├── overlays/               # Per-cluster sealed secrets
+│   │   │   ├── <cluster-a>/        # Each cluster gets its own overlay
 │   │   │   └── <cluster-b>/
-│   │   ├── setup/                  # One-time setup (not ArgoCD-managed)
-│   │   │   ├── bootstrap/         # GitOps + SealedSecrets operators
-│   │   │   ├── rhacm/             # RHACM hub registration
+│   │   ├── setup/                   # One-time setup (not ArgoCD-managed)
+│   │   │   ├── bootstrap/          # GitOps + SealedSecrets operators
+│   │   │   ├── rhacm/              # RHACM hub registration
 │   │   │   └── argocd-projects.yaml
-│   │   ├── clusters/              # Hub-spoke management
-│   │   │   ├── hubs/primary/      # ApplicationSets, Placements, Policies
-│   │   │   └── spokes/overlays/   # Per-capability spoke profiles
-│   │   ├── profiles/              # Deployment variants
-│   │   │   ├── connected/         # Full platform + inference-only
-│   │   │   └── disconnected/      # Air-gapped variants
-│   │   ├── scripts/               # Automation
-│   │   │   ├── cluster-setup.sh   # Onboard a new cluster
-│   │   │   ├── cluster-cleanup.sh # Pre-deployment cleanup
-│   │   │   ├── reseal-all.sh      # Re-seal secrets manually
-│   │   │   └── spoke-onboard.sh   # Onboard a spoke cluster
-│   │   ├── values/                # Standalone Helm values
-│   │   ├── secrets/               # Secret templates
-│   │   ├── disconnected/          # Mirror config
-│   │   ├── DESIGN.md              # 18 architecture decisions
-│   │   └── README.md              # Full deployment guide
-│   └── v3.4/                      # Previous release (same structure)
+│   │   ├── clusters/               # Hub-spoke management
+│   │   │   ├── hubs/primary/       # ApplicationSets, Placements, Policies
+│   │   │   └── spokes/overlays/    # Per-capability spoke profiles
+│   │   ├── profiles/               # Deployment variants
+│   │   │   ├── connected/          # Full platform + inference-only
+│   │   │   └── disconnected/       # Air-gapped variants
+│   │   ├── scripts/                # Automation
+│   │   │   ├── cluster-setup.sh    # Onboard a new cluster
+│   │   │   ├── cluster-cleanup.sh  # Pre-deployment cleanup
+│   │   │   ├── reseal-all.sh       # Re-seal secrets manually
+│   │   │   └── spoke-onboard.sh    # Onboard a spoke cluster
+│   │   ├── values/                  # Standalone Helm values
+│   │   ├── secrets/                # Secret templates
+│   │   ├── disconnected/           # Mirror config
+│   │   ├── DESIGN.md               # 18 architecture decisions
+│   │   └── README.md               # Full deployment guide
+│   └── v3.4/                       # Previous release (same structure)
 │
-├── nvidia/                         # NVIDIA AI products (planned)
-├── ibm/                            # IBM AI products (planned)
-└── upstream/                       # Open source projects (planned)
+├── nvidia/                          # NVIDIA AI products (planned)
+├── ibm/                             # IBM AI products (planned)
+└── upstream/                        # Open source projects (planned)
 ```
 
 ## Multi-Cluster Support

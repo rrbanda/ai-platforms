@@ -1,0 +1,67 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rhoai-copilot
+
+resources:
+  - sandbox.yaml
+  - startup.yaml
+  - service.yaml
+  - route.yaml
+  - soul.yaml
+  - config.yaml
+  - restart-hook.yaml
+  - restart-rbac.yaml
+  - skills/skill-argocd-diagnose-sync.yaml
+  - skills/skill-argocd-health-check.yaml
+  - skills/skill-automl-trainer.yaml
+  - skills/skill-autorag-optimizer.yaml
+  - skills/skill-capacity-forecaster.yaml
+  - skills/skill-daily-report-generator.yaml
+  - skills/skill-distributed-training-setup.yaml
+  - skills/skill-experiment-tracker.yaml
+  - skills/skill-feature-store-setup.yaml
+  - skills/skill-garak-security-scanner.yaml
+  - skills/skill-genai-playground-guide.yaml
+  - skills/skill-gitops-config-generator.yaml
+  - skills/skill-gitops-repo-scaffold.yaml
+  - skills/skill-hardware-profile-manager.yaml
+  - skills/skill-incident-runbook.yaml
+  - skills/skill-kserve-model-deployer.yaml
+  - skills/skill-kueue-quota-manager.yaml
+  - skills/skill-llmd-deployment-manager.yaml
+  - skills/skill-lm-eval-runner.yaml
+  - skills/skill-maas-debug.yaml
+  - skills/skill-maas-deploy-model.yaml
+  - skills/skill-maas-enable.yaml
+  - skills/skill-maas-external-models.yaml
+  - skills/skill-maas-subscription-manager.yaml
+  - skills/skill-model-catalog-advisor.yaml
+  - skills/skill-model-drift-monitor.yaml
+  - skills/skill-model-promotion-workflow.yaml
+  - skills/skill-model-registry-manager.yaml
+  - skills/skill-nemo-guardrails-configurator.yaml
+  - skills/skill-ogx-rag-builder.yaml
+  - skills/skill-pipeline-debugger.yaml
+  - skills/skill-rhoai-connected-deploy.yaml
+  - skills/skill-rhoai-disconnected-deploy.yaml
+  - skills/skill-rhoai-disconnected-helper.yaml
+  - skills/skill-rhoai-dsc-inspector.yaml
+  - skills/skill-rhoai-install-validator.yaml
+  - skills/skill-rhoai-model-lifecycle.yaml
+  - skills/skill-rhoai-platform-status.yaml
+  - skills/skill-rhoai-uninstall.yaml
+  - skills/skill-rhoai-upgrade-advisor.yaml
+  - skills/skill-serving-runtime-advisor.yaml
+  - skills/skill-training-planner.yaml
+  - skills/skill-workbench-provisioner.yaml
+  - skills/skill-workbench-troubleshooter.yaml
+
+configMapGenerator:
+- name: rhoai-copilot-openshell-policy
+  files:
+  - sandbox-policy.rego
+  - policy.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

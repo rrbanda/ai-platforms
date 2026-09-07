@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rfp-agent
+
+resources:
+  - sandbox.yaml
+  - startup.yaml
+  - service.yaml
+  - route.yaml
+  - soul.yaml
+  - config.yaml
+  - restart-hook.yaml
+  - restart-rbac.yaml
+  - skills/skill-rh-knowledge-retrieval.yaml
+  - skills/skill-rh-rfp-intake.yaml
+  - skills/skill-rh-rfp-analysis.yaml
+  - skills/skill-rh-rfp-strategy.yaml
+  - skills/skill-rh-rfp-drafting.yaml
+  - skills/skill-rh-rfp-review.yaml
+  - skills/skill-rh-product-naming.yaml
+  - skills/skill-rh-accuracy-review.yaml
+
+configMapGenerator:
+- name: rfp-agent-openshell-policy
+  files:
+  - sandbox-policy.rego
+  - policy.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

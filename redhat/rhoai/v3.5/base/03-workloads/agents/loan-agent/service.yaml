@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: loan-agent-api
+  labels:
+    app: loan-agent
+    app.kubernetes.io/part-of: loan-agent
+spec:
+  selector:
+    app: loan-agent
+  ports:
+  - name: api
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP

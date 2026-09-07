@@ -1,0 +1,253 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: pr-review-bot
+  labels:
+    app: pr-review-bot
+    app.kubernetes.io/name: pr-review-bot
+    app.kubernetes.io/part-of: pr-review-bot
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+    agenthive.io/github-mcp: sealed
+    agenthive.io/dashboard-password-rev: "2026-08-24-shared"
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: pr-review-bot
+    spec:
+      containers:
+      - name: agent
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        command:
+        - bash
+        - /mnt/startup/startup.sh
+        env:
+        - name: OPENSHELL_SANDBOX
+          value: pr-review-bot
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: "true"
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: "1001310000"
+        - name: OPENSHELL_SANDBOX_GID
+          value: "1001310000"
+        - name: HOME
+          value: /sandbox
+        - name: HERMES_HOME
+          value: /sandbox/.hermes
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: pr-review-bot-auth
+              optional: true
+        - name: OPENAI_BASE_URL
+          value: https://generativelanguage.googleapis.com/v1beta/openai/
+        - name: LLM_MODEL
+          value: gemini-2.5-pro
+        - name: OPENSHIFT_MCP_URL
+          value: http://openshift-mcp-v2.openshift-mcp-server.svc.cluster.local:8080/mcp
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: github-token
+              name: pr-review-bot-auth
+              optional: true
+        - name: GITOPS_REPO
+          value: rrbanda/ai-platforms
+        - name: COMPLIANCE_WINDOWS
+          value: "30,60,90"
+        - name: ESCALATION_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              key: escalation-webhook-url
+              name: pr-review-bot-auth
+              optional: true
+        - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+          value: admin
+        - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: dashboard-password
+              name: pr-review-bot-auth
+        - name: HERMES_DASHBOARD_HOST
+          value: 0.0.0.0
+        - name: HERMES_DASHBOARD_PORT
+          value: "9119"
+        - name: API_SERVER_ENABLED
+          value: "true"
+        - name: API_SERVER_HOST
+          value: 0.0.0.0
+        - name: API_SERVER_PORT
+          value: "8642"
+        - name: API_SERVER_MODEL_NAME
+          value: pr-review-bot
+        - name: API_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-server-key
+              name: pr-review-bot-auth
+        - name: PATH
+          value: /sandbox/.venv/bin:/usr/local/bin:/usr/bin:/bin
+        ports:
+        - containerPort: 9119
+          name: dashboard
+          protocol: TCP
+        - containerPort: 8642
+          name: api
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          tcpSocket:
+            port: 9119
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          runAsUser: 0
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /sandbox
+          name: workspace
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /mnt/soul
+          name: soul
+        - mountPath: /mnt/config
+          name: config
+        - mountPath: /mnt/skill-release-yaml-generator
+          name: skill-release-yaml-generator
+        - mountPath: /mnt/skill-pr-review-bot
+          name: skill-pr-review-bot
+        - mountPath: /mnt/skill-post-deploy-validator
+          name: skill-post-deploy-validator
+        - mountPath: /mnt/skill-gitops-merge-manager
+          name: skill-gitops-merge-manager
+        - mountPath: /mnt/skill-release-handover-report
+          name: skill-release-handover-report
+      initContainers:
+      - name: openshell-supervisor-install
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        imagePullPolicy: IfNotPresent
+        command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      - name: workspace-init
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        command:
+        - sh
+        - -c
+        - |
+          if [ ! -f /workspace-pvc/.workspace-initialized ]; then
+            [ -d /sandbox ] && tar -C /sandbox -cf - . | tar -C /workspace-pvc -xpf -
+            touch /workspace-pvc/.workspace-initialized
+          fi
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /workspace-pvc
+          name: workspace
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      volumes:
+      - name: openshell-supervisor-bin
+        emptyDir: {}
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - name: openshell-policy
+        configMap:
+          name: pr-review-bot-openshell-policy
+      - name: startup
+        configMap:
+          name: pr-review-bot-startup
+          defaultMode: 493
+      - name: soul
+        configMap:
+          name: pr-review-bot-soul
+      - name: config
+        configMap:
+          name: pr-review-bot-config
+      - name: skill-release-yaml-generator
+        configMap:
+          name: skill-release-yaml-generator
+      - name: skill-pr-review-bot
+        configMap:
+          name: skill-pr-review-bot
+      - name: skill-post-deploy-validator
+        configMap:
+          name: skill-post-deploy-validator
+      - name: skill-gitops-merge-manager
+        configMap:
+          name: skill-gitops-merge-manager
+      - name: skill-release-handover-report
+        configMap:
+          name: skill-release-handover-report
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi

@@ -1,0 +1,38 @@
+name: drift-detection
+description: Detect and report configuration drift between Git and cluster state
+trigger:
+  type: cron
+  schedule: "0 */4 * * *"  # Every 4 hours
+tier: 1  # Read-only
+
+steps:
+  - name: list-applications
+    skill: monitor/argocd-health-check
+    description: Get all ArgoCD applications with sync status
+    parameters:
+      filter: out-of-sync
+
+  - name: analyze-drift
+    skill: monitor/argocd-diagnose-sync
+    description: For each out-of-sync app, identify the specific drift
+    parameters:
+      mode: diff-analysis
+
+  - name: classify-drift
+    description: Categorize drift as intentional (ignoreDifferences) or unintentional
+    action: inline
+    logic: |
+      For each drifted resource:
+      - If in ignoreDifferences list -> mark as "expected"
+      - If operator-managed field (status, startingCSV) -> suggest adding to ignoreDifferences
+      - If user-facing config -> flag as "needs attention"
+
+  - name: report
+    skill: monitor/daily-report-generator
+    description: Generate drift report with recommended actions
+    parameters:
+      template: drift-report
+
+escalation:
+  on_critical_drift: create-github-issue
+  threshold: 3  # Alert if >3 unintentional drifts detected

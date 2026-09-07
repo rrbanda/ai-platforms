@@ -1,0 +1,125 @@
+graph TB
+    subgraph AGENTS["🤖 AI Agents / MCP Clients"]
+        A1["Claude Code / Cursor / VS Code"]
+        A2["OpenShift LightSpeed"]
+        A3["Custom AI Apps"]
+    end
+
+    subgraph HUB["🏢 RHACM Hub Cluster"]
+        
+        subgraph GW_LAYER["MCP Gateway Layer<br/>(Red Hat Connectivity Link)"]
+            GW["MCP Gateway<br/>Envoy-based reverse proxy<br/>ns: mcp-system"]
+            AUTH_POL["Kuadrant AuthPolicy<br/>JWT validation<br/>Tool-level authorization"]
+            BROKER["MCP Broker Router<br/>Tool aggregation & discovery"]
+            MCPSR["MCPServerRegistration CR<br/>+ MCPGatewayExtension CR"]
+        end
+
+        subgraph MCP_LAYER["MCP Server for Red Hat OpenShift<br/>(Helm chart - ns: openshift-mcp-server)"]
+            MCP_SRV["MCP Server"]
+            TOOLSETS["Toolsets:<br/>core | config | metrics | helm<br/>netedge | ossm | kubevirt | tekton"]
+            GUARDRAILS["Security Guardrails:<br/>read_only | denied_resources<br/>disable_destructive | RBAC"]
+            OTEL["OpenTelemetry<br/>Metrics + Traces"]
+        end
+
+        subgraph IDP["Identity & Token Exchange"]
+            KEYCLOAK["Keycloak / Entra ID<br/>OIDC Provider"]
+            TOKEN_EX["OAuth2 Token Exchange<br/>RFC 8693<br/>Broad → Cluster-scoped tokens"]
+        end
+
+        subgraph ACM["RHACM / Multicluster Engine"]
+            MCE_OP["Multicluster Engine<br/>Operator"]
+            PROXY_SRV["cluster-proxy-addon<br/>(server-side)<br/>ns: multicluster-engine"]
+            OCM_API["OCM APIs:<br/>ManagedCluster<br/>Placement<br/>ManifestWork<br/>Policy"]
+        end
+
+        subgraph OBS["Observability"]
+            PROM["Prometheus / Thanos"]
+            KIALI["Kiali / ServiceMesh"]
+        end
+    end
+
+    subgraph SPOKE_1["📦 Spoke Cluster 1<br/>(No MCP components installed)"]
+        KL1["Klusterlet<br/>(pre-existing from RHACM)"]
+        CP1["cluster-proxy agent<br/>(pre-existing from RHACM)"]
+        KAPI1["kube-apiserver"]
+        W1["Workloads"]
+    end
+
+    subgraph SPOKE_2["📦 Spoke Cluster 2<br/>(No MCP components installed)"]
+        KL2["Klusterlet"]
+        CP2["cluster-proxy agent"]
+        KAPI2["kube-apiserver"]
+        W2["Workloads"]
+    end
+
+    subgraph SPOKE_N["📦 Spoke Cluster N<br/>(No MCP components installed)"]
+        KLN["Klusterlet"]
+        CPN["cluster-proxy agent"]
+        KAPIN["kube-apiserver"]
+        WN["Workloads"]
+    end
+
+    %% Agent → Gateway
+    A1 -->|"HTTPS + OAuth Token"| GW
+    A2 -->|"HTTPS + OAuth Token"| GW
+    A3 -->|"HTTPS + OAuth Token"| GW
+
+    %% Gateway internals
+    GW --> AUTH_POL
+    AUTH_POL -->|"Validate JWT"| KEYCLOAK
+    GW --> BROKER
+    BROKER --> MCPSR
+    MCPSR -->|"HTTPRoute<br/>backendRef: openshift-mcp-server:8080"| MCP_SRV
+
+    %% MCP Server internals
+    MCP_SRV --> TOOLSETS
+    MCP_SRV --> GUARDRAILS
+    MCP_SRV --> OTEL
+
+    %% MCP Server → RHACM
+    MCP_SRV -->|"list/watch<br/>ManagedClusters"| OCM_API
+    MCP_SRV -->|"Discover<br/>cluster-proxy service"| PROXY_SRV
+
+    %% Token exchange
+    MCP_SRV -->|"Exchange token<br/>for target cluster"| TOKEN_EX
+    TOKEN_EX --> KEYCLOAK
+
+    %% Observability
+    MCP_SRV -->|"PromQL queries"| PROM
+    MCP_SRV -->|"Mesh health"| KIALI
+    OTEL --> PROM
+
+    %% Hub → Spoke via cluster-proxy
+    PROXY_SRV -->|"L4 reverse tunnel"| CP1
+    PROXY_SRV -->|"L4 reverse tunnel"| CP2
+    PROXY_SRV -->|"L4 reverse tunnel"| CPN
+
+    CP1 --> KAPI1
+    CP2 --> KAPI2
+    CPN --> KAPIN
+
+    KAPI1 --> W1
+    KAPI2 --> W2
+    KAPIN --> WN
+
+    %% Klusterlet registration
+    KL1 -.->|"Registration"| MCE_OP
+    KL2 -.->|"Registration"| MCE_OP
+    KLN -.->|"Registration"| MCE_OP
+
+    %% Styling
+    classDef hubStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
+    classDef spokeStyle fill:#fff8e1,stroke:#f57f17,stroke-width:2px
+    classDef agentStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef gwStyle fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef mcpStyle fill:#e8eaf6,stroke:#283593,stroke-width:2px
+    classDef idpStyle fill:#fce4ec,stroke:#c62828,stroke-width:2px
+    classDef acmStyle fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+
+    class HUB hubStyle
+    class SPOKE_1,SPOKE_2,SPOKE_N spokeStyle
+    class AGENTS agentStyle
+    class GW_LAYER gwStyle
+    class MCP_LAYER mcpStyle
+    class IDP idpStyle
+    class ACM acmStyle

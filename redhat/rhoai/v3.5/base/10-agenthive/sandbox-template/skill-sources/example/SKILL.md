@@ -1,0 +1,26 @@
+# Example
+
+Template skill. Replace this file after copying the template.
+
+## Description
+
+Returns a short confirmation that the agent package loaded this skill.
+
+## Trigger Conditions
+
+- User asks "are you working"
+- First session after deploy
+
+## Procedure
+
+1. Confirm the skill name `example` is loaded.
+2. Report OpenShift MCP URL from config.
+3. Do not mutate the cluster.
+
+## Output Format
+
+A short markdown status.
+
+## Safety Constraints
+
+Read-only. No deletes, no writes in `openshift-*`, `kube-*`, or `redhat-ods-*`.

@@ -1,0 +1,90 @@
+# OpenShift AI RFP / RFI question taxonomy
+# Expand from gold packages. Do not invent cells from blogs.
+
+version: 1
+product: Red Hat OpenShift AI
+cells:
+  - id: platform-operators
+    label: Platform and operators
+    topics:
+      - DataScienceCluster
+      - dashboard
+      - workbenches
+      - notebooks
+      - Data Science Pipelines
+  - id: serving-inference
+    label: Serving and inference
+    topics:
+      - KServe
+      - vLLM inside OpenShift AI
+      - llm-d
+      - accelerators
+      - scale-to-zero
+      - multi-model
+  - id: training-customization
+    label: Training and customization
+    topics:
+      - distributed training
+      - InstructLab
+      - fine-tune vs RAG
+  - id: data-rag
+    label: Data and RAG
+    topics:
+      - data connections
+      - vector stores
+      - AutoRAG
+      - pipelines
+  - id: catalog-registry
+    label: Model catalog, registry, MLflow
+    topics:
+      - model catalog
+      - model registry
+      - MLflow
+      - experiment tracking
+  - id: guardrails
+    label: Guardrails and Responsible AI
+    topics:
+      - TrustyAI
+      - Garak
+      - NeMo Guardrails
+      - Responsible AI
+  - id: maas-gateway
+    label: MaaS and AI gateway
+    topics:
+      - Model-as-a-Service
+      - Red Hat AI gateway
+      - quotas
+  - id: disconnected-gpu
+    label: Disconnected, GPU, multi-cluster
+    topics:
+      - air-gap / oc-mirror
+      - GPU operator
+      - Node Feature Discovery
+      - Kueue
+      - multi-cluster
+  - id: identity-security
+    label: Identity, RBAC, network, supply chain
+    topics:
+      - RBAC
+      - SCC
+      - secrets
+      - Trusted Software Supply Chain
+  - id: lifecycle
+    label: Install, upgrade, backup, support
+    topics:
+      - install
+      - upgrade
+      - backup
+      - support SLA
+  - id: commercial
+    label: Commercial
+    topics:
+      - SKUs
+      - subscriptions
+      - support tiers
+    default_mode: HUMAN
+  - id: evidence
+    label: Customer evidence
+    topics:
+      - named customers
+      - regulated-industry patterns

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evalhub-provider-ragas
+  namespace: evalhub
+  labels:
+    trustyai.opendatahub.io/evalhub-provider-type: adapter
+    trustyai.opendatahub.io/evalhub-provider-name: ragas
+data:
+  provider.yaml: |
+    id: ragas
+    name: RAGAS
+    description: >-
+      Retrieval Augmented Generation Assessment — evaluates RAG pipeline quality
+      using metrics like faithfulness, answer relevancy, context precision/recall,
+      and answer correctness.
+    image: quay.io/evalhub/community-ragas:latest
+    runtime:
+      k8s:
+        image: "quay.io/evalhub/community-ragas:latest"
+        entrypoint: ["python", "/app/main.py"]
+        cpu_request: "500m"
+        cpu_limit: "2"
+        memory_request: "1Gi"
+        memory_limit: "4Gi"
+    benchmarks:
+      - id: ragas_rag_default
+        name: RAGAS RAG Default
+        description: "Core RAG metrics: faithfulness, answer_relevancy, context_precision, context_recall"
+        metrics:
+          - faithfulness
+          - answer_relevancy
+          - context_precision
+          - context_recall
+        parameters:
+          llm_model:
+            type: string
+            description: OpenAI-compatible model name for LLM judge
+            default: "gemini-2.5-flash"
+          llm_base_url:
+            type: string
+            description: Base URL for the LLM judge endpoint
+            default: "https://generativelanguage.googleapis.com/v1beta/openai"
+          embedding_model:
+            type: string
+            description: Model name for embeddings
+            default: "sentence-transformers/all-MiniLM-L6-v2"
+          embedding_base_url:
+            type: string
+            description: Base URL for the embedding endpoint
+            default: "http://rfp-ogx-service.rfp-agent.svc.cluster.local:8321/v1"

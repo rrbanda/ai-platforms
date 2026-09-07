@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-incident-escalator
+  labels:
+    app.kubernetes.io/part-of: pod-health-watcher
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    ---
+    name: incident-escalator
+    description: "Classify severity and notify AppOps when pod failures are unsafe to auto-fix."
+    version: 1.0.0
+    author: AgentHive Platform Team
+    license: Apache-2.0
+    platforms: [linux]
+    metadata:
+      hermes:
+        tags: [SRE, Incident, Escalation, AppOps, Pager]
+    ---
+
+    # Incident Escalator
+
+    Open an incident when diagnosis is unknown, the namespace is protected, auto-remediation failed, or severity is P1/P2.
+
+    ## Trigger Phrases
+
+    - "Escalate this pod failure"
+    - "Page AppOps"
+    - Invoked by watcher/diagnoser/remediate when auto-fix is not allowed or did not work
+
+    ## Required MCP Tools
+
+    | MCP Server | Tool | Purpose |
+    |---|---|---|
+    | mcp_openshift | pods_get | Current state for the incident record |
+    | mcp_openshift | events_list | Supporting evidence |
+    | mcp_openshift | pods_log | Redacted log excerpt |
+
+    No write tools. Escalation is notification + durable record, not a cluster mutation.
+
+    ## When to Escalate
+
+    Escalate if any of these are true:
+
+    - Failure class is `unknown`, `image-pull`, `oomkilled`, `crashloop`, `config-error`, `pending-resource`, `pending-schedule`, `probe-fail`, `node-issue`
+    - Namespace is protected
+    - Auto-remediate was attempted twice in 30 minutes and the workload is still unhealthy
+    - MCP write returned 403
+    - Severity is P1 or P2
+
+    Do **not** escalate [SILENT] healthy scans or a single P4 Pending under 10 minutes.
+
+    ## Severity
+
+    | Severity | Criteria | Response |
+    |----------|----------|----------|
+    | P1 | Control-plane / protected namespace Failed, or many pods down in one app | Immediate |
+    | P2 | Production Deployment at 0 ready replicas | 1 hour |
+    | P3 | Single replica of a multi-replica or non-prod workload | 4 hours |
+    | P4 | Transient / informational | Next business day |
+
+    ## Procedure
+
+    1. Assemble the incident from the diagnosis (do not re-scan the whole cluster).
+    2. Call `pods_get`, `events_list`, and `pods_log` only if the diagnosis is missing evidence.
+    3. Write `/sandbox/output/incidents/{timestamp}-{namespace}-{pod-or-group}.md` using the file-write tool (not execute_code). One file per **group**, not per duplicate Job pod.
+    4. Append a one-line entry to MEMORY.md.
+    5. Notify AppOps:
+       - If `ESCALATION_WEBHOOK_URL` is set, POST a JSON payload (see below). Treat webhook failure as a warning; the file is the source of truth.
+       - If unset, tell the user where the incident file is. Do not invent a paging integration.
+    6. Recommended human actions must be specific (`increase memory limit for deploy/foo`, `fix image tag`, `check registry auth`) — not "look at the cluster".
+
+    ## Webhook Payload
+
+    ```json
+    {
+      "severity": "P2",
+      "namespace": "app-prod",
+      "pod": "foo-7d9c-abc",
+      "owner": "Deployment/foo",
+      "class": "crashloop",
+      "summary": "one-line root cause",
+      "report_path": "/sandbox/output/incidents/..."
+    }
+    ```
+
+    Use `curl -sS -X POST -H 'Content-Type: application/json' -d @payload.json "$ESCALATION_WEBHOOK_URL"`.
+
+    ## Output Format
+
+    ```
+    # Incident — {timestamp}
+
+    ## Classification
+    - **Severity**: P{1-4}
+    - **Component**: {namespace}/{pod} ({owner})
+    - **Class**: {failure class}
+    - **Status**: Investigating | Mitigating | Escalated
+    - **Auto-remediate**: not-attempted | failed | not-allowed ({reason})
+
+    ## Impact
+    - Ready replicas: {ready}/{desired}
+    - Users/workloads affected: {known scope or unknown}
+
+    ## Evidence
+    - Events: {table}
+    - Logs: {redacted excerpt}
+
+    ## Root cause
+    {one paragraph}
+
+    ## Ask of AppOps
+    1. {concrete action}
+    2. {verification step}
+
+    ## Contacts
+    - Escalate to: AppOps / platform on-call
+    - SLA: {from severity table}
+    ```
+
+    ## Escalation Matrix
+
+    | Class | L1 (this agent) | L2 (AppOps) | L3 |
+    |-------|-----------------|-------------|-----|
+    | init-stuck / failed-recreate | Delete controller-managed pod | Inspect init image/config | Vendor if node/runtime |
+    | crashloop | Diagnose only | App logs, rollback deploy | App team |
+    | image-pull | Diagnose only | Registry, pull secret, image tag | Registry owner |
+    | oomkilled | Diagnose only | Raise memory via GitOps | Capacity |
+    | pending-resource | Diagnose only | Scale cluster / free quota | Cloud/infra |
+    | protected namespace | Diagnose only | Platform team | Red Hat Support |
+
+    ## Safety Constraints
+
+    - Never include Secret values, tokens, or kubeconfigs in the incident file or webhook.
+    - Never delete or patch as part of escalation.
+    - One incident per workload owner per 30 minutes (dedupe via MEMORY.md) unless severity increases.

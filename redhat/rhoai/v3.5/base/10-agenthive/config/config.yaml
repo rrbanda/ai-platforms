@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+  namespace: default
+  annotations:
+    config.kubernetes.io/local-config: "true"
+data:
+  REPO_URL: "https://github.com/rrbanda/ai-platforms.git"
+  REPO_BRANCH: "main"
+  AGENT_NAME: "rfp-agent"
+  AGENT_NAMESPACE: "rfp-agent"
+  EVAL_NAMESPACE: "rfp-agent-eval"
+  EVALHUB_NAMESPACE: "evalhub"
+  CONTAINER_IMAGE: "ghcr.io/rrbanda/rfp-agent"
+  RUNTIME_IMAGE: "ghcr.io/rrbanda/hermes-runtime"
+  LLM_PROVIDER_URL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  LLM_MODEL: "gemini-2.5-pro"
+  LLM_JUDGE_MODEL: "gemini-2.5-flash"
+  EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
+  S3_BUCKET: "rfp-agent-knowledge"
+  S3_ENDPOINT: "http://minio.minio.svc.cluster.local:9000"
+  S3_HOST: "minio.minio.svc.cluster.local:9000"
+  OGX_SERVICE_URL: "http://rfp-ogx-service.rfp-agent.svc.cluster.local:8321"
+  MILVUS_URI: "http://milvus-service.milvus.svc.cluster.local:19530"

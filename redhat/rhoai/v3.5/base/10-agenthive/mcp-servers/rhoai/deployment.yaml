@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rhoai-mcp
+  namespace: rhoai-copilot
+  labels:
+    app: rhoai-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rhoai-mcp-reader
+  labels:
+    app.kubernetes.io/part-of: rhoai-copilot
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, events, nodes, namespaces, secrets, persistentvolumeclaims]
+    verbs: [get, list, watch]
+  - apiGroups: ["apps"]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: ["kubeflow.org"]
+    resources: [notebooks]
+    verbs: [get, list, watch]
+  - apiGroups: ["serving.kserve.io"]
+    resources: [inferenceservices, servingruntimes]
+    verbs: [get, list, watch]
+  - apiGroups: ["datasciencepipelinesapplications.opendatahub.io"]
+    resources: [datasciencepipelinesapplications]
+    verbs: [get, list, watch]
+  - apiGroups: ["datasciencecluster.opendatahub.io"]
+    resources: [datascienceclusters]
+    verbs: [get, list, watch]
+  - apiGroups: ["dscinitialization.opendatahub.io"]
+    resources: [dscinitializations]
+    verbs: [get, list, watch]
+  - apiGroups: ["components.platform.opendatahub.io"]
+    resources: ["*"]
+    verbs: [get, list, watch]
+  - apiGroups: ["dashboard.opendatahub.io"]
+    resources: [acceleratorprofiles]
+    verbs: [get, list, watch]
+  - apiGroups: ["route.openshift.io"]
+    resources: [routes]
+    verbs: [get, list, watch]
+  - apiGroups: ["project.openshift.io"]
+    resources: [projects]
+    verbs: [get, list, watch]
+  - apiGroups: ["trainer.kubeflow.org"]
+    resources: [trainjobs, trainingruntimes, clustertrainingruntimes]
+    verbs: [get, list, watch]
+  - apiGroups: ["storage.k8s.io"]
+    resources: [storageclasses]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rhoai-mcp-reader-binding
+  labels:
+    app.kubernetes.io/part-of: rhoai-copilot
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rhoai-mcp-reader
+subjects:
+  - kind: ServiceAccount
+    name: rhoai-mcp
+    namespace: rhoai-copilot
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rhoai-mcp
+  namespace: rhoai-copilot
+  labels:
+    app: rhoai-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rhoai-mcp
+  template:
+    metadata:
+      labels:
+        app: rhoai-mcp
+    spec:
+      serviceAccountName: rhoai-mcp
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rhoai-mcp
+          image: quay.io/opendatahub/odh-rhoai-mcp:odh-stable
+          args: ["--transport", "streamable-http"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: HOME
+              value: "/tmp"
+            - name: RHOAI_MCP_TRANSPORT
+              value: "streamable-http"
+            - name: RHOAI_MCP_HOST
+              value: "0.0.0.0"
+            - name: RHOAI_MCP_PORT
+              value: "8000"
+            - name: RHOAI_MCP_READ_ONLY_MODE
+              value: "false"
+            - name: RHOAI_MCP_LOG_LEVEL
+              value: "INFO"
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rhoai-mcp
+  namespace: rhoai-copilot
+  labels:
+    app: rhoai-mcp
+    app.kubernetes.io/part-of: rhoai-copilot
+spec:
+  selector:
+    app: rhoai-mcp
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http

@@ -1,0 +1,46 @@
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: rfp-ogx
+  namespace: rfp-agent
+  labels:
+    app: ogx
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  distribution:
+    name: rh
+  overrideConfig:
+    name: rfp-ogx-config
+    key: config.yaml
+  workload:
+    # AutoRAG's ogx_client times out at 60s on POST /v1/embeddings. Default
+    # operator resources (1 CPU request / 2 CPU limit) make a full-corpus nomic
+    # batch miss that window even though OGX itself returns 200. Keep the
+    # request at 1 CPU so this 4-worker ROSA cluster can schedule without a
+    # scale-up; raise the limit so embeddings can burst. Ingest is unaffected:
+    # it uses Files API and polls until completed.
+    replicas: 1
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    storage:
+      mountPath: /opt/app-root/src/.ogx
+      size: 10Gi
+    overrides:
+      env:
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: MKL_NUM_THREADS
+          value: "4"
+        - name: ENABLE_GEMINI
+          value: "1"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rfp-agent-auth
+              key: llm-api-key

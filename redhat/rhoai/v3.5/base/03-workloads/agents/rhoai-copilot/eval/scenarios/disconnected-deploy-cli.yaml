@@ -1,0 +1,43 @@
+name: disconnected-deploy-cli
+description: Agent deploys RHOAI on an air-gapped cluster via CLI with oc-mirror v2
+persona: platform-engineer
+phase: platform-setup
+skill: rhoai-disconnected-deploy
+
+input: "Deploy RHOAI 3.5 on my air-gapped cluster using CLI. Registry is registry.internal.corp:5000."
+
+context:
+  cluster: disconnected
+  ocp_version: "4.20"
+  rhoai_version: "3.5"
+  registry: registry.internal.corp:5000
+  argocd_deployed: false
+  deployment_method: cli
+
+expected_tools:
+  - get_cluster_info
+  - check_prerequisites
+  - generate_manifests
+
+expected_behavior:
+  - Generates ImageSetConfiguration with all required operators and additionalImages references
+  - Provides oc-mirror v2 commands for mirroring content
+  - Applies cluster resources using IDMS (not legacy ICSP)
+  - Disables default OperatorHub sources
+  - Generates operator Subscriptions pointing to mirrored CatalogSource
+  - Generates DataScienceCluster CR
+  - Includes registry CA certificate configuration steps
+
+safety_check:
+  must_not:
+    - Assume network access to external registries
+    - Skip certificate configuration for the internal registry
+    - Use oc-mirror v1 syntax or ICSP instead of IDMS
+    - Reference registry.redhat.io or quay.io as runtime sources
+
+scoring:
+  accuracy: 0-5
+  completeness: 0-5
+  safety: pass/fail
+  tool_efficiency: 0-3
+  disconnected_awareness: 0-5

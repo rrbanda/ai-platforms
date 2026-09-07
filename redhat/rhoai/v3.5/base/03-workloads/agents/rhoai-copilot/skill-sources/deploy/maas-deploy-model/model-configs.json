@@ -1,0 +1,225 @@
+{
+  "model_families": {
+    "llama": {
+      "patterns": ["llama", "llama-2", "llama-3", "llama-3.1", "llama-3.2", "llama-3.3"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=auto",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--enable-auto-tool-choice",
+          "--tool-call-parser=llama3_json",
+          "--gpu-memory-utilization=0.95"
+        ],
+        "instruct": [
+          "--dtype=auto",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--enable-auto-tool-choice",
+          "--tool-call-parser=llama3_json",
+          "--gpu-memory-utilization=0.95",
+          "--enable-prefix-caching"
+        ]
+      },
+      "size_specific": {
+        "8b":  { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 },
+        "70b": { "recommended_gpu": 4, "recommended_memory": "96Gi", "recommended_cpu": 16, "additional_args": ["--tensor-parallel-size=4"] },
+        "405b":{ "recommended_gpu": 8, "recommended_memory": "192Gi","recommended_cpu": 32, "additional_args": ["--tensor-parallel-size=8"] }
+      }
+    },
+    "qwen": {
+      "patterns": ["qwen", "qwen2", "qwen2.5", "qwen3"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=auto",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95"
+        ],
+        "instruct": [
+          "--dtype=auto",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95",
+          "--enable-prefix-caching"
+        ],
+        "fp8": [
+          "--dtype=auto",
+          "--max-model-len=32000",
+          "--gpu-memory-utilization=0.95",
+          "--enable-chunked-prefill"
+        ]
+      },
+      "size_specific": {
+        "8b":  { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 },
+        "14b": { "recommended_gpu": 1, "recommended_memory": "24Gi", "recommended_cpu": 8 },
+        "32b": { "recommended_gpu": 2, "recommended_memory": "48Gi", "recommended_cpu": 12, "additional_args": ["--tensor-parallel-size=2"] },
+        "72b": { "recommended_gpu": 4, "recommended_memory": "96Gi", "recommended_cpu": 16, "additional_args": ["--tensor-parallel-size=4"] }
+      }
+    },
+    "deepseek": {
+      "patterns": ["deepseek", "deepseek-v2", "deepseek-v3"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=bfloat16",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.90"
+        ],
+        "instruct": [
+          "--dtype=bfloat16",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.90",
+          "--enable-prefix-caching"
+        ]
+      },
+      "size_specific": {
+        "7b":   { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 },
+        "67b":  { "recommended_gpu": 4, "recommended_memory": "96Gi", "recommended_cpu": 16, "additional_args": ["--tensor-parallel-size=4"] },
+        "236b": { "recommended_gpu": 8, "recommended_memory": "192Gi","recommended_cpu": 32, "additional_args": ["--tensor-parallel-size=8"] }
+      }
+    },
+    "gemma": {
+      "patterns": ["gemma", "gemma-2"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=bfloat16",
+          "--max-model-len=8192",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95"
+        ],
+        "instruct": [
+          "--dtype=bfloat16",
+          "--max-model-len=8192",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95",
+          "--enable-prefix-caching"
+        ]
+      },
+      "size_specific": {
+        "2b":  { "recommended_gpu": 1, "recommended_memory": "8Gi",  "recommended_cpu": 2 },
+        "7b":  { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 },
+        "27b": { "recommended_gpu": 2, "recommended_memory": "48Gi", "recommended_cpu": 12, "additional_args": ["--tensor-parallel-size=2"] }
+      }
+    },
+    "mistral": {
+      "patterns": ["mistral", "mixtral"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=bfloat16",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95"
+        ],
+        "instruct": [
+          "--dtype=bfloat16",
+          "--max-model-len=32768",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95",
+          "--enable-prefix-caching"
+        ]
+      },
+      "size_specific": {
+        "7b":   { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 },
+        "8x7b": { "recommended_gpu": 2, "recommended_memory": "48Gi", "recommended_cpu": 12, "additional_args": ["--tensor-parallel-size=2"] },
+        "8x22b":{ "recommended_gpu": 4, "recommended_memory": "96Gi", "recommended_cpu": 16, "additional_args": ["--tensor-parallel-size=4"] }
+      }
+    },
+    "phi": {
+      "patterns": ["phi", "phi-2", "phi-3", "phi-4"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=bfloat16",
+          "--max-model-len=16384",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95"
+        ],
+        "instruct": [
+          "--dtype=bfloat16",
+          "--max-model-len=16384",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95",
+          "--enable-prefix-caching"
+        ]
+      },
+      "size_specific": {
+        "3b":  { "recommended_gpu": 1, "recommended_memory": "8Gi",  "recommended_cpu": 2 },
+        "14b": { "recommended_gpu": 1, "recommended_memory": "24Gi", "recommended_cpu": 8 }
+      }
+    },
+    "granite": {
+      "patterns": ["granite", "granite-3", "granite-code"],
+      "type": "inference",
+      "default_args": {
+        "llm": [
+          "--dtype=bfloat16",
+          "--max-model-len=8192",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95"
+        ],
+        "instruct": [
+          "--dtype=bfloat16",
+          "--max-model-len=8192",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95",
+          "--enable-prefix-caching"
+        ],
+        "code": [
+          "--dtype=bfloat16",
+          "--max-model-len=16384",
+          "--enable-chunked-prefill",
+          "--gpu-memory-utilization=0.95"
+        ]
+      },
+      "size_specific": {
+        "3b":  { "recommended_gpu": 1, "recommended_memory": "8Gi",  "recommended_cpu": 2 },
+        "8b":  { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 },
+        "20b": { "recommended_gpu": 1, "recommended_memory": "32Gi", "recommended_cpu": 8 },
+        "34b": { "recommended_gpu": 2, "recommended_memory": "48Gi", "recommended_cpu": 12, "additional_args": ["--tensor-parallel-size=2"] }
+      }
+    },
+    "embedding": {
+      "patterns": ["bge", "e5", "gte", "instructor", "jina", "nomic", "embed"],
+      "type": "embedding",
+      "default_args": {
+        "embedding": [
+          "--dtype=float16",
+          "--max-model-len=512",
+          "--gpu-memory-utilization=0.90",
+          "--enforce-eager",
+          "--runner=pooling"
+        ]
+      },
+      "size_specific": {
+        "small": { "recommended_gpu": 1, "recommended_memory": "8Gi",  "recommended_cpu": 2 },
+        "base":  { "recommended_gpu": 1, "recommended_memory": "12Gi", "recommended_cpu": 4 },
+        "large": { "recommended_gpu": 1, "recommended_memory": "16Gi", "recommended_cpu": 4 }
+      }
+    }
+  },
+  "global_defaults": {
+    "inference": {
+      "args": [
+        "--dtype=auto",
+        "--max-model-len=8192",
+        "--gpu-memory-utilization=0.90"
+      ]
+    },
+    "embedding": {
+      "args": [
+        "--dtype=float16",
+        "--max-model-len=512",
+        "--gpu-memory-utilization=0.90",
+        "--enforce-eager",
+        "--runner=pooling"
+      ]
+    }
+  }
+}

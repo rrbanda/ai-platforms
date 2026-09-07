@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evalhub-provider-deepeval
+  namespace: evalhub
+  labels:
+    trustyai.opendatahub.io/evalhub-provider-type: adapter
+    trustyai.opendatahub.io/evalhub-provider-name: deepeval
+data:
+  provider.yaml: |
+    id: deepeval
+    name: DeepEval
+    description: >-
+      DeepEval evaluates LLM outputs for hallucination, relevance,
+      faithfulness, and custom G-Eval metrics.
+    image: quay.io/evalhub/community-deepeval:latest
+    runtime:
+      k8s:
+        image: "quay.io/evalhub/community-deepeval:latest"
+        entrypoint: ["python", "/app/main.py"]
+        cpu_request: "500m"
+        cpu_limit: "2"
+        memory_request: "1Gi"
+        memory_limit: "4Gi"
+    benchmarks:
+      - id: deepeval_response_quality
+        name: DeepEval Response Quality
+        description: "Hallucination detection, relevance, and faithfulness scoring"
+        metrics:
+          - hallucination
+          - answer_relevancy
+          - faithfulness
+        parameters:
+          model:
+            type: string
+            default: "gemini-2.5-flash"
+          base_url:
+            type: string
+            default: "https://generativelanguage.googleapis.com/v1beta/openai"

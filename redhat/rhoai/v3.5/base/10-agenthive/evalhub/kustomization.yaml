@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - ../config
+
+resources:
+  - namespace.yaml
+  - postgresql.yaml
+  - config.yaml
+  - evalhub.yaml
+  - provider-ragas.yaml
+  - provider-deepeval.yaml
+  - collection.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.LLM_PROVIDER_URL
+    targets:
+      - select:
+          kind: Deployment
+          name: evalhub
+        fieldPaths:
+          - spec.template.spec.containers.[name=evalhub].env.[name=OPENAI_BASE_URL].value

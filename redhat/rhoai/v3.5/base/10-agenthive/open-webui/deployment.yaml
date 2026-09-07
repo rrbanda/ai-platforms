@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  namespace: open-webui
+  labels:
+    app: open-webui
+    app.kubernetes.io/part-of: agenthive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-webui
+  template:
+    metadata:
+      labels:
+        app: open-webui
+        app.kubernetes.io/part-of: agenthive
+    spec:
+      serviceAccountName: open-webui
+      containers:
+      - name: open-webui
+        image: ghcr.io/open-webui/open-webui:v0.11.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: WEBUI_NAME
+          value: AgentHive
+        - name: ENABLE_OLLAMA_API
+          value: "false"
+        - name: ENABLE_OPENAI_API
+          value: "true"
+        - name: ENABLE_PERSISTENT_CONFIG
+          value: "false"
+        - name: OPENAI_API_BASE_URLS
+          value: >-
+            http://rfp-agent-dashboard.rfp-agent.svc.cluster.local:8642/v1;http://rhoai-copilot-dashboard.rhoai-copilot.svc.cluster.local:8642/v1;http://pod-health-watcher-dashboard.pod-health-watcher.svc.cluster.local:8642/v1;http://stale-image-finder-dashboard.stale-image-finder.svc.cluster.local:8642/v1;http://pr-review-bot-dashboard.pr-review-bot.svc.cluster.local:8642/v1;http://loan-agent-api.loan-agent.svc.cluster.local:8080/v1
+        - name: OPENAI_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: open-webui-providers
+              key: OPENAI_API_KEYS
+        - name: WEBUI_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: open-webui-providers
+              key: WEBUI_SECRET_KEY
+        - name: DEFAULT_MODELS
+          value: "rfp-agent"
+        - name: ENABLE_SIGNUP
+          value: "false"
+        - name: ENABLE_OAUTH_SIGNUP
+          value: "true"
+        - name: DEFAULT_USER_ROLE
+          value: "user"
+        - name: ENABLE_LOGIN_FORM
+          value: "true"
+        - name: WEBUI_URL
+          value: "https://open-webui-open-webui.apps.ocp.qn6c5.sandbox1388.opentlc.com"
+        - name: OAUTH_PROVIDER_NAME
+          value: "OpenShift"
+        - name: OPENID_PROVIDER_URL
+          value: "https://sso.apps.ocp.qn6c5.sandbox1388.opentlc.com/realms/master/.well-known/openid-configuration"
+        - name: OAUTH_CLIENT_ID
+          value: "open-webui"
+        - name: OAUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: open-webui-oidc
+              key: OAUTH_CLIENT_SECRET
+        - name: OAUTH_SCOPES
+          value: "openid email profile"
+        - name: OPENID_REDIRECT_URI
+          value: "https://open-webui-open-webui.apps.ocp.qn6c5.sandbox1388.opentlc.com/oauth/oidc/callback"
+        - name: AIOHTTP_CLIENT_TIMEOUT
+          value: "300"
+        - name: REQUEST_TIMEOUT
+          value: "300"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 6
+        resources:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+        volumeMounts:
+        - name: data
+          mountPath: /app/backend/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: open-webui-data

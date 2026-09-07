@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ocp-virt-migration-agent-startup
+  labels:
+    app.kubernetes.io/part-of: ocp-virt-migration-agent
+data:
+  startup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export HOME=/sandbox
+    export PYTHONPATH=/sandbox
+    export PATH="/opt/app-root/bin:/usr/local/bin:${PATH}"
+
+    echo "=== OCP Virt Migration Agent startup ==="
+
+    # Copy skills from image to workspace (if present in image)
+    if [ -d /skills ] && [ "$(ls -A /skills 2>/dev/null)" ]; then
+      echo "Copying skills to workspace..."
+      mkdir -p /sandbox/skills
+      cp -a /skills/* /sandbox/skills/ 2>/dev/null || true
+      echo "Skills: $(ls /sandbox/skills/ | wc -l) loaded"
+    fi
+
+    echo "SKILLS_DIR=${SKILLS_DIR:-/sandbox/skills}"
+    echo "ADK_MODEL=${ADK_MODEL:-not set}"
+    echo "ADK_MODEL_FAST=${ADK_MODEL_FAST:-not set}"
+    echo "ADK_MODEL_REASONING=${ADK_MODEL_REASONING:-not set}"
+    echo "OPENAI_API_BASE=${OPENAI_API_BASE:-not set}"
+    echo "AGENT_MODE=${AGENT_MODE:-pipeline}"
+    echo "MIGRATION_DRY_RUN=${MIGRATION_DRY_RUN:-true}"
+    echo "MTV_API_URL=${MTV_API_URL:-in-cluster}"
+
+    echo "=== Starting agent API on port ${PORT:-8080} ==="
+    uvicorn app.api:fastapi_app \
+      --host 0.0.0.0 \
+      --port "${PORT:-8080}" \
+      --no-access-log &
+
+    echo "=== Starting ADK web UI on port ${ADK_WEB_PORT:-8081} ==="
+    exec adk web \
+      --host 0.0.0.0 \
+      --port "${ADK_WEB_PORT:-8081}" \
+      --no-reload \
+      --allow_origins "*" \
+      .

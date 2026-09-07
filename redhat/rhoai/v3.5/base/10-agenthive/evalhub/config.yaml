@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evalhub-config
+  namespace: evalhub
+data:
+  config.yaml: |
+    service:
+      host: "0.0.0.0"
+      port: 8444
+      ready_file: "/opt/evalhub/work/ready"
+      termination_file: "/opt/evalhub/work/termination-log"
+    database:
+      driver: pgx
+    mlflow:
+      tracking_uri: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443/mlflow"
+      insecure_skip_verify: true
+    env_mappings:
+      PORT: service.port
+      API_HOST: service.host
+      DB_URL: database.url
+      DB_DRIVER: database.driver
+      MLFLOW_TRACKING_URI: mlflow.tracking_uri
+      MLFLOW_INSECURE_SKIP_VERIFY: mlflow.insecure_skip_verify
+      MLFLOW_CA_CERT_PATH: mlflow.ca_cert_path
+      MLFLOW_TOKEN_PATH: mlflow.token_path
+      LOG_LEVEL: logging.level
+    secrets:
+      dir: "/etc/evalhub/secrets"
+      mappings:
+        db-url: database.url

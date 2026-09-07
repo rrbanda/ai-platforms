@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: milvus-standalone
+  namespace: milvus
+  labels:
+    app: milvus-standalone
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: milvus-standalone
+  template:
+    metadata:
+      labels:
+        app: milvus-standalone
+    spec:
+      containers:
+        - name: milvus-standalone
+          image: milvusdb/milvus:v2.6.0
+          args: ["milvus", "run", "standalone"]
+          env:
+            - name: DEPLOY_MODE
+              value: standalone
+            - name: ETCD_ENDPOINTS
+              value: etcd-service:2379
+            - name: COMMON_STORAGETYPE
+              value: local
+            - name: MILVUS_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: milvus-secret
+                  key: root-password
+          ports:
+            - containerPort: 19530
+              protocol: TCP
+            - containerPort: 9091
+              protocol: TCP
+          volumeMounts:
+            - name: milvus-data
+              mountPath: /var/lib/milvus
+          livenessProbe:
+            exec:
+              command: ["curl", "-f", "http://localhost:9091/healthz"]
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 20
+            failureThreshold: 5
+      volumes:
+        - name: milvus-data
+          persistentVolumeClaim:
+            claimName: milvus-pvc

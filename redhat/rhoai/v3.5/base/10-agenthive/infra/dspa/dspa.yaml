@@ -1,0 +1,29 @@
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: dspa
+  namespace: rfp-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  apiServer:
+    managedPipelines: {}
+  dspVersion: v2
+  objectStorage:
+    externalStorage:
+      bucket: rfp-agent-knowledge
+      host: minio.minio.svc.cluster.local:9000
+      port: ""
+      region: us-east-1
+      s3CredentialsSecret:
+        accessKey: root-user
+        secretKey: root-password
+        secretName: dspa-minio-creds
+      scheme: http
+  database:
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline
+      passwordSecret:
+        key: password
+        name: dspa-db-password

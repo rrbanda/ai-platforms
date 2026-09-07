@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agenthive-platform
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: rhoai-workloads
+  source:
+    repoURL: https://github.com/rrbanda/ai-platforms.git
+    targetRevision: main
+    path: redhat/rhoai/v3.5/base/10-agenthive/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /spec/source/path
+      jqPathExpressions:
+        - .status
+        - .operation
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

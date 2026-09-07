@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rfp-agent-rag-eval
+  namespace: rfp-agent-eval
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true,Force=true
+    agenthive.io/eval-rev: "1"
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: eval-runner
+      initContainers:
+      - name: git-clone
+        image: registry.access.redhat.com/ubi9/python-311:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          CLONE_URL=$(echo "$REPO_URL" | sed "s|https://|https://x-access-token:${GITHUB_TOKEN}@|")
+          git clone --depth 1 --single-branch --branch "$REPO_BRANCH" "$CLONE_URL" /workspace/repo
+        env:
+        - name: REPO_URL
+          value: "https://github.com/rrbanda/ai-platforms.git"
+        - name: REPO_BRANCH
+          value: "main"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-clone-github
+              key: token
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      containers:
+      - name: eval
+        image: registry.access.redhat.com/ubi9/python-311:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -euo pipefail
+          pip install --quiet "mlflow[kubernetes]" openai requests
+          export MLFLOW_TRACKING_K8S_NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+          python3 /workspace/repo/redhat/rhoai/v3.5/base/10-agenthive/scripts/evaluate-rag.py
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: eval-gemini-key
+              key: OPENAI_API_KEY
+        - name: OGX_BASE_URL
+          value: "http://rfp-ogx-service.rfp-agent.svc.cluster.local:8321"
+        - name: VECTOR_STORE_NAME
+          value: "rfp_knowledge_v1"
+        - name: OGX_VECTOR_STORE_ID
+          value: ""
+        - name: BENCHMARK_PATH
+          value: "/workspace/repo/redhat/rhoai/v3.5/base/03-workloads/agents/rfp-agent/eval/gold/benchmark_rhoai.json"
+        - name: MLFLOW_TRACKING_URI
+          value: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443/mlflow"
+        - name: MLFLOW_TRACKING_AUTH
+          value: "kubernetes-namespaced"
+        - name: MLFLOW_TRACKING_INSECURE_TLS
+          value: "true"
+        - name: MLFLOW_EXPERIMENT
+          value: "rfp-agent-rag-evaluation"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      volumes:
+      - name: workspace
+        emptyDir: {}

@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-image-compliance-classifier
+  labels:
+    app.kubernetes.io/part-of: stale-image-finder
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    ---
+    name: image-compliance-classifier
+    description: "Bucket container images into 30/60/90-day compliance windows and severity for ADM refresh."
+    version: 1.0.0
+    author: AgentHive Platform Team
+    license: Apache-2.0
+    platforms: [linux]
+    metadata:
+      hermes:
+        tags: [Compliance, Images, ADM, Classification]
+    ---
+
+    # Image Compliance Classifier
+
+    Turn a stale-image inventory into 30/60/90-day buckets and an ADM action list.
+    Does not mutate the cluster or git.
+
+    ## Trigger Phrases
+
+    - "Classify these images"
+    - "What is past the 90-day window?"
+    - Loaded by `stale-image-finder` after a scan
+
+    ## Windows (MetLife ADM)
+
+    | Window | Age | Severity | ADM meaning |
+    |--------|-----|----------|-------------|
+    | Current | < 30 days | green | Inside first refresh cycle |
+    | Watch | 30–60 days | yellow | Plan rebuild / bump |
+    | Due | 60–90 days | orange | Refresh this cycle |
+    | Breach | > 90 days | red | Past compliance window |
+    | Unpinned | `:latest` or no digest | red | Treat as immediate stale |
+
+    Override with env `COMPLIANCE_WINDOWS=30,60,90` if set. Do not invent other
+    windows unless the user states them.
+
+    ## Procedure
+
+    1. Take the inventory from `stale-image-finder` (or the user-supplied list).
+    2. For each unique image, compute age using the same signal as the finder
+       (`cluster-runtime` vs `artifactory`). Never mix the two in one row without
+       labeling the source.
+    3. Apply the table above. Unpinned always wins over age (severity red).
+    4. Protected namespaces: classify only; next step is `report`, never PR.
+    5. Deduplicate by image ID/digest so one old image used in three namespaces
+       is one finding with a namespace list.
+
+    ## Output Format
+
+    ```
+    # Image Compliance — {timestamp}
+
+    ## Counts
+    - green (<30d): {n}
+    - yellow (30-60): {n}
+    - orange (60-90): {n}
+    - red (>90d or unpinned): {n}
+
+    ## Action list (orange + red, non-protected)
+    | Image | Age | Window | Namespaces | Recommended next skill |
+    |-------|-----|--------|------------|------------------------|
+    | {image} | {age} | due/breach/unpinned | {ns,...} | image-refresh-pr |
+    ```
+
+    ## Safety Constraints
+
+    - Tier 1 only. No git, no `oc patch`, no image stream tags changes.
+    - Do not claim an image is "CVE-free" or "signed" unless a scanner result
+      is in evidence. This skill is age/pin compliance, not vulnerability scan.

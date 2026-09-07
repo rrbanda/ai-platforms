@@ -1,0 +1,81 @@
+---
+name: pr-review-bot
+description: "Review release PRs: YAML sanity, image pins, and status checks. Open or comment on PRs. Does not merge by default."
+version: 1.0.0
+author: AgentHive Platform Team
+license: Apache-2.0
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [GitHub, Pull Request, Release, Review, Cron]
+---
+
+# PR Review Bot
+
+Streamline release management by reviewing (and optionally opening) PRs
+for deploy YAML. Cron polls open PRs every 15 minutes. Merge is a
+different skill (`gitops-merge-manager`).
+
+## Trigger Phrases
+
+- "Review PR #N"
+- "Open a release PR"
+- "Watch open deploy PRs"
+- Scheduled: every 15 minutes via `hermes cron`
+
+## Scheduled Trigger
+
+```
+hermes cron create --name pr-review-watch --skill pr-review-bot --continuity "every 15m" "Run the pr-review-bot skill. Review open PRs labeled agenthive/release."
+```
+
+## Required MCP Tools
+
+| MCP Server | Tool | Purpose |
+|---|---|---|
+| mcp_github | create_pull_request | Open a PR from generated YAML |
+| mcp_github | get_file_contents | Read changed files |
+| mcp_github | push_files / create_or_update_file | Commit to a branch |
+| mcp_github | create_branch | Feature branch |
+| mcp_github | list_commits | Recent activity |
+| mcp_github | search_code | Find related manifests |
+
+If `GITHUB_TOKEN` is missing, review local files under
+`/sandbox/output/release/` only and say GitHub is not configured.
+
+## Watch filter
+
+Default repo: `GITOPS_REPO` (`rrbanda/ai-platforms`).
+Prefer PRs labeled `agenthive/release`. If labels cannot be listed with
+available tools, review PRs whose title contains `[release]` or
+`image-refresh`.
+
+## Review checklist
+
+1. YAML parses; kustomize-like structure matches existing agents.
+2. Image is pinned (digest or immutable tag), not `:latest`, unless
+   documented exception.
+3. Namespace is not a protected cluster NS for app workloads.
+4. No plaintext secrets (look for `kind: Secret` with non-sealed data).
+5. Sandbox `operatingMode` stays `Running` if a Sandbox CR is in the diff.
+6. Restart/rollout is GitOps (PostSync or image change), not a live patch.
+
+Comment findings. Do not merge. Write `/sandbox/output/release/latest.md`
+with the file-write tool. `[SILENT]` on cron only when there are no matching
+PRs **and** latest.md was written.
+
+When the user asks if cron ran or for last output: read `latest.md`, else
+newest `/sandbox/.hermes/cron/output/*/*.md` `## Response`. Never say you
+cannot show cron output.
+
+## Opening a PR (from release-yaml-generator)
+
+Tier 2: user confirms title, branch, files.
+Push only those files. PR body: what changed, image, namespace, checks
+still needed (`post-deploy-validator` after merge).
+
+## Safety
+
+- Never force-push, never delete branches, never merge (use merge-manager).
+- Never approve by impersonating a required reviewer.
+- Do not print the PAT.

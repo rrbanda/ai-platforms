@@ -1,0 +1,99 @@
+# DataScienceCluster — RHOAI 3.x.
+#
+# 3.x removed KServe Serverless mode. Models serve in RawDeployment via plain
+# Deployments + Routes, so there is no Knative or Service Mesh dependency and
+# nothing to mirror for them. This is the reason INSTALL_SERVERLESS_STACK
+# defaults to false.
+#
+# Components are set explicitly rather than left to defaults so that CRIAB's
+# rebuild produces the same surface area. Anything not needed is Removed, not
+# omitted — an omitted component takes the operator default, which can change
+# between z-streams.
+#
+# --- why v2 and not v1 -----------------------------------------------------
+# RHOAI 3.4.2 serves both v1 and v2; v2 is the STORAGE version. A v1 object is
+# accepted and converted on the way in, so v1 looks like it works — but v1
+# cannot express `trainer`, `sparkoperator` or `mlflowoperator`, because those
+# components did not exist when v1 was defined. Whatever v1 cannot say, the
+# operator defaults.
+#
+# That is not academic. `trainer` defaults to Managed and requires the JobSet
+# operator, which is not in the mirror set. A v1 manifest therefore produces a
+# DataScienceCluster that never reaches Ready, with nothing in the manifest to
+# explain why. Writing v2 is what makes the "explicit, not omitted" rule above
+# actually hold.
+#
+# Field names differ from v1: datasciencepipelines -> aipipelines. v2 also drops
+# codeflare and modelmeshserving entirely. Verified against the CRD installed by
+# the 3.4.2 bundle — all 14 components below are present in its v2 schema, and
+# every field used is in that component's property list.
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+spec:
+  components:
+    # Web console for projects, workbenches and model deployments.
+    dashboard:
+      managementState: Managed
+
+    # Jupyter/VS Code workbenches — where the Java refactoring evaluation
+    # harness runs against the proxy codebase.
+    workbenches:
+      managementState: Managed
+
+    # Model serving. vLLM runtimes for Gemma / Nemotron land here.
+    #
+    # NOTE: v2 accepts ONLY managementState, modelsAsService, nim,
+    # rawDeploymentServiceConfig and wva. `defaultDeploymentMode` and the
+    # `serving:` block existed in 2.x and were REMOVED in 3.x — with Serverless
+    # gone there is no deployment mode to choose and no Knative stack to manage,
+    # so RawDeployment is simply how KServe works now. Setting either field is
+    # rejected by the CRD.
+    #
+    # modelsAsService / nim / wva are sub-features of kserve rather than
+    # components in their own right, and are left at their operator defaults.
+    # Pin them only after checking their shape in the installed CRD — they are
+    # not simple managementState toggles.
+    kserve:
+      managementState: Managed
+      rawDeploymentServiceConfig: Headless
+
+    # Pipelines — used to automate refactor-and-test runs over the codebase.
+    # Named `datasciencepipelines` in v1.
+    aipipelines:
+      managementState: Managed
+
+    # Track which model produced which refactoring result.
+    modelregistry:
+      managementState: Managed
+      registriesNamespace: rhoai-model-registries
+
+    # --- disabled ----------------------------------------------------------
+    # Distributed training / tuning. Not needed for inference-only evaluation;
+    # enable if the refactoring workflow moves to fine-tuning.
+    #
+    # `trainer` is the one that matters: left unstated it defaults to Managed
+    # and blocks DSC readiness on the absent JobSet operator. Enabling it means
+    # mirroring JobSet as well.
+    trainer:
+      managementState: Removed
+    trainingoperator:
+      managementState: Removed
+    kueue:
+      managementState: Removed
+    ray:
+      managementState: Removed
+    sparkoperator:
+      managementState: Removed
+
+    # Batch scoring of refactoring outputs against the evaluation criteria.
+    trustyai:
+      managementState: Removed
+
+    mlflowoperator:
+      managementState: Removed
+    feastoperator:
+      managementState: Removed
+    llamastackoperator:
+      managementState: Removed

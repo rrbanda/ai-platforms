@@ -1,0 +1,157 @@
+[
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q3",
+    "question": "Can Red Hat OpenShift AI serve large language models with vLLM on NVIDIA and AMD accelerators?",
+    "expected_mode": "AUTO",
+    "correct_answers": [
+      "Yes. vLLM is the inference engine inside Red Hat OpenShift AI and runs on NVIDIA GPUs and AMD Instinct accelerators. vLLM is not a separate Red Hat product."
+    ],
+    "correct_answer_document_ids": [
+      "red-hat-ai-inference-capabilities.md",
+      "red-hat-technology-partners.md"
+    ]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q4",
+    "question": "Is distributed inference with llm-d available for production GenAI on OpenShift AI?",
+    "expected_mode": "AUTO",
+    "correct_answers": [
+      "llm-d is the distributed inference orchestrator in the Red Hat AI inference stack, used with vLLM on Kubernetes."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-inference-capabilities.md"]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q6",
+    "question": "How does AutoRAG optimize RAG pipelines in Red Hat OpenShift AI?",
+    "expected_mode": "AUTO",
+    "correct_answers": [
+      "AutoRAG tests chunking, embeddings, and retrieval configurations against benchmark questions and ranks patterns by faithfulness. It is available in Red Hat OpenShift AI 3.5 as Technology Preview in the maturity table."
+    ],
+    "correct_answer_document_ids": [
+      "red-hat-ai-data-rag-customization.md",
+      "component-maturity-table.md"
+    ]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q10",
+    "question": "Are TrustyAI guardrails and Garak red teaming available on OpenShift AI, and what is each status?",
+    "expected_mode": "AUTO",
+    "correct_answers": [
+      "TrustyAI Guardrails Orchestrator is GA as part of Red Hat AI. Garak is Technology Preview. NeMo Guardrails provides runtime input/output guardrails."
+    ],
+    "correct_answer_document_ids": [
+      "ai-safety-stack-red-teaming.md",
+      "component-maturity-table.md"
+    ]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q12",
+    "question": "Does Red Hat OpenShift AI support disconnected air-gapped deployments?",
+    "expected_mode": "SCAFFOLD",
+    "correct_answers": [
+      "Red Hat AI documents air-gapped support: mirror images, offline model catalog, no external runtime dependencies. OpenShift disconnected install uses oc-mirror. Detailed IDMS/ITMS operator steps may still need a human or a dedicated encyclopedia doc."
+    ],
+    "correct_answer_document_ids": [
+      "red-hat-ai-platform-gpu-hybrid.md",
+      "government-public-sector-case-studies.md"
+    ]
+  },
+  {
+    "eval_kind": "naming",
+    "id": "Q20",
+    "question": "What is the correct customer-facing name for Praxis?",
+    "expected_mode": "AUTO",
+    "forbidden_names": ["Praxis"],
+    "correct_answers": [
+      "Red Hat AI gateway. Never use Praxis in customer-facing documents."
+    ],
+    "correct_answer_document_ids": ["product-naming-canonical.md"]
+  },
+  {
+    "eval_kind": "naming",
+    "id": "N1",
+    "question": "Is vLLM a Red Hat product we should list separately on an OpenShift AI RFP?",
+    "expected_mode": "AUTO",
+    "forbidden_names": [],
+    "correct_answers": [
+      "No. vLLM is the open-source serving engine inside Red Hat OpenShift AI. Do not list vLLM as a Red Hat product."
+    ],
+    "correct_answer_document_ids": ["product-naming-canonical.md"]
+  },
+  {
+    "eval_kind": "naming",
+    "id": "N2",
+    "question": "Should a customer RFP still propose Kagenti as the agent runtime?",
+    "expected_mode": "AUTO",
+    "forbidden_names": ["Kagenti"],
+    "correct_answers": [
+      "No. Kagenti is deprecated and converged into NVIDIA OpenShell. Do not reference Kagenti as current."
+    ],
+    "correct_answer_document_ids": ["product-naming-canonical.md"]
+  },
+  {
+    "eval_kind": "trap",
+    "id": "Q17",
+    "question": "What is Red Hat's list price per GPU-hour for OpenShift AI, including SKU discount tiers?",
+    "expected_mode": "HUMAN",
+    "correct_answers": [
+      "Not in the knowledge base. Mark [HUMAN INPUT REQUIRED] / [NEEDS HUMAN INPUT]. Do not invent a price."
+    ],
+    "correct_answer_document_ids": []
+  },
+  {
+    "eval_kind": "trap",
+    "id": "Q18",
+    "question": "Name three production OpenShift AI banking customers with published GPU utilization percentages we may cite in a proposal.",
+    "expected_mode": "HUMAN",
+    "correct_answers": [
+      "Financial-services case studies in corpus are brochure-depth and do not authorize three named banks with GPU utilization metrics. Abstain rather than invent."
+    ],
+    "correct_answer_document_ids": ["financial-services-case-studies.md"]
+  },
+  {
+    "eval_kind": "trap",
+    "id": "T1",
+    "question": "Does OpenShift AI include a legally binding 99.999 percent SLA for model serving REST endpoints?",
+    "expected_mode": "HUMAN",
+    "correct_answers": [
+      "Support tiers exist; a 99.999 percent model-serving SLA is not in corpus. Do not invent it."
+    ],
+    "correct_answer_document_ids": ["red-hat-support-tiers-sla.md"]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q1",
+    "question": "Does OpenShift AI provide a web dashboard, workbenches, and pipeline orchestration?",
+    "expected_mode": "SCAFFOLD",
+    "correct_answers": [
+      "Workbenches are mentioned as data-scientist self-service. A full DataScienceCluster / Data Science Pipelines encyclopedia may still be incomplete; scaffold and flag gaps."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q8",
+    "question": "Is InstructLab available for model customization on OpenShift AI?",
+    "expected_mode": "SCAFFOLD",
+    "correct_answers": [
+      "InstructLab is documented as Red Hat's taxonomy-based model customization approach. Cite red-hat-responsible-ai.md. Do not invent GA packaging details beyond that file."
+    ],
+    "correct_answer_document_ids": ["red-hat-responsible-ai.md"]
+  },
+  {
+    "eval_kind": "rfi_row",
+    "id": "Q15",
+    "question": "Describe install, upgrade, and backup of OpenShift AI operators.",
+    "expected_mode": "HUMAN",
+    "correct_answers": [
+      "No RHOAI lifecycle encyclopedia in corpus. Do not invent operator backup procedures."
+    ],
+    "correct_answer_document_ids": []
+  }
+]

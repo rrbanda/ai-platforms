@@ -1,0 +1,248 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: stale-image-finder
+  labels:
+    app: stale-image-finder
+    app.kubernetes.io/name: stale-image-finder
+    app.kubernetes.io/part-of: stale-image-finder
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+    agenthive.io/github-mcp: sealed
+    agenthive.io/dashboard-password-rev: "2026-08-24-shared"
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: stale-image-finder
+    spec:
+      containers:
+      - name: agent
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        command:
+        - bash
+        - /mnt/startup/startup.sh
+        env:
+        - name: OPENSHELL_SANDBOX
+          value: stale-image-finder
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: "true"
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: "1001310000"
+        - name: OPENSHELL_SANDBOX_GID
+          value: "1001310000"
+        - name: HOME
+          value: /sandbox
+        - name: HERMES_HOME
+          value: /sandbox/.hermes
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: stale-image-finder-auth
+              optional: true
+        - name: OPENAI_BASE_URL
+          value: https://generativelanguage.googleapis.com/v1beta/openai/
+        - name: LLM_MODEL
+          value: gemini-2.5-pro
+        - name: OPENSHIFT_MCP_URL
+          value: http://openshift-mcp-v2.openshift-mcp-server.svc.cluster.local:8080/mcp
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: github-token
+              name: stale-image-finder-auth
+              optional: true
+        - name: GITOPS_REPO
+          value: rrbanda/ai-platforms
+        - name: COMPLIANCE_WINDOWS
+          value: "30,60,90"
+        - name: ESCALATION_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              key: escalation-webhook-url
+              name: stale-image-finder-auth
+              optional: true
+        - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+          value: admin
+        - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: dashboard-password
+              name: stale-image-finder-auth
+        - name: HERMES_DASHBOARD_HOST
+          value: 0.0.0.0
+        - name: HERMES_DASHBOARD_PORT
+          value: "9119"
+        - name: API_SERVER_ENABLED
+          value: "true"
+        - name: API_SERVER_HOST
+          value: 0.0.0.0
+        - name: API_SERVER_PORT
+          value: "8642"
+        - name: API_SERVER_MODEL_NAME
+          value: stale-image-finder
+        - name: API_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-server-key
+              name: stale-image-finder-auth
+        - name: PATH
+          value: /sandbox/.venv/bin:/usr/local/bin:/usr/bin:/bin
+        ports:
+        - containerPort: 9119
+          name: dashboard
+          protocol: TCP
+        - containerPort: 8642
+          name: api
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          tcpSocket:
+            port: 9119
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          runAsUser: 0
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /sandbox
+          name: workspace
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /mnt/soul
+          name: soul
+        - mountPath: /mnt/config
+          name: config
+        - mountPath: /mnt/skill-stale-image-finder
+          name: skill-stale-image-finder
+        - mountPath: /mnt/skill-image-compliance-classifier
+          name: skill-image-compliance-classifier
+        - mountPath: /mnt/skill-image-refresh-pr
+          name: skill-image-refresh-pr
+        - mountPath: /mnt/skill-image-rebuild-redeploy
+          name: skill-image-rebuild-redeploy
+      initContainers:
+      - name: openshell-supervisor-install
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        imagePullPolicy: IfNotPresent
+        command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      - name: workspace-init
+        image: ghcr.io/rrbanda/rfp-agent:latest
+        imagePullPolicy: Always
+        command:
+        - sh
+        - -c
+        - |
+          if [ ! -f /workspace-pvc/.workspace-initialized ]; then
+            [ -d /sandbox ] && tar -C /sandbox -cf - . | tar -C /workspace-pvc -xpf -
+            touch /workspace-pvc/.workspace-initialized
+          fi
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /workspace-pvc
+          name: workspace
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      volumes:
+      - name: openshell-supervisor-bin
+        emptyDir: {}
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - name: openshell-policy
+        configMap:
+          name: stale-image-finder-openshell-policy
+      - name: startup
+        configMap:
+          name: stale-image-finder-startup
+          defaultMode: 493
+      - name: soul
+        configMap:
+          name: stale-image-finder-soul
+      - name: config
+        configMap:
+          name: stale-image-finder-config
+      - name: skill-stale-image-finder
+        configMap:
+          name: skill-stale-image-finder
+      - name: skill-image-compliance-classifier
+        configMap:
+          name: skill-image-compliance-classifier
+      - name: skill-image-refresh-pr
+        configMap:
+          name: skill-image-refresh-pr
+      - name: skill-image-rebuild-redeploy
+        configMap:
+          name: skill-image-rebuild-redeploy
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi

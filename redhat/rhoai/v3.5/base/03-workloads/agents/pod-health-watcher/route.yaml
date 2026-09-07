@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pod-health-watcher
+  labels:
+    app: pod-health-watcher
+    app.kubernetes.io/part-of: pod-health-watcher
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains
+spec:
+  to:
+    kind: Service
+    name: pod-health-watcher-dashboard
+  port:
+    targetPort: dashboard
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

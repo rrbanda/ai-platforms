@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-rh-rfp-analysis
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    # RFP Analysis
+
+    > Extract ALL requirements, deliverables, milestones, compliance questions, and data from the RFP package into structured tables. This is Phase 2 of the RFP workflow.
+
+    ## When to Use
+
+    - After intake is complete and user confirms proceeding
+    - User says "extract requirements", "analyze the RFP", "what does this RFP need"
+    - **RFI:** extract every questionnaire row into a fillable matrix
+
+    ## RFI / questionnaire path
+
+    If intake document job is **RFI**:
+
+    1. One row per inbound question (preserve customer IDs).
+    2. Do not produce the seven narrative extraction tables unless a hybrid RFP is also present.
+    3. Output columns: ID, Question, Suggested answer (Yes/Partial/No/HUMAN), Citation filename, Notes.
+    4. Then: "Proceed to drafting the filled matrix?" Skip services-proposal strategy templates.
+
+    ## Extraction Categories
+
+    Extract every requirement into one of these categories:
+
+    ### 1. Deliverables
+
+    | ID | Description | Acceptance Criteria | Timing | Owner |
+    |----|-------------|---------------------|--------|-------|
+    | D1 | [name] | [criteria] | [when] | [vendor/customer/joint] |
+
+    ### 2. Milestones
+
+    | ID | Milestone | Linked Deliverables | Timing | Payment Trigger |
+    |----|-----------|---------------------|--------|-----------------|
+    | M1 | [name] | D1, D2 | [when] | [yes/no, amount] |
+
+    ### 3. Compliance / Questionnaire Questions
+
+    | # | Category | Question | Response Type |
+    |---|----------|----------|---------------|
+    | 1 | Security | [question text] | Narrative / Yes-No / Evidence |
+
+    ### 4. Staffing Expectations
+
+    | Role | Count | Qualifications | Duration |
+    |------|-------|---------------|----------|
+    | [role] | [N or TBD] | [requirements] | [months] |
+
+    ### 5. KPIs / Success Metrics
+
+    | KPI | Measurement | Target | Reporting Frequency |
+    |-----|-------------|--------|---------------------|
+    | [metric] | [how measured] | [threshold] | [weekly/monthly] |
+
+    ### 6. Pricing Structure
+
+    | Payment Trigger | Linked To | Basis | Notes |
+    |-----------------|-----------|-------|-------|
+    | [trigger] | [deliverable/milestone] | [fixed/per-unit/T&M] | [constraints] |
+
+    ### 7. Governance / Operating Model
+
+    | Role | Responsibilities | Decision Rights |
+    |------|-----------------|-----------------|
+    | [role/committee] | [what they do] | [what they decide] |
+
+    ## Data Summarization
+
+    For appendix data (tables, inventories, vulnerability counts):
+
+    1. Identify total scope (e.g., "3,930 high-priority findings")
+    2. Identify breakdown dimensions (by portfolio, category, severity)
+    3. Identify top categories by volume
+    4. Calculate distributions for staffing estimates
+
+    Output:
+
+    ```markdown
+    ## Scope Data Summary
+
+    **Total scope:** [e.g., 3,930 vulnerabilities across 4 portfolios]
+
+    ### Distribution by [Dimension]
+
+    | Category | Count | % of Total |
+    |----------|-------|-----------|
+    | [largest] | [N] | [X%] |
+
+    ### Implications for Staffing/Approach
+    - [Observation 1]
+    - [Observation 2]
+    ```
+
+    ## Response Format Identification
+
+    Determine EXACTLY what the customer expects back:
+
+    1. Search for "Response Requirements", "Proposal Guidelines"
+    2. List every required response section in order
+    3. Note page limits, font requirements, formatting rules
+    4. Identify attachments/appendices the response must include
+
+    ## Analysis Summary Output
+
+    ```markdown
+    ## RFP Analysis Complete
+
+    ### By the Numbers
+    - **Deliverables:** [N] identified
+    - **Milestones:** [N] with payment triggers
+    - **Compliance Questions:** [N] requiring answers
+    - **Staffing Roles:** [N] expected
+    - **KPIs:** [N] defined
+    - **Scope Size:** [summary metric]
+
+    ### Requirement Priorities
+    1. [Highest priority/largest scope item]
+    2. [Second priority]
+    3. [Third priority]
+
+    ### Response Sections Required
+    [List from format identification]
+
+    ### Key Constraints
+    - Timeline: [start → end]
+    - Budget: [if indicated]
+    - Team size: [if specified]
+    - Special: [clearances, locations, etc.]
+
+    ---
+    Proceed to Strategy phase?
+    ```
+
+    ## Next Phase
+
+    After user reviews analysis, proceed with `rh-rfp-strategy` for gap analysis and response planning.

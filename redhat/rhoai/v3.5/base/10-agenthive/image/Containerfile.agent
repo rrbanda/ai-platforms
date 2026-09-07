@@ -1,0 +1,33 @@
+# Layer 2: RFP Agent
+#
+# Agent-specific dependencies on top of hermes-runtime.
+# This layer rebuilds quickly (~2 min) when requirements.txt changes.
+# It does NOT rebuild when Hermes itself is upgraded (Layer 1 handles that).
+#
+# Build:
+#   podman build --platform linux/amd64 \
+#     -f Containerfile.agent \
+#     -t ghcr.io/rrbanda/rfp-agent:latest .
+#
+# The resulting image runs inside an OpenShell sandbox:
+#   - Agent Sandbox CRD creates the pod
+#   - OpenShell supervisor injected via init container
+#   - SOUL.md, config, skills mounted via ConfigMaps at runtime
+
+ARG RUNTIME_IMAGE=ghcr.io/rrbanda/hermes-runtime:v2026.8.18
+
+FROM ${RUNTIME_IMAGE}
+
+USER root
+
+# Agent-specific Python dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
+
+# Verify key deps are available
+RUN python3 -c "import pymilvus; import mlflow; import requests; print('deps OK')"
+
+USER 1001310000
+WORKDIR /sandbox
+CMD ["bash"]

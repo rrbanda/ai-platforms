@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rhoai-copilot
+  labels:
+    app: rhoai-copilot
+    app.kubernetes.io/part-of: rhoai-copilot
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains
+spec:
+  to:
+    kind: Service
+    name: rhoai-copilot-dashboard
+  port:
+    targetPort: dashboard
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

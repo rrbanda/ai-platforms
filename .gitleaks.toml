@@ -6,6 +6,7 @@ paths = [
   '''helm-deploy/chart/templates/.*''',
   '''\.pre-commit-config\.yaml''',
   '''sealed-.*\.yaml''',
+  '''redhat/rhoai/v3\.5/base/10-agenthive/secrets/.*\.yaml''',
 ]
 
 [[rules]]

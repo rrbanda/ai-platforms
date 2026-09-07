@@ -1,0 +1,66 @@
+# Red Hat Product Naming — Canonical Reference
+
+> Canonical mapping between internal/upstream project names and correct customer-facing names for Red Hat AI portfolio. Load this skill whenever generating customer-facing content.
+
+## When to Use
+
+- Loaded as a dependency by `rh-rfp-drafting` and `rh-rfp-review`
+- Triggered directly when verifying product names
+- Before ANY customer-facing document is finalized
+
+## Correct Customer-Facing Names (August 2026)
+
+| Internal / Upstream | Customer-Facing Name | Notes |
+|---------------------|---------------------|-------|
+| Praxis | **Red Hat AI gateway** | Never use "Praxis" in customer docs |
+| Kagenti / AgentRuntime CRD | **DEPRECATED** — converged into OpenShell | Do not reference |
+| OpenShell | **NVIDIA OpenShell** | Open source, not a Red Hat product name |
+| Kata Containers (on OpenShift) | **OpenShift Sandboxed Containers** | Product name for Kata on OpenShift |
+| Kuadrant/mcp-gateway | **MCP Gateway** | Technology Preview |
+| OGX (formerly Llama Stack) | **Agent-as-a-Service / Responses API** | Part of OpenShift AI |
+| llm-d | **llm-d** (CNCF Sandbox project) | Community name, use as-is |
+| vLLM on OpenShift | **Red Hat OpenShift AI** (with vLLM) | vLLM is the engine inside the product |
+| TrustyAI | **TrustyAI** (part of Red Hat AI) | Keep the project name |
+| Garak | **Garak** | Technology Preview |
+| NeMo Guardrails | **NeMo Guardrails** | NVIDIA project, not Red Hat |
+| agent-sandbox API | **agent-sandbox CRD** | Lifecycle CRD, NOT an isolation API |
+
+## Product Portfolio
+
+| Product | What It Is | Status |
+|---------|-----------|--------|
+| Red Hat OpenShift AI | ML/AI platform (training, serving, pipelines) | GA |
+| OpenShift Sandboxed Containers | Kata-based VM isolation for pods | GA |
+| Red Hat AI gateway | Inference routing, rate limiting, auth | GA |
+| MCP Gateway | Model Context Protocol gateway for tool access | Technology Preview |
+| NVIDIA OpenShell | Agent sandbox lifecycle + supervisor | Upstream |
+| llm-d | Distributed inference disaggregation for vLLM | CNCF Sandbox |
+| TrustyAI | Bias detection, explainability, guardrails | Part of Red Hat AI |
+| Garak | LLM vulnerability scanning | Technology Preview |
+
+## Status Terms
+
+- **Generally Available (GA)** — production-ready, supported, SLA-backed
+- **Technology Preview** — available but not production-supported
+- **Dev/Tech Preview** — early access, interface may change
+- **Upstream** — community project, not productized
+
+## Common Mistakes
+
+1. Don't call agent-sandbox API an "isolation API" — isolation comes from kernel primitives. The CRD manages lifecycle.
+2. Don't mention Kagenti as current — absorbed into OpenShell.
+3. Don't use "Praxis" externally — always "Red Hat AI gateway".
+4. Don't say "Red Hat OpenShell" — it's "NVIDIA OpenShell" (Red Hat contributes, doesn't own).
+5. Don't confuse OpenShift AI (product) with OpenShift Sandboxed Containers (different operator).
+6. Don't call OpenShell an "OLM operator" — deploys via Helm + controller.
+7. Don't claim vLLM is a Red Hat product — it's the engine *inside* Red Hat OpenShift AI.
+
+## Verification Process
+
+When producing any customer-facing document:
+
+1. Search the draft for every product/project name
+2. Compare against the table above
+3. Replace internal/upstream names with correct customer-facing names
+4. Verify status terms match current reality (GA vs Preview)
+5. Flag any product claims that can't be verified against this reference

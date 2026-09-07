@@ -1,0 +1,149 @@
+# Operator installation for RHOAI 3.4.2 on OpenShift 4.20.30.
+#
+# CAPTURED VERBATIM from `DRY_RUN=true ./deploy-rhoai.sh 40` against a working
+# cluster — this is exactly what scripts/rhoai/40-install-operators.sh applies,
+# not a hand-written approximation.
+#
+# BEFORE APPLYING, change `source:` on every Subscription. The catalog name is
+# digest-derived (cs-redhat-operator-index-sha256-<short>) and WILL differ in
+# your environment. Find yours with:
+#
+#     oc get catalogsource -n openshift-marketplace
+#
+# Order matters: cert-manager and OSSM 3 must be Succeeded before rhods-operator
+# reconciles. Apply top to bottom and wait for each CSV.
+
+---
+# --- namespace/openshift-nfd ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-nfd
+---
+# --- operatorgroup/openshift-nfd (own namespace) ---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-nfd-og
+  namespace: openshift-nfd
+spec:
+  targetNamespaces:
+    - openshift-nfd
+---
+# --- subscription/nfd ---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: nfd
+  namespace: openshift-nfd
+spec:
+  name: nfd
+  channel: stable
+  source: cs-redhat-operator-index-sha256-8d67e
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+# --- nodefeaturediscovery/nfd-instance ---
+apiVersion: nfd.openshift.io/v1
+kind: NodeFeatureDiscovery
+metadata:
+  name: nfd-instance
+  namespace: openshift-nfd
+spec:
+  operand:
+    image: registry.redhat.io/openshift4/ose-cluster-nfd-rhel9-operator@sha256:6406596f04412db97ea117f6624ca46549adf79a657b567f23574c2db206350b
+    servicePort: 12000
+  workerConfig:
+    configData: |
+      core:
+        sleepInterval: 60s
+      sources:
+        pci:
+          deviceClassWhitelist: ["0200", "03"]
+          deviceLabelFields: ["vendor"]
+---
+# --- namespace/nvidia-gpu-operator ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nvidia-gpu-operator
+---
+# --- operatorgroup/nvidia-gpu-operator (own namespace) ---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: nvidia-gpu-operator-og
+  namespace: nvidia-gpu-operator
+spec:
+  targetNamespaces:
+    - nvidia-gpu-operator
+---
+# --- subscription/gpu-operator-certified ---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: gpu-operator-certified
+  namespace: nvidia-gpu-operator
+spec:
+  name: gpu-operator-certified
+  channel: stable
+  source: cs-certified-operator-index-sha256-ab2ce
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+# --- namespace/cert-manager-operator ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager-operator
+---
+# --- operatorgroup/cert-manager-operator (own namespace) ---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cert-manager-operator-og
+  namespace: cert-manager-operator
+spec:
+  targetNamespaces:
+    - cert-manager-operator
+---
+# --- subscription/openshift-cert-manager-operator ---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-cert-manager-operator
+  namespace: cert-manager-operator
+spec:
+  name: openshift-cert-manager-operator
+  channel: stable-v1
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+# --- namespace/redhat-ods-operator ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redhat-ods-operator
+---
+# --- operatorgroup/redhat-ods-operator (all namespaces) ---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: redhat-ods-operator-og
+  namespace: redhat-ods-operator
+spec: {}
+---
+# --- subscription/rhods-operator ---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: rhods-operator
+  namespace: redhat-ods-operator
+spec:
+  name: rhods-operator
+  channel: stable-3.4
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+  startingCSV: rhods-operator.3.4.2

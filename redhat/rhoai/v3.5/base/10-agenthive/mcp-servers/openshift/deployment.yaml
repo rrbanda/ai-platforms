@@ -1,0 +1,121 @@
+# OpenShift MCP Server
+# Cluster resource queries: pods, nodes, events, namespaces.
+# DNS must match agent docs and sandbox OPENSHIFT_MCP_URL:
+#   http://openshift-mcp-v2.openshift-mcp-server.svc.cluster.local:8080/mcp
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-mcp-server
+  labels:
+    app.kubernetes.io/part-of: agenthive
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openshift-mcp-server
+  namespace: openshift-mcp-server
+  labels:
+    app: openshift-mcp-v2
+    app.kubernetes.io/part-of: agenthive
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openshift-mcp-server-cluster-reader
+  labels:
+    app.kubernetes.io/part-of: agenthive
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-reader
+subjects:
+  - kind: ServiceAccount
+    name: openshift-mcp-server
+    namespace: openshift-mcp-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-mcp-v2
+  namespace: openshift-mcp-server
+  labels:
+    app: openshift-mcp-v2
+    app.kubernetes.io/part-of: agenthive
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openshift-mcp-v2
+  template:
+    metadata:
+      labels:
+        app: openshift-mcp-v2
+    spec:
+      serviceAccountName: openshift-mcp-server
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ocp-mcp
+          # Public image; do not pin a digest that quay no longer serves.
+          image: quay.io/containers/kubernetes_mcp_server:latest
+          imagePullPolicy: Always
+          args:
+            - --port
+            - "8080"
+            - --disable-multi-cluster
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: HOME
+              value: "/tmp"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-mcp-v2
+  namespace: openshift-mcp-server
+  labels:
+    app: openshift-mcp-v2
+    app.kubernetes.io/part-of: agenthive
+spec:
+  selector:
+    app: openshift-mcp-v2
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http

@@ -1,0 +1,106 @@
+# Layer 1: Hermes Runtime
+#
+# Reusable base image containing the Hermes agent framework + system deps.
+# This layer changes ONLY when HERMES_VERSION is bumped.
+# Any agent (RFP, security, etc.) can build on top of this.
+#
+# Build:
+#   podman build --platform linux/amd64 \
+#     -f Containerfile.runtime \
+#     -t ghcr.io/rrbanda/hermes-runtime:v2026.8.18 .
+#
+# This image provides:
+#   - UBI 9 + Python 3.12
+#   - Node.js 22 LTS (for MCP servers / dashboard frontend)
+#   - ripgrep (for code search inside sandboxes)
+#   - Hermes Agent (pinned version from HERMES_VERSION file)
+#   - Hermes Web UI (pre-built)
+#   - Standard sandbox directory structure
+#
+# It does NOT contain agent-specific deps (pymilvus, mlflow, etc.)
+# Those belong in Containerfile.agent (Layer 2).
+
+ARG BASE_IMAGE=registry.access.redhat.com/ubi9/python-312:latest
+
+FROM ${BASE_IMAGE}
+
+USER root
+
+# System packages needed by hermes and common agent workloads
+RUN dnf install -y --nodocs \
+        git wget procps-ng xz findutils \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+# ripgrep (not in UBI repos — install from GitHub release)
+ARG RG_VERSION=14.1.1
+RUN curl -fsSL "https://github.com/BurntSushi/ripgrep/releases/download/${RG_VERSION}/ripgrep-${RG_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+    | tar -xzf - --strip-components=1 -C /usr/local/bin "ripgrep-${RG_VERSION}-x86_64-unknown-linux-musl/rg" \
+    && rg --version
+
+# Node.js 22 LTS for MCP servers and hermes dashboard frontend
+ARG NODE_VERSION=22.22.0
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+    | tar -xJf - -C /usr/local --strip-components=1 \
+    && node --version && npm --version
+
+# Install uv (required by hermes-agent v0.20+ build system)
+RUN pip install --no-cache-dir --upgrade pip uv
+
+# Install hermes-agent from GitHub
+# HERMES_NIX_BUILD=1 bypasses the Nix-only wheel guard in hermes v0.20+
+ARG HERMES_VERSION=v2026.8.18
+RUN git clone --depth 1 --branch ${HERMES_VERSION} \
+        https://github.com/NousResearch/hermes-agent.git /tmp/hermes-agent && \
+    cd /tmp/hermes-agent && \
+    HERMES_NIX_BUILD=1 uv pip install --python /opt/app-root/bin/python3.12 --no-cache ".[all]" && \
+    SITE_PKG=/opt/app-root/lib/python3.12/site-packages && \
+    npm install && \
+    if [ -d web ] && [ -f web/package.json ]; then \
+        cd /tmp/hermes-agent/web && npm run build && \
+        cp -r /tmp/hermes-agent/hermes_cli/web_dist \
+              ${SITE_PKG}/hermes_cli/web_dist && \
+        echo "Web UI built"; \
+    fi && \
+    if [ -d /tmp/hermes-agent/ui-tui ]; then \
+        cd /tmp/hermes-agent/ui-tui && npm run build && \
+        cp -r /tmp/hermes-agent/ui-tui ${SITE_PKG}/ui-tui && \
+        echo "TUI workspace built and installed to ${SITE_PKG}/ui-tui"; \
+    fi && \
+    cd / && rm -rf /tmp/hermes-agent
+
+# Verify hermes is installed
+RUN hermes --version
+
+# Create the standard sandbox directory structure
+# (OpenShell supervisor injects into /opt/openshell/bin at runtime)
+RUN mkdir -p \
+    /sandbox/.hermes/skills \
+    /sandbox/.hermes/memory \
+    /sandbox/.hermes/sessions \
+    /sandbox/.hermes/profiles \
+    /sandbox/.hermes/auto-skills \
+    /sandbox/.hermes/db \
+    /sandbox/data \
+    /sandbox/output \
+    && chmod -R 777 /sandbox
+
+# Symlink /sandbox/.venv -> /opt/app-root so startup scripts find hermes
+RUN ln -s /opt/app-root /sandbox/.venv
+
+# Environment
+ENV HERMES_HOME=/sandbox/.hermes
+ENV HERMES_TUI_DIR=/opt/app-root/lib/python3.12/site-packages/ui-tui
+ENV HOME=/sandbox
+ENV PATH="/sandbox/.venv/bin:/opt/app-root/bin:/usr/local/bin:/usr/bin:/bin"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Standard hermes ports:
+#   9119  - Dashboard (web UI)
+#   18789 - Gateway (messaging)
+#   8644  - API server
+EXPOSE 9119 18789 8644
+
+WORKDIR /sandbox
+CMD ["bash"]

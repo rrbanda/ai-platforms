@@ -1,0 +1,216 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-rh-rfp-intake
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    # RFP Intake
+
+    > Ingest multi-document RFP packages, convert to text, classify each document's role, extract timeline urgency, and present a structured intake summary.
+
+    ## When to Use
+
+    - User uploads RFP documents (PDF, DOCX, TXT, pasted text)
+    - User says "respond to RFP", "handle this proposal", "process this RFP"
+    - Beginning of any RFP workflow (this is always Phase 1)
+
+    ## How Users Provide RFP Documents
+
+    ### Option A: Open WebUI chat attach / paste (AgentHive)
+
+    Open WebUI stores uploads in **its** volume, not in this Sandbox. If the user
+    attached a file or the UI shows "Retrieved N source", the extracted text is
+    already in the conversation. Use that text. Never look for the filename on
+    disk. Never say "the file was not uploaded correctly."
+
+    ### Option B: Hermes dashboard Files panel
+
+    On the Hermes Route only, uploads land in `/sandbox/data/`. Scan as below.
+
+    ### Option C: Paste Text
+    Users paste RFP text directly into the chat. Process as-is.
+
+    ### Option D: URL / Shared Drive
+    User provides a link. Try to download with `curl -L -o /sandbox/data/filename.ext URL`.
+    If the download fails, ask them to paste the text or attach the file in chat
+    (Open WebUI) — not the Hermes Files panel if they are in Open WebUI.
+
+    ### Auto-Detection Logic
+
+    If the chat already contains document text, skip the sandbox scan and intake
+    from that text.
+
+    Otherwise scan for unprocessed files on the Hermes dashboard path:
+
+    ```python
+    from pathlib import Path
+
+    SCAN_DIRS = [Path("/sandbox"), Path("/sandbox/data")]
+    DOC_EXTENSIONS = {'.docx', '.pdf', '.xlsx', '.xls', '.txt', '.csv'}
+    PROCESSED_MARKER = Path("/sandbox/data/.processed_files")
+
+    # Load previously processed files
+    already_processed = set()
+    if PROCESSED_MARKER.exists():
+        already_processed = set(PROCESSED_MARKER.read_text().strip().split("\n"))
+
+    # Find new files in both /sandbox and /sandbox/data
+    new_files = []
+    for scan_dir in SCAN_DIRS:
+        if scan_dir.exists():
+            for f in sorted(scan_dir.iterdir()):
+                if f.is_file() and f.suffix.lower() in DOC_EXTENSIONS and f.name not in already_processed:
+                    new_files.append(f)
+
+    # Mark as processed
+    if new_files:
+        PROCESSED_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        with open(PROCESSED_MARKER, "a") as marker:
+            for f in new_files:
+                marker.write(f.name + "\n")
+    ```
+
+    If `new_files` is non-empty, proceed with intake immediately.
+
+    ### Greeting / First Message
+    When a user starts a conversation about RFPs, proactively tell them:
+
+    > To get started, paste the RFP, attach it in this chat, or (Hermes dashboard
+    > only) upload via the Files panel. I can take a multi-document package as
+    > pasted/attached text.
+
+    ## Input Handling
+
+    ### Supported Formats & Conversion
+
+    | Format | Python Library | Conversion Method |
+    |--------|---------------|------------------|
+    | `.docx` | `python-docx` | `docx.Document(path)` → iterate paragraphs and tables |
+    | `.pdf` | `PyPDF2` | `PdfReader(path)` → extract page text |
+    | `.txt` | built-in | `open(path).read()` |
+    | Pasted text | — | Direct processing |
+    | `.xlsx` | `openpyxl` / `pandas` | `pd.read_excel(path)` → extract pricing tables |
+
+    ### Conversion Code Pattern
+
+    When files arrive in `/sandbox/data/`, convert them:
+
+    ```python
+    import os
+    from pathlib import Path
+
+    DATA_DIR = Path("/sandbox/data")
+
+    for f in sorted(DATA_DIR.iterdir()):
+        if f.suffix == ".docx":
+            from docx import Document
+            doc = Document(f)
+            text = "\n".join(p.text for p in doc.paragraphs)
+            tables = []
+            for table in doc.tables:
+                for row in table.rows:
+                    tables.append([cell.text for cell in row.cells])
+        elif f.suffix == ".pdf":
+            from PyPDF2 import PdfReader
+            reader = PdfReader(f)
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif f.suffix in (".xlsx", ".xls"):
+            import pandas as pd
+            dfs = pd.read_excel(f, sheet_name=None)
+            text = "\n\n".join(f"## {name}\n{df.to_markdown()}" for name, df in dfs.items())
+        elif f.suffix == ".txt":
+            text = f.read_text()
+    ```
+
+    ### Multi-Document Handling
+
+    Real RFPs arrive as 2-5 files. Process ALL:
+    1. List files in `/sandbox/data/` and convert each to text
+    2. Read the first 50 lines to identify each file's role
+    3. Classify (see table below)
+    4. Combine into a unified RFP package
+
+    ## Document Classification
+
+    | Classification | Indicators | Extract |
+    |---------------|-----------|---------|
+    | **Procurement Shell** | "RFP", "Request for Proposal", timeline, T&Cs | Deadline, format, evaluation criteria |
+    | **Technical Scope** | "Scope of Work", deliverables, milestones, KPIs | All requirements, deliverables, milestones |
+    | **Pricing Template** | "Pricing Schedule", "Fee Estimate", rate cards | Payment structure, pricing format |
+    | **Compliance Questionnaire** | "Risk Management", "Security Assessment", Q&A format | All questions needing answers |
+    | **Legal Terms** | "Terms & Conditions", indemnification, liability | Terms requiring legal review |
+    | **Appendix/Data** | Tables, vulnerability counts, inventories | Supporting data for staffing/scope |
+
+    ## Timeline Extraction
+
+    Search ALL documents for deadline indicators:
+    - "Proposal Due", "Response Due", "Submission Deadline"
+    - Date fields in timeline tables
+    - "Intent to Respond" dates
+
+    Calculate and report:
+    - Submission deadline (date, time, timezone)
+    - Days remaining from today
+    - Intermediate deadlines (questions due, intent to respond)
+
+    **URGENCY FLAG:** If less than 7 days remain, prominently warn the user.
+
+        ## RFP Type Determination
+
+        First classify **document job**: **RFI / questionnaire**, **RFP / proposal**, or **hybrid**.
+        Spreadsheet matrices, Yes/No/Partial columns, and "complete this table" language → RFI.
+
+        Then classify content type:
+
+        | Type | Characteristics |
+        |------|----------------|
+        | **Services** | Staffing, FTEs, delivery timeline, milestones, governance, KPIs |
+        | **Technology** | Architecture, capabilities, integration, deployment, APIs |
+        | **Hybrid** | Both present (most common) — use services as base, add tech sections |
+
+        ## Output Format
+
+        Present this summary to the user before proceeding:
+
+        ```markdown
+        ## Intake Summary
+
+        **Customer:** [Organization name]
+        **Title:** [Full title]
+        **Document job:** [RFI / RFP / Hybrid]
+        **Content type:** [Services / Technology / Hybrid]
+        **Submission Deadline:** [Date] ([N] days remaining)
+
+    ### Documents Received
+
+    | # | Filename | Classification | Size |
+    |---|----------|---------------|------|
+    | 1 | [name] | [classification] | [pages/lines] |
+
+    ### Key Contacts
+    - Primary: [Name, email]
+
+    ### Scope Summary (preliminary)
+    [2-3 sentence summary of what the RFP asks for]
+
+    ### Response Format Required
+    [What sections/documents the customer expects back]
+
+    ---
+    Proceed to Analysis phase?
+    ```
+
+    ## Error Handling
+
+    - Document can't be converted → inform user, ask for alternative format
+    - Open WebUI attach with no text in the prompt → ask them to paste an excerpt or use the Hermes dashboard Files panel; do not invent a `/sandbox` path
+    - No deadline found → ask user to confirm timeline
+    - RFP type ambiguous → present options and ask user
+    - Documents appear incomplete → flag missing elements
+
+    ## Next Phase
+
+    After user confirms intake, proceed with `rh-rfp-analysis`. For **RFI**, analysis extracts questionnaire rows, not a 40-page outline.

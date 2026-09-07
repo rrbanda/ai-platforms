@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Chat completions test — ${MODEL_NAME}
+# Namespace:  ${MODEL_NAMESPACE}
+# Endpoint:   ${MAAS_MODEL_URL}/v1/chat/completions
+#
+# Prerequisites:
+#   1. Create your API key first:   bash create-apikey.sh
+#   2. Export it:                   export API_KEY="sk-oai-..."
+#      Or pass inline:              API_KEY="sk-oai-..." bash $(basename "$0")
+
+API_KEY="${API_KEY:-sk-oai-YOUR_KEY_HERE}"
+QUESTION="${1:-What is AI?}"
+
+if [ "$API_KEY" = "sk-oai-YOUR_KEY_HERE" ]; then
+  echo "ERROR: set API_KEY before running."
+  echo "  Run:  bash create-apikey.sh   to create one"
+  echo "  Then: API_KEY=sk-oai-... bash $(basename "$0") [\"your question\"]"
+  exit 1
+fi
+
+ENDPOINT="${MAAS_MODEL_URL}/v1/chat/completions"
+
+echo "Testing ${MODEL_NAME} via MaaS gateway..."
+echo "Endpoint: $ENDPOINT"
+echo "Question: $QUESTION"
+echo ""
+
+curl -s -X POST "$ENDPOINT" \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg model "${MODEL_NAME}" --arg q "$QUESTION" \
+    '{model: $model, messages: [{role: "user", content: $q}], max_tokens: 100}')" \
+  | python3 -m json.tool

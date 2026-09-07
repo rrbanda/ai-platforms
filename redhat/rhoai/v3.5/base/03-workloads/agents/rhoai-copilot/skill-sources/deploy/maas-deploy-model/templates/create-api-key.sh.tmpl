@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Create a MaaS API key for model: ${MODEL_NAME}
+#
+# Your OC session token authenticates this request. Kuadrant validates it
+# via TokenReview and maps it to your MaaSSubscription — the returned API key
+# inherits that subscription's token rate limits automatically.
+#
+# Run once. Save the returned 'key' value — it is shown only once.
+
+MAAS_URL="${MAAS_BASE_URL}"
+
+echo "Creating MaaS API key for ${MODEL_NAME}..."
+echo ""
+
+RESPONSE=$(curl -s -X POST \
+  -H "Authorization: Bearer $(oc whoami -t)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "${MODEL_NAME}-key",
+    "expirationDays": 30
+  }' \
+  "${MAAS_URL}/v1/api-keys")
+
+echo "$RESPONSE" | python3 -m json.tool
+echo ""
+
+API_KEY=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('key',''))" 2>/dev/null)
+
+if [ -n "$API_KEY" ]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  API Key created: $API_KEY"
+  echo "  (shown once — save it now)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "Test the model now:"
+  echo "  API_KEY=\"$API_KEY\" bash test-${MODEL_NAME}.sh"
+else
+  echo "ERROR: could not extract key from response above."
+  echo "Check that your MaaSSubscription and MaaSAuthPolicy both exist for ${MODEL_NAME}."
+fi
+
+echo ""
+echo "── Key management ──────────────────────────────────────────"
+echo ""
+echo "List your active subscriptions (shows rate limits):"
+echo "  curl -s -H \"Authorization: Bearer \$(oc whoami -t)\" \\"
+echo "    ${MAAS_URL}/v1/subscriptions | python3 -m json.tool"
+echo ""
+echo "List your API keys:"
+echo "  curl -s -H \"Authorization: Bearer \$(oc whoami -t)\" \\"
+echo "    ${MAAS_URL}/v1/api-keys | python3 -m json.tool"
+echo ""
+echo "Revoke a key by ID:"
+echo "  curl -s -X DELETE \\"
+echo "    -H \"Authorization: Bearer \$(oc whoami -t)\" \\"
+echo "    ${MAAS_URL}/v1/api-keys/<key-id>"

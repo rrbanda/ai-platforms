@@ -1,0 +1,20 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: skip-image-rewrite-for-pipeline-pods
+  namespace: rfp-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  exceptions:
+    - policyName: replace-image-registry
+      ruleNames:
+        - replace-image-registry-pod-containers
+        - replace-image-registry-pod-initcontainers
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+          namespaces:
+            - rfp-agent

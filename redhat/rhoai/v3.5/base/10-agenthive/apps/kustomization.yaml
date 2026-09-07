@@ -1,0 +1,169 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+components:
+  - ../config
+
+resources:
+  # The agenthive app-of-apps is deployed by the RHOAI-level
+  # applications/14-agenthive.yaml — no standalone app-of-apps needed.
+  # - app-of-apps.yaml
+  - secrets.yaml
+  - infra.yaml
+  # OpenShell is already deployed by the RHOAI-level app (applications/09b-openshell.yaml)
+  # - openshell.yaml
+  # EvalHub CRDs are not present on RHOAI 3.5 EA2; skip until the API exists.
+  # - evalhub.yaml
+  - rfp-agent.yaml
+  - rhoai-copilot.yaml
+  - pod-health-watcher.yaml
+  - stale-image-finder.yaml
+  - pr-review-bot.yaml
+  # loan-agent is managed by the RHOAI-level app (base/applications/13-loan-agent.yaml)
+  # - loan-agent.yaml
+  - eval.yaml
+  - open-webui.yaml
+  - mcp.yaml
+  - rhoai-mcp.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.REPO_URL
+    targets:
+      - select:
+          kind: Application
+          name: rfp-secrets
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: rfp-infra
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: rfp-agent
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: rhoai-copilot
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: pod-health-watcher
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: stale-image-finder
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: pr-review-bot
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: rfp-eval
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: open-webui
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: openshift-mcp
+        fieldPaths:
+          - spec.source.repoURL
+      - select:
+          kind: Application
+          name: rhoai-mcp
+        fieldPaths:
+          - spec.source.repoURL
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.REPO_BRANCH
+    targets:
+      - select:
+          kind: Application
+          name: rfp-secrets
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: rfp-infra
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: rfp-agent
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: rhoai-copilot
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: pod-health-watcher
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: stale-image-finder
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: pr-review-bot
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: rfp-eval
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: open-webui
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: openshift-mcp
+        fieldPaths:
+          - spec.source.targetRevision
+      - select:
+          kind: Application
+          name: rhoai-mcp
+        fieldPaths:
+          - spec.source.targetRevision
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.AGENT_NAMESPACE
+    targets:
+      - select:
+          kind: Application
+          name: rfp-agent
+        fieldPaths:
+          - spec.destination.namespace
+  - source:
+      kind: ConfigMap
+      name: platform-config
+      fieldPath: data.EVAL_NAMESPACE
+    targets:
+      - select:
+          kind: Application
+          name: rfp-eval
+        fieldPaths:
+          - spec.destination.namespace

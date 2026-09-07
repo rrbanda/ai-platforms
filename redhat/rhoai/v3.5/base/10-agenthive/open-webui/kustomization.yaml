@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: open-webui
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+  - functions-import-job.yaml
+  - sealed-open-webui-providers.yaml
+
+configMapGenerator:
+- name: open-webui-functions
+  files:
+  - functions/per-user-ogx-knowledge.json
+
+generatorOptions:
+  disableNameSuffixHash: true

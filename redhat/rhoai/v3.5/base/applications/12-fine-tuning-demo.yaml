@@ -31,9 +31,6 @@ spec:
         - /status
         - /metadata/annotations
   syncPolicy:
-    automated:
-      selfHeal: true
-      prune: true
     retry:
       limit: 10
       backoff:

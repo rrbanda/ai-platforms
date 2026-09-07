@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rhoai-copilot-startup
+  labels:
+    app.kubernetes.io/part-of: rhoai-copilot
+data:
+  startup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export HOME=/sandbox
+    export HERMES_HOME=/sandbox/.hermes
+    export PATH="/sandbox/.venv/bin:/usr/local/bin:${PATH}"
+
+    if ! command -v hermes >/dev/null 2>&1; then
+      echo "ERROR: hermes not found. Rebuild image." >&2
+      exit 1
+    fi
+
+    echo "Hermes $(hermes --version 2>&1 || true)"
+
+    SKILLS="argocd-diagnose-sync argocd-health-check automl-trainer autorag-optimizer capacity-forecaster daily-report-generator distributed-training-setup experiment-tracker feature-store-setup garak-security-scanner genai-playground-guide gitops-config-generator gitops-repo-scaffold hardware-profile-manager incident-runbook kserve-model-deployer kueue-quota-manager llmd-deployment-manager lm-eval-runner maas-debug maas-deploy-model maas-enable maas-external-models maas-subscription-manager model-catalog-advisor model-drift-monitor model-promotion-workflow model-registry-manager nemo-guardrails-configurator ogx-rag-builder pipeline-debugger rhoai-connected-deploy rhoai-disconnected-deploy rhoai-disconnected-helper rhoai-dsc-inspector rhoai-install-validator rhoai-model-lifecycle rhoai-platform-status rhoai-uninstall rhoai-upgrade-advisor serving-runtime-advisor training-planner workbench-provisioner workbench-troubleshooter"
+
+    mkdir -p \
+      /sandbox/.hermes/skills \
+      /sandbox/.hermes/memory \
+      /sandbox/.hermes/sessions \
+      /sandbox/.hermes/profiles \
+      /sandbox/.hermes/auto-skills \
+      /sandbox/.hermes/db \
+      /sandbox/data \
+      /sandbox/output \
+      /sandbox/output/health
+
+    for s in $SKILLS; do
+      mkdir -p "/sandbox/.hermes/skills/$s"
+      cp "/mnt/skill-$s/SKILL.md" "/sandbox/.hermes/skills/$s/SKILL.md"
+    done
+
+    cp /mnt/soul/SOUL.md /sandbox/.hermes/SOUL.md
+    cp /mnt/config/config.yaml /sandbox/.hermes/config.yaml
+
+    python3 <<'PY'
+    import os, yaml
+    with open("/sandbox/.hermes/config.yaml") as f:
+        cfg = yaml.safe_load(f)
+
+    cfg.setdefault("skills", {})["directory"] = "/sandbox/.hermes/skills"
+
+    cfg.setdefault("model", {})
+    cfg["model"]["default"] = os.environ.get("LLM_MODEL", "gemini-2.5-pro")
+    cfg["model"]["base_url"] = os.environ.get("OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+    cfg["model"]["provider"] = "custom"
+    cfg["model"]["api_key"] = os.environ.get("OPENAI_API_KEY", "")
+
+    mcp = cfg.setdefault("mcp_servers", {})
+    mcp.setdefault("openshift", {})["url"] = os.environ.get(
+        "OPENSHIFT_MCP_URL",
+        "http://openshift-mcp-v2.openshift-mcp-server.svc.cluster.local:8080/mcp",
+    )
+    mcp.setdefault("rhoai", {})["url"] = os.environ.get(
+        "RHOAI_MCP_URL",
+        "http://rhoai-mcp.rhoai-copilot.svc:8000/mcp",
+    )
+    mcp.setdefault("mlflow", {})["url"] = os.environ.get(
+        "MLFLOW_MCP_URL",
+        "http://mlflow-mcp.redhat-ods-applications.svc.cluster.local:8080/mcp",
+    )
+
+    argocd = mcp.setdefault("argocd", {})
+    argocd.setdefault("env", {})
+    argocd["env"]["ARGOCD_BASE_URL"] = os.environ.get(
+        "ARGOCD_BASE_URL",
+        "https://openshift-gitops-server.openshift-gitops.svc",
+    )
+    argocd["env"]["ARGOCD_API_TOKEN"] = os.environ.get("ARGOCD_API_TOKEN", "")
+    argocd["env"]["ARGOCD_INSECURE"] = os.environ.get("ARGOCD_INSECURE", "true")
+
+    gh = os.environ.get("GITHUB_TOKEN", "")
+    mcp.setdefault("github", {}).setdefault("env", {})
+    mcp["github"]["env"]["GITHUB_PERSONAL_ACCESS_TOKEN"] = gh
+    if not gh:
+        print("WARN: GITHUB_TOKEN unset; GitHub MCP PRs disabled")
+
+    with open("/sandbox/.hermes/config.yaml", "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+    print(
+        "Config updated: model=%s, openshift=%s, rhoai=%s"
+        % (cfg["model"]["default"], mcp["openshift"]["url"], mcp["rhoai"]["url"])
+    )
+    print("Skills:", ", ".join(sorted(os.listdir("/sandbox/.hermes/skills"))))
+    PY
+
+    echo "=== Starting Hermes gateway (background) ==="
+    hermes gateway run > /tmp/hermes-gateway.log 2>&1 &
+    sleep 5
+
+    CRON_PROMPT='Run daily-report-generator. Check ArgoCD health and RHOAI platform status. Write /sandbox/output/health/latest.md. Read-only; never sync or mutate.'
+    echo "Registering daily health cron (every 24h)"
+    hermes cron remove daily-health-report 2>/dev/null || true
+    hermes cron create --name "daily-health-report" --skill daily-report-generator --continuity \
+      "every 24h" "$CRON_PROMPT" \
+      2>&1 || echo "WARN: cron create failed; agent can register it on first session"
+
+    echo "=== Starting Hermes dashboard ==="
+    exec hermes dashboard \
+      --host "${HERMES_DASHBOARD_HOST:-0.0.0.0}" \
+      --port "${HERMES_DASHBOARD_PORT:-9119}" \
+      --no-open --skip-build --insecure

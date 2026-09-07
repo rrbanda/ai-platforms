@@ -1,0 +1,133 @@
+%% ==========================================================================
+%% Diagram 2: RFP Agent — Skill Pipeline Sequence
+%% End-to-end RFP/RFI processing workflow from document upload to delivery
+%% ==========================================================================
+sequenceDiagram
+    participant User as Sales Professional
+    participant UI as Open WebUI /<br/>Hermes Dashboard
+    participant Curator as Skill Curator<br/>(Intent Router)
+    participant Intake as rh-rfp-intake<br/>(Phase 1)
+    participant Analysis as rh-rfp-analysis<br/>(Phase 2)
+    participant Strategy as rh-rfp-strategy<br/>(Phase 3)
+    participant Drafting as rh-rfp-drafting<br/>(Phase 4)
+    participant Accuracy as rh-accuracy-review<br/>(Phase 5a)
+    participant Review as rh-rfp-review<br/>(Phase 5b)
+    participant RAG as rh-knowledge-retrieval<br/>(OGX + Milvus)
+    participant Naming as rh-product-naming
+    participant LLM as Gemini 2.5 Pro
+    participant Export as Export Engine<br/>(pandoc / xhtml2pdf)
+
+    Note over User,Export: PHASE 1 — INTAKE
+
+    User->>UI: Upload RFP documents<br/>(PDF, DOCX, XLSX, paste, URL)
+    UI->>Curator: User message + document text
+    Curator->>Intake: Route: "respond to RFP" detected
+
+    Intake->>Intake: Scan /sandbox/data for files<br/>Convert DOCX/PDF/XLSX to text
+    Intake->>LLM: Classify each document<br/>(Procurement Shell, Technical Scope,<br/>Pricing Template, Compliance, Legal)
+    LLM-->>Intake: Classification results
+    Intake->>Intake: Extract deadlines and timeline<br/>Determine RFI vs RFP vs Hybrid
+    Intake-->>User: Intake Summary<br/>(customer, deadline, doc types, scope)
+
+    Note over User,Export: PHASE 2 — ANALYSIS
+
+    User->>Curator: "Proceed to analysis"
+    Curator->>Analysis: Route: analysis confirmed
+
+    Analysis->>LLM: Extract requirements from all docs
+    LLM-->>Analysis: Structured tables
+
+    alt RFI / Questionnaire
+        Analysis->>Analysis: Extract questionnaire rows<br/>(ID, Question, Response Type)
+    else RFP / Proposal
+        Analysis->>Analysis: Extract deliverables, milestones,<br/>compliance Qs, staffing, KPIs,<br/>pricing structure, governance
+    end
+
+    Analysis-->>User: Analysis Summary<br/>(N deliverables, N milestones,<br/>N compliance Qs, constraints)
+
+    Note over User,Export: PHASE 3 — STRATEGY
+
+    User->>Curator: "Proceed to strategy"
+    Curator->>Strategy: Route: strategy confirmed
+
+    loop For each requirement
+        Strategy->>RAG: Search for matching capability
+        RAG->>RAG: POST /v1/vector-io/query<br/>to OGX Server
+        RAG-->>Strategy: Retrieved passages + document_id
+        Strategy->>Naming: Verify product names in results
+        Naming-->>Strategy: Canonical names confirmed
+    end
+
+    Strategy->>LLM: Build coverage matrix<br/>(STRONG / PARTIAL / GAP / HUMAN)
+    LLM-->>Strategy: Coverage matrix + strategy
+
+    Strategy-->>User: Response Strategy<br/>(coverage %, auto-gen sections,<br/>human-input sections)
+
+    Note over User,Export: PHASE 4 — DRAFTING
+
+    User->>Curator: "Proceed to drafting"
+    Curator->>Drafting: Route: drafting confirmed
+
+    alt RFI Mode
+        loop For each questionnaire row
+            Drafting->>RAG: Retrieve answer evidence
+            RAG-->>Drafting: Passages + citations
+            Drafting->>Naming: Check product names
+            Naming-->>Drafting: Corrected names
+            Drafting->>LLM: Generate answer<br/>(Yes/Partial/No/HUMAN + citation)
+            LLM-->>Drafting: Matrix row filled
+        end
+        Drafting-->>User: Filled RFI Matrix<br/>(with [GROUNDED] citations)
+    else RFP Mode
+        loop For each response section
+            Drafting->>RAG: Search for section content
+            RAG-->>Drafting: Knowledge base passages
+            Drafting->>Naming: Validate all product refs
+            Naming-->>Drafting: Corrected names
+            Drafting->>LLM: Generate section<br/>(Services or Technology template)
+            LLM-->>Drafting: Section draft with<br/>[AUTO] / [SCAFFOLD] / [HUMAN] tags
+            Drafting-->>User: Section for review
+        end
+    end
+
+    Note over User,Export: PHASE 5a — ACCURACY REVIEW
+
+    Drafting->>Accuracy: Full draft ready
+
+    loop For each factual claim
+        Accuracy->>RAG: Retrieve source for claim
+        RAG-->>Accuracy: Passage + document_id
+        Accuracy->>Naming: Check all product names
+        Naming-->>Accuracy: Naming issues found
+        Accuracy->>LLM: Verdict: ACCURATE / INACCURATE /<br/>NEEDS NUANCE / UNVERIFIABLE / OUTDATED
+        LLM-->>Accuracy: Claim verdict
+    end
+
+    Accuracy-->>User: Accuracy Report<br/>(N claims, verdicts, corrections)
+
+    Note over User,Export: PHASE 5b — FINAL REVIEW
+
+    Accuracy->>Review: Accuracy review complete
+
+    Review->>Review: Completeness check<br/>(all requirements addressed?)
+    Review->>Review: Consistency check<br/>(staffing, timeline, deliverable refs)
+    Review->>Review: Format compliance<br/>(required sections, page limits)
+    Review->>Review: Tone and language<br/>(no marketing fluff)
+    Review->>LLM: Generate readiness checklist
+    LLM-->>Review: Checklist
+
+    Review-->>User: Readiness Checklist<br/>(accuracy, completeness, quality,<br/>human-review items, delivery info)
+
+    Note over User,Export: DELIVERY
+
+    User->>Export: "Generate final document"
+
+    alt DOCX requested
+        Export->>Export: pandoc MD to DOCX
+    else PDF requested
+        Export->>Export: pypandoc to HTML<br/>then xhtml2pdf to PDF
+    else HTML requested
+        Export->>Export: pandoc MD to HTML
+    end
+
+    Export-->>User: Final document at<br/>/sandbox/output/

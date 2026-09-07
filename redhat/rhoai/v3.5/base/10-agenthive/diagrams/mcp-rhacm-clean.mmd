@@ -1,0 +1,100 @@
+graph TD
+    subgraph AGENTS["AI Agents"]
+        A1["Claude Code"]
+        A2["Cursor"]
+        A3["VS Code"]
+        A4["OpenShift LightSpeed"]
+    end
+
+    A1 -->|"HTTPS + OAuth Token"| GW
+    A2 -->|"HTTPS + OAuth Token"| GW
+    A3 -->|"HTTPS + OAuth Token"| GW
+    A4 -->|"HTTPS + OAuth Token"| GW
+
+    subgraph HUB["HUB CLUSTER  —  All MCP Components Deployed Here"]
+
+        subgraph GW_BOX["MCP GATEWAY  ·  ns: mcp-system"]
+            GW["MCP Gateway\n(Envoy Reverse Proxy)"]
+            AUTH_POL["Kuadrant AuthPolicy\nJWT · Tool-level AuthZ"]
+            BROKER["MCP Broker Router\nTool Aggregation"]
+            MCPSR["MCPServerRegistration\nMCPGatewayExtension"]
+        end
+
+        subgraph MCP_BOX["MCP SERVER FOR OPENSHIFT  ·  ns: openshift-mcp-server"]
+            MCP_SRV["MCP Server\n(Helm Deployment)"]
+            TOOLS["Toolsets\ncore · config · metrics\nhelm · netedge · ossm\nkubevirt · tekton"]
+            GUARD["Security Guardrails\nread_only · denied_resources\ndisable_destructive · RBAC"]
+            OTEL["OpenTelemetry\nMetrics + Traces"]
+        end
+
+        subgraph IDP_BOX["IDENTITY + TOKEN EXCHANGE"]
+            KC["Keycloak / Entra ID\n(OIDC Provider)"]
+            TOK["OAuth2 Token Exchange\nRFC 8693\nBroad → Cluster-Scoped"]
+        end
+
+        subgraph ACM_BOX["RHACM / MULTICLUSTER ENGINE"]
+            MCE["Multicluster Engine\nOperator"]
+            PROXY["cluster-proxy-addon\n(Server Side)\nns: multicluster-engine"]
+            OCM["OCM APIs\nManagedCluster\nPlacement · ManifestWork\nPolicy"]
+        end
+
+        subgraph OBS_BOX["OBSERVABILITY"]
+            PROM["Prometheus\nThanos"]
+            KIALI["Kiali\nServiceMesh"]
+        end
+    end
+
+    GW --> AUTH_POL
+    AUTH_POL -->|"Validate JWT"| KC
+    GW --> BROKER
+    BROKER --> MCPSR
+    MCPSR -->|"HTTPRoute\nbackendRef :8080"| MCP_SRV
+
+    MCP_SRV --> TOOLS
+    MCP_SRV --> GUARD
+    MCP_SRV --> OTEL
+    OTEL --> PROM
+
+    MCP_SRV -->|"list/watch\nManagedClusters"| OCM
+    MCP_SRV -->|"Discover\ncluster-proxy svc"| PROXY
+    MCP_SRV -->|"Token Exchange\nfor target cluster"| TOK
+    TOK --> KC
+    MCP_SRV -->|"PromQL"| PROM
+    MCP_SRV -->|"Mesh Health"| KIALI
+
+    PROXY -->|"Reverse Tunnel\ngRPC + mTLS"| CP1
+    PROXY -->|"Reverse Tunnel\ngRPC + mTLS"| CP2
+    PROXY -->|"Reverse Tunnel\ngRPC + mTLS"| CPN
+
+    subgraph S1["SPOKE CLUSTER 1  ·  No MCP Components"]
+        KL1["Klusterlet\n(pre-existing)"]
+        CP1["cluster-proxy agent\n(pre-existing)"]
+        API1["kube-apiserver"]
+        W1["Workloads\nPods · VMs · Services"]
+    end
+
+    subgraph S2["SPOKE CLUSTER 2  ·  No MCP Components"]
+        KL2["Klusterlet"]
+        CP2["cluster-proxy agent"]
+        API2["kube-apiserver"]
+        W2["Workloads"]
+    end
+
+    subgraph SN["SPOKE CLUSTER N  ·  No MCP Components"]
+        KLN["Klusterlet"]
+        CPN["cluster-proxy agent"]
+        APIN["kube-apiserver"]
+        WN["Workloads"]
+    end
+
+    CP1 --> API1
+    CP2 --> API2
+    CPN --> APIN
+
+    API1 --> W1
+    API2 --> W2
+    APIN --> WN
+
+    KL1 -.->|"Registration"| MCE
+    KL2 -.->|"Registration"| MCE
+    KLN -.->|"Registration"| MCE

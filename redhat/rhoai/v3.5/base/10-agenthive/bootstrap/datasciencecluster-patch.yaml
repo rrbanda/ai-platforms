@@ -1,0 +1,25 @@
+# Strategic merge patch for the DataScienceCluster.
+# Enables OGX, MLflow, TrustyAI, and AI Pipelines operators (RHOAI 3.5 / DSC v2).
+# Apply target is determined at runtime by the cluster's existing DSC name.
+# If DSC is named "default-dsc", this applies directly.
+# For other names, use: oc patch datasciencecluster <name> --type=merge --patch-file=this-file.yaml
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  components:
+    ogx:
+      managementState: Managed
+    mlflowoperator:
+      managementState: Managed
+    trustyai:
+      managementState: Managed
+      eval:
+        lmeval:
+          permitCodeExecution: allow
+          permitOnline: allow
+    aipipelines:
+      managementState: Managed

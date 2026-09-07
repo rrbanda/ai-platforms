@@ -1,0 +1,12 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  annotations:
+    createdAt: Thursday, 13-Aug-26 07:11:51 UTC
+    createdBy: oc-mirror v2
+    oc-mirror_version: 4.20.0-202607290013.p2.g9b18640.assembly.stream.el9-9b18640
+  name: cs-certified-operator-index-sha256-ab2ce
+  namespace: openshift-marketplace
+spec:
+  image: ip-10-0-61-241.us-east-2.compute.internal:8443/rhoai/redhat/certified-operator-index:sha256-ab2ce35698be071c0cbf5792b9c415c1016e961100cc6cd6611e6cf6c0648ff8
+  sourceType: grpc

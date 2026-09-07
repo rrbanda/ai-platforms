@@ -1,0 +1,19 @@
+{
+  "package": "rfp-rhoai-narrative.md",
+  "document_job": "RFP",
+  "scored_by": "corpus-and-retrieval-audit-2026-08-24",
+  "sections": [
+    {"id": "S1", "title": "Executive summary", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"]},
+    {"id": "S2.1", "title": "Workbenches, pipelines, DataScienceCluster", "expected_mode": "SCAFFOLD", "expected_document_ids": ["openshift-ai-components.md", "red-hat-ai-platform-gpu-hybrid.md"], "notes": "Encyclopedia in git; live winner lags until re-index."},
+    {"id": "S2.2", "title": "Model serving", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-inference-capabilities.md", "red-hat-technology-partners.md"]},
+    {"id": "S2.3", "title": "RAG and AutoRAG", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-data-rag-customization.md"]},
+    {"id": "S2.4", "title": "Guardrails and registry", "expected_mode": "SCAFFOLD", "expected_document_ids": ["ai-safety-stack-red-teaming.md", "red-hat-ai-data-rag-customization.md"]},
+    {"id": "S2.5", "title": "Gateway and MaaS", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-inference-capabilities.md", "product-naming-canonical.md"], "forbidden_names": ["Praxis"]},
+    {"id": "S3.1", "title": "Disconnected", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-platform-gpu-hybrid.md", "government-public-sector-case-studies.md"]},
+    {"id": "S3.2", "title": "GPU pooling", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"]},
+    {"id": "S3.3", "title": "Vuln management and TSSC", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-vulnerability-management-methodology.md", "trusted-software-supply-chain.md"]},
+    {"id": "S3.4", "title": "Support tiers", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-support-tiers-sla.md"]},
+    {"id": "S4", "title": "Commercial", "expected_mode": "HUMAN", "expected_document_ids": []},
+    {"id": "S5", "title": "References", "expected_mode": "SCAFFOLD", "expected_document_ids": ["financial-services-case-studies.md"], "notes": "Brochure-depth only; no permissioned metrics."}
+  ]
+}

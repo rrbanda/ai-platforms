@@ -1,0 +1,40 @@
+name: incident-response
+description: Guided troubleshooting workflow for platform degradation
+trigger:
+  type: manual
+tier: 1  # Read-only investigation
+
+steps:
+  - name: triage
+    description: Identify the scope and severity of the incident
+    skill: administer/rhoai-platform-status
+    parameters:
+      verbose: true
+
+  - name: identify-affected-apps
+    skill: monitor/argocd-health-check
+    description: Find applications in degraded or error state
+
+  - name: diagnose-root-cause
+    skill: monitor/argocd-diagnose-sync
+    description: Drill into the failing resources and events
+    parameters:
+      include_events: true
+      include_logs: true
+
+  - name: check-operator-health
+    skill: administer/rhoai-dsc-inspector
+    description: Verify operator pods and CRD status
+
+  - name: check-disconnected-issues
+    skill: platform-setup/rhoai-disconnected-helper
+    description: If ImagePullBackOff detected, check mirror configuration
+    condition: "error contains 'ImagePullBackOff' or 'ErrImagePull'"
+
+  - name: generate-runbook
+    skill: monitor/incident-runbook
+    description: Produce remediation steps based on findings
+
+escalation:
+  on_unresolvable: notify-oncall
+  timeout: 30m

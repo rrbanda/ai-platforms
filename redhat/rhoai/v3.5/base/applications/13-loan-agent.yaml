@@ -10,9 +10,9 @@ metadata:
 spec:
   project: rhoai-workloads
   source:
-    repoURL: https://github.com/rrbanda/ai-demos.git
+    repoURL: https://github.com/rrbanda/ai-platforms.git
     targetRevision: main
-    path: agents/loan-agent
+    path: redhat/rhoai/v3.5/base/03-workloads/agents/loan-agent
   destination:
     server: https://kubernetes.default.svc
     namespace: loan-agent
@@ -31,9 +31,6 @@ spec:
       jsonPointers:
         - /status
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:

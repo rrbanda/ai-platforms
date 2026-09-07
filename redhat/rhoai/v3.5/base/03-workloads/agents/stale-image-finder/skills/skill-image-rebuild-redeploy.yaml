@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skill-image-rebuild-redeploy
+  labels:
+    app.kubernetes.io/part-of: stale-image-finder
+    app.kubernetes.io/component: skill
+data:
+  SKILL.md: |
+    ---
+    name: image-rebuild-redeploy
+    description: "After an image-bump PR merges, verify GitOps rolled the new image and pods are healthy."
+    version: 1.0.0
+    author: AgentHive Platform Team
+    license: Apache-2.0
+    platforms: [linux]
+    metadata:
+      hermes:
+        tags: [GitOps, Images, Verification, OpenShift]
+    ---
+
+    # Image Rebuild / Redeploy Verify
+
+    ADM "rebuild and redeploy" on this platform means: the image is built in
+    CI/Artifactory, GitOps merged the pin, the controller rolled pods. This
+    skill verifies that. It does not run `docker build` or `oc patch`.
+
+    ## Trigger Phrases
+
+    - "Did the image refresh land?"
+    - "Verify new image is running"
+    - Loaded after a merged image-refresh PR
+
+    ## Required MCP Tools
+
+    | MCP Server | Tool | Purpose |
+    |---|---|---|
+    | mcp_openshift | pods_list_in_namespace | Pod phase and image |
+    | mcp_openshift | pods_get | imageID vs expected digest/tag |
+    | mcp_openshift | events_list | ImagePull / rollout events |
+
+    ## Procedure
+
+    1. Read expected image from the merged Git (user, PR, or MEMORY.md).
+    2. List pods for the workload namespace.
+    3. For each container, compare `image` / `imageID` to expected.
+    4. Fail if ImagePullBackOff, CrashLoop, or still on the old digest after
+       a rollout has had 10+ minutes (note the time; do not kill pods).
+    5. If pods are unhealthy, load Pod Health Watcher guidance in the report
+       (do not impersonate that agent). Point the user at that dashboard.
+    6. Write `/sandbox/output/images/verify-YYYY-MM-DD-HHmm.md`.
+
+    ## Rebuild
+
+    If a **rebuild** is required (no newer artifact exists):
+
+    - Do not build inside the sandbox.
+    - Output the CI/Artifactory action the ADM team should run (pipeline name
+      if known, else a checklist).
+    - Optionally open a tracking issue/PR description via GitHub MCP (Tier 2).
+
+    ## Safety Constraints
+
+    - Tier 1 for verify. Rollout restart is Tier 2 (user confirms).
+    - Never delete pods to "force" a pull unless the user confirms (Tier 2)
+      and the pod is controller-managed in a non-protected namespace.
+    - Protected namespaces: observe only.

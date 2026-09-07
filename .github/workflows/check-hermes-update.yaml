@@ -1,0 +1,87 @@
+name: Check Hermes Updates
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get current pinned version
+        id: current
+        run: |
+          CURRENT=$(cat redhat/rhoai/v3.5/base/10-agenthive/image/HERMES_VERSION | tr -d '[:space:]')
+          echo "version=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "Current pinned version: ${CURRENT}"
+
+      - name: Get latest Hermes release
+        id: latest
+        run: |
+          LATEST=$(gh api repos/NousResearch/hermes-agent/releases/latest --jq '.tag_name' 2>/dev/null || echo "")
+          if [ -z "$LATEST" ]; then
+            # Fallback: get the most recent tag
+            LATEST=$(gh api repos/NousResearch/hermes-agent/tags --jq '.[0].name' 2>/dev/null || echo "")
+          fi
+          echo "version=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream version: ${LATEST}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ steps.current.outputs.version }}" = "${{ steps.latest.outputs.version }}" ]; then
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+            echo "Already on latest version"
+          elif [ -z "${{ steps.latest.outputs.version }}" ]; then
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+            echo "Could not determine latest version"
+          else
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+            echo "Update available: ${{ steps.current.outputs.version }} -> ${{ steps.latest.outputs.version }}"
+          fi
+
+      - name: Update HERMES_VERSION file
+        if: steps.compare.outputs.needs_update == 'true'
+        run: |
+          echo "${{ steps.latest.outputs.version }}" > redhat/rhoai/v3.5/base/10-agenthive/image/HERMES_VERSION
+
+      - name: Update Containerfile.runtime ARG
+        if: steps.compare.outputs.needs_update == 'true'
+        run: |
+          sed -i "s/^ARG HERMES_VERSION=.*/ARG HERMES_VERSION=${{ steps.latest.outputs.version }}/" redhat/rhoai/v3.5/base/10-agenthive/image/Containerfile.runtime
+
+      - name: Create Pull Request
+        if: steps.compare.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump Hermes to ${{ steps.latest.outputs.version }}"
+          title: "chore: bump Hermes to ${{ steps.latest.outputs.version }}"
+          body: |
+            Automated Hermes version bump detected by weekly check.
+
+            - **Current:** `${{ steps.current.outputs.version }}`
+            - **New:** `${{ steps.latest.outputs.version }}`
+            - **Source:** https://github.com/NousResearch/hermes-agent/releases/tag/${{ steps.latest.outputs.version }}
+
+            This PR will trigger a rebuild of `hermes-runtime` (Layer 1) when merged.
+            The `rfp-agent` (Layer 2) will automatically rebuild on top of the new runtime.
+          branch: chore/bump-hermes-${{ steps.latest.outputs.version }}
+          labels: dependencies,automated
+
+      - name: Summary
+        run: |
+          echo "### Hermes Update Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Current: \`${{ steps.current.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Latest: \`${{ steps.latest.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Update needed: ${{ steps.compare.outputs.needs_update }}" >> "$GITHUB_STEP_SUMMARY"

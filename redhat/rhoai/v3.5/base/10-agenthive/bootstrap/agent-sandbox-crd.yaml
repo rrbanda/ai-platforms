@@ -1,0 +1,23 @@
+# Agent Sandbox CRD
+# Source: https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v0.5.6/sandbox-with-extensions.yaml
+# This is a placeholder. In production, reference the actual CRD YAML from the release.
+# ArgoCD can apply remote URLs via the `source.directory.recurse` pattern,
+# or you can vendor the CRD YAML directly here.
+#
+# For now, this file signals that the CRD must be present.
+# The actual CRD is large (~2000 lines) and should be vendored from:
+#   https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v0.5.6/sandbox-with-extensions.yaml
+#
+# Red Hat build of Agent Sandbox (package name is agent-sandbox-operator).
+# Channel preview-0.9 serves sandboxes.agents.x-k8s.io/v1beta1.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: agent-sandbox-operator
+  namespace: openshift-operators
+spec:
+  channel: preview-0.9
+  installPlanApproval: Automatic
+  name: agent-sandbox-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

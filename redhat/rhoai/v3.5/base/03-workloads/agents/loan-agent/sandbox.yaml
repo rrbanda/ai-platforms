@@ -1,0 +1,192 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: loan-agent
+  labels:
+    app: loan-agent
+    app.kubernetes.io/name: loan-agent
+    app.kubernetes.io/part-of: loan-agent
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  operatingMode: Running
+  podTemplate:
+    metadata:
+      labels:
+        app: loan-agent
+    spec:
+      containers:
+      - name: agent
+        # Built from mortgage/Containerfile and pushed to the internal registry.
+        # Push: podman push default-route-openshift-image-registry.apps.ocp.qn6c5.sandbox1388.opentlc.com/loan-agent/small-business-loan-agent:latest
+        image: image-registry.openshift-image-registry.svc:5000/loan-agent/small-business-loan-agent:latest
+        imagePullPolicy: Always
+        command:
+        - bash
+        - /mnt/startup/startup.sh
+        env:
+        # ── OpenShell sandbox env (required by supervisor) ──────────────────
+        - name: OPENSHELL_SANDBOX
+          value: loan-agent
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: "true"
+        - name: RUST_LOG
+          value: debug
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: "1001310000"
+        - name: OPENSHELL_SANDBOX_GID
+          value: "1001310000"
+        - name: HOME
+          value: /app
+        - name: PATH
+          value: /opt/app-root/bin:/usr/local/bin:/usr/bin:/bin
+        # ── MaaS model backend ───────────────────────────────────────────────
+        - name: MAAS_BASE_URL
+          value: https://maas.apps.ocp.qn6c5.sandbox1388.opentlc.com
+        - name: MAAS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: llm-api-key
+              name: loan-agent-auth
+        - name: MODEL_NAME
+          value: gemini-2.5-flash
+        - name: MAAS_SSL_VERIFY
+          value: "false"
+        # ── AutoRAG (OGX) vector store for eligibility rules ─────────────────
+        # Internal cluster URL — no external Route needed from within the pod
+        - name: AUTORAG_BASE_URL
+          value: http://autorag-ogx-service.autorag.svc.cluster.local:8321
+        - name: AUTORAG_VECTOR_STORE_ID
+          value: "vs_6a95b05a-49cc-4f64-9061-b2712f8e7399"
+        - name: AUTORAG_SSL_VERIFY
+          value: "false"
+        # ── Agent settings ───────────────────────────────────────────────────
+        - name: STATE_DB_PATH
+          value: /app/data/state.db
+        - name: BANK_NAME
+          value: Cymbal Bank
+        - name: AGENT_NAME
+          value: loan-agent
+        - name: AGENT_HOST
+          value: loan-agent-loan-agent.apps.ocp.qn6c5.sandbox1388.opentlc.com
+        - name: AGENT_VERSION
+          value: "1.0.0"
+        ports:
+        - containerPort: 8080
+          name: api
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 120
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          runAsUser: 0
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /app/data
+          name: state-data
+      initContainers:
+      - name: openshell-supervisor-install
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.116
+        imagePullPolicy: IfNotPresent
+        command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      volumes:
+      - name: openshell-supervisor-bin
+        emptyDir: {}
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - name: openshell-policy
+        configMap:
+          name: loan-agent-openshell-policy
+      - name: startup
+        configMap:
+          name: loan-agent-startup
+          defaultMode: 493
+      - name: state-data
+        persistentVolumeClaim:
+          claimName: loan-agent-state
+  volumeClaimTemplates:
+  - metadata:
+      name: state-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi

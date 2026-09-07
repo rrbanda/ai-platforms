@@ -1,0 +1,62 @@
+---
+name: gitops-merge-manager
+description: "Controlled master merge and downward merge for release branches. Default is confirm-then-merge; never force-push."
+version: 1.0.0
+author: AgentHive Platform Team
+license: Apache-2.0
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [Git, Merge, Release, GitOps]
+---
+
+# GitOps Merge Manager
+
+MetLife "automated Master merge / downward merge". On AgentHive this is
+still a Git operation through GitHub MCP, after review + confirmation.
+
+## Trigger Phrases
+
+- "Merge PR #N to main"
+- "Downward-merge main into release/X"
+- "Promote this release"
+
+## Required MCP Tools
+
+GitHub MCP: PR status, merge (if the server exposes merge), otherwise
+instruct the user to merge in the GitHub UI and continue with verify.
+
+If the GitHub MCP build has no `merge_pull_request` tool, **do not invent
+an API**. Write the exact `gh pr merge` the operator should run, or open
+the PR URL. Never claim a merge happened.
+
+## Flows
+
+### Master / main merge
+
+1. `pr-review-bot` checklist passed.
+2. CI on the PR is green if visible; if not visible, say so.
+3. Tier 2: user confirms PR number and base branch (`main`).
+4. Merge with merge commit or squash only if the user specified; default
+   is the repo default. No `--force`.
+
+### Downward merge
+
+1. User names source (usually `main`) and target (`release/*` or env branch).
+2. Explain conflicts risk. Tier 2 confirm.
+3. Create a downward-merge PR rather than pushing to the env branch
+   directly, unless the user explicitly confirms a direct push **and**
+   the branch is not `main`.
+
+## Must Never
+
+- Force-push `main` / `master`
+- Skip review on production paths
+- Merge when `post-deploy-validator` is already failing for that app
+  unless the user accepts the risk in writing
+- Change GitHub org permissions
+
+## Output
+
+Merge method, PR URL, resulting SHA if known, next skill
+`post-deploy-validator` then `release-handover-report`.

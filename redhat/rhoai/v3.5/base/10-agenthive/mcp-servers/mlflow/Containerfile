@@ -1,0 +1,15 @@
+# MLflow MCP Server
+# Must use mlflow[mcp]==3.15.0+ for streamable-http transport support.
+# Transport is configured via FASTMCP_* environment variables (not CLI flags).
+FROM python:3.13-slim
+
+RUN pip install --no-cache-dir "mlflow[mcp]==3.15.0"
+
+ENV FASTMCP_PORT=8080 \
+    FASTMCP_HOST=0.0.0.0 \
+    FASTMCP_TRANSPORT=streamable-http \
+    FASTMCP_WORKER_COUNT=2
+
+EXPOSE 8080
+
+ENTRYPOINT ["mlflow", "mcp", "run"]

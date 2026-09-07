@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-health-watcher-config
+  labels:
+    app.kubernetes.io/part-of: pod-health-watcher
+data:
+  config.yaml: |
+    model:
+      default: "gemini-2.5-pro"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+      provider: custom
+      api_key: "${OPENAI_API_KEY}"
+    mcp_servers:
+      openshift:
+        url: "${OPENSHIFT_MCP_URL}"
+        timeout: 60
+        connect_timeout: 30
+    gateway:
+      enabled: false
+    tools:
+      code_execution:
+        enabled: "on"
+        backend: local
+      file_operations:
+        enabled: "on"
+      web_search:
+        enabled: "off"
+      browser:
+        enabled: "off"
+    toolsets:
+      skills: true
+      memory: true
+      session_search: true
+      delegation: true
+      cronjob: true
+      kanban: false
+    delegation:
+      max_concurrent_children: 3
+    memory:
+      enabled: true
+      providers: []
+    skills:
+      enabled: true
+      directory: /sandbox/.hermes/skills
+      curator:
+        enabled: true
+    display:
+      skin:
+        branding:
+          agent_name: "Pod Health Watcher"
+          welcome: "I monitor Kubernetes pod health and recover from known failure patterns."
+          response_label: "Pod Health Watcher"
+    dashboard:
+      title: "Pod Health Watcher"
+      subtitle: "AI-powered pod health monitoring and recovery"

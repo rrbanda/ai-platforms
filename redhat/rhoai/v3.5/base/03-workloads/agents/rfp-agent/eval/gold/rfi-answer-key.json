@@ -1,0 +1,27 @@
+{
+  "package": "rfi-rhoai-questionnaire.md",
+  "document_job": "RFI",
+  "scored_by": "corpus-and-retrieval-audit-2026-08-24",
+  "rows": [
+    {"id": "Q1", "taxonomy": "platform-operators", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"], "notes": "Dashboard/workbenches mentioned thinly; no DSC encyclopedia."},
+    {"id": "Q2", "taxonomy": "platform-operators", "expected_mode": "AUTO", "expected_document_ids": ["rhoai-architecture-dsc-workbenches.md", "openshift-ai-components.md"], "notes": "Official 3.5 architecture + DSC notes."},
+    {"id": "Q3", "taxonomy": "serving-inference", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-inference-capabilities.md", "red-hat-technology-partners.md"]},
+    {"id": "Q4", "taxonomy": "serving-inference", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-inference-capabilities.md"]},
+    {"id": "Q5", "taxonomy": "maas-gateway", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-inference-capabilities.md"]},
+    {"id": "Q6", "taxonomy": "data-rag", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-ai-data-rag-customization.md"]},
+    {"id": "Q7", "taxonomy": "training-customization", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-data-rag-customization.md"], "notes": "Fine-tune/LoRA mentioned; distributed training shallow."},
+    {"id": "Q8", "taxonomy": "training-customization", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-responsible-ai.md"], "notes": "InstructLab is in responsible-ai.md; not a dedicated encyclopedia."},
+    {"id": "Q9", "taxonomy": "catalog-registry", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-inference-capabilities.md", "red-hat-ai-data-rag-customization.md"], "notes": "Catalog and MLflow present; model registry CR absent."},
+    {"id": "Q10", "taxonomy": "guardrails", "expected_mode": "AUTO", "expected_document_ids": ["ai-safety-stack-red-teaming.md", "component-maturity-table.md"]},
+    {"id": "Q11", "taxonomy": "maas-gateway", "expected_mode": "AUTO", "expected_document_ids": ["product-naming-canonical.md", "red-hat-ai-inference-capabilities.md"], "forbidden_names": ["Praxis"]},
+    {"id": "Q12", "taxonomy": "disconnected-gpu", "expected_mode": "AUTO", "expected_document_ids": ["rhoai-disconnected-3.5.md", "red-hat-ai-platform-gpu-hybrid.md"]},
+    {"id": "Q13", "taxonomy": "disconnected-gpu", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"], "notes": "Kueue named once; no operator how-to."},
+    {"id": "Q14", "taxonomy": "identity-security", "expected_mode": "AUTO", "expected_document_ids": ["red-hat-vulnerability-management-methodology.md", "trusted-software-supply-chain.md"]},
+    {"id": "Q15", "taxonomy": "lifecycle", "expected_mode": "HUMAN", "expected_document_ids": [], "notes": "No RHOAI install/upgrade/backup encyclopedia."},
+    {"id": "Q16", "taxonomy": "lifecycle", "expected_mode": "SCAFFOLD", "expected_document_ids": ["red-hat-support-tiers-sla.md"]},
+    {"id": "Q17", "taxonomy": "commercial", "expected_mode": "HUMAN", "expected_document_ids": [], "notes": "Must abstain. No GPU-hour price list."},
+    {"id": "Q18", "taxonomy": "evidence", "expected_mode": "HUMAN", "expected_document_ids": ["financial-services-case-studies.md"], "notes": "FS case studies exist but not permissioned GPU metrics for three banks."},
+    {"id": "Q19", "taxonomy": "identity-security", "expected_mode": "AUTO", "expected_document_ids": ["product-naming-canonical.md"], "notes": "Answer only if asked; OpenShift Sandboxed Containers. Do not dump Hermes internals."},
+    {"id": "Q20", "taxonomy": "maas-gateway", "expected_mode": "AUTO", "expected_document_ids": ["product-naming-canonical.md"], "forbidden_names": ["Praxis"]}
+  ]
+}

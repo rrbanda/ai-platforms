@@ -1,0 +1,158 @@
+---
+config:
+  theme: default
+  flowchart:
+    rankSpacing: 35
+    nodeSpacing: 20
+    padding: 12
+    htmlLabels: true
+    wrappingWidth: 180
+---
+graph TB
+
+    %% ── User Layer ──────────────────────────────────────────────────────────
+    subgraph USERS["Users and Access"]
+        SalesPro["Sales Professionals\n(PDF, DOCX, XLSX, TXT, URL)"]
+        OpenWebUI["Open WebUI (AgentHive)"]
+        HermesDash["Hermes Dashboard"]
+        HermesAPI["Hermes API :8642"]
+    end
+
+    SalesPro --> OpenWebUI & HermesDash & HermesAPI
+
+    %% ── OpenShift Ingress ───────────────────────────────────────────────────
+    subgraph INGRESS["OpenShift Ingress — ns: rfp-agent"]
+        OSRoute["OpenShift Route (TLS Edge, HSTS)"]
+        K8sSvc["K8s Service (ClusterIP) :9119 / :8642"]
+    end
+
+    OpenWebUI & HermesDash & HermesAPI --> OSRoute --> K8sSvc
+
+    %% ── GitOps (above sandbox — it deploys the sandbox) ─────────────────────
+    subgraph GITOPS["GitOps Delivery"]
+        direction LR
+        GitRepo["GitHub: rrbanda/ai-demos"]
+        ArgoCD["ArgoCD Sync"]
+        Kustomize["Kustomization (ns: rfp-agent)"]
+        PostSync["PostSync Hook (pod restart)"]
+    end
+
+    GitRepo --> ArgoCD --> Kustomize
+    ArgoCD --> PostSync
+
+    %% ── Agent Sandbox Pod ───────────────────────────────────────────────────
+    subgraph SANDBOX["Agent Sandbox Pod — ghcr.io/rrbanda/rfp-agent"]
+
+        subgraph HERMES["Hermes Runtime"]
+            direction LR
+            Dashboard["Dashboard :9119"]
+            APIServer["API Server :8642"]
+            GatewayProc["Gateway"]
+            SoulMD["SOUL.md"]
+            ConfigYAML["config.yaml"]
+            StartupSH["startup.sh"]
+        end
+
+        subgraph INIT["Init Containers"]
+            direction LR
+            InitOS["OpenShell Supervisor Install (v0.0.111)"]
+            InitWS["Workspace Init (PVC 5Gi)"]
+        end
+
+        subgraph TOOLS["Agent Tools"]
+            direction LR
+            ToolCode["Code Exec"]
+            ToolFile["File Ops"]
+            ToolWeb["Web Search"]
+            ToolMem["Memory"]
+            ToolDeleg["Delegation (3x)"]
+        end
+
+        Curator["Skill Curator (intent routing)"]
+
+        subgraph PIPELINE["RFP Pipeline Skills"]
+            SkIntake["1 rh-rfp-intake\nIngest + Classify"]
+            SkAnalysis["2 rh-rfp-analysis\nExtract Requirements"]
+            SkStrategy["3 rh-rfp-strategy\nGap Analysis"]
+            SkDrafting["4 rh-rfp-drafting\nGenerate Response"]
+            SkAccuracy["5a rh-accuracy-review\nClaim Verification"]
+            SkReview["5b rh-rfp-review\nCompleteness Check"]
+        end
+
+        subgraph XCUT["Cross-Cutting Skills"]
+            direction LR
+            SkRAG["rh-knowledge-retrieval\n(RAG via OGX)"]
+            SkNaming["rh-product-naming\n(canonical names)"]
+        end
+
+        subgraph EXPORT["Export"]
+            direction LR
+            Pandoc["pandoc (DOCX/HTML)"]
+            Xhtml2pdf["xhtml2pdf (PDF)"]
+            OutputDir["/sandbox/output/"]
+        end
+    end
+
+    Kustomize -->|"deploys"| SANDBOX
+    K8sSvc --> Dashboard & APIServer
+    Dashboard & APIServer --> GatewayProc
+    GatewayProc --> Curator
+
+    Curator --> SkIntake
+    SkIntake -->|"confirm"| SkAnalysis
+    SkAnalysis -->|"confirm"| SkStrategy
+    SkStrategy -->|"confirm"| SkDrafting
+    SkDrafting --> SkAccuracy --> SkReview
+    SkReview --> EXPORT
+    Pandoc & Xhtml2pdf --> OutputDir
+
+    SkStrategy & SkDrafting & SkAccuracy --> SkRAG
+    SkStrategy & SkDrafting & SkAccuracy --> SkNaming
+
+    %% ── LLM Provider ────────────────────────────────────────────────────────
+    LLM["Gemini 2.5 Pro\ngenerativelanguage.googleapis.com"]
+    GatewayProc -->|"HTTPS :443"| LLM
+
+    %% ── Security (attached to sandbox) ──────────────────────────────────────
+    subgraph SECURITY["Sandbox Security"]
+        OSupervisor["NVIDIA OpenShell Supervisor"]
+        OPA["OPA (sandbox-policy.rego)"]
+        LandlockFS["Landlock FS (RW: /sandbox · RO: /usr, /lib)"]
+        NetPolicy["Network Allowlist:\nGemini · PyPI · OGX · Milvus\nDoc Sharing · Red Hat Web · DNS"]
+    end
+
+    SANDBOX ---|"enforced by"| OSupervisor
+    OSupervisor --> OPA --> NetPolicy
+    OSupervisor --> LandlockFS
+
+    %% ── RAG Pipeline (attached to skills) ───────────────────────────────────
+    subgraph RAG_PIPE["RAG Pipeline"]
+        OGX["OGX Server (Llama Stack)\n/v1/vector-io/query :8321"]
+        VStore["Vector Store:\nrfp_knowledge_v1 (top_k: 5)"]
+        Milvus["Milvus Vector DB :19530"]
+        AutoRAG["AutoRAG Optimization"]
+    end
+
+    SkRAG -->|"POST /v1/vector-io/query"| OGX
+    OGX --> VStore --> Milvus
+    AutoRAG --> Milvus
+
+    %% ── Knowledge Corpus ────────────────────────────────────────────────────
+    subgraph CORPUS["Knowledge Corpus — 33 Docs / 11 Categories"]
+        CorpusList["security (3) · platform (9) · agent-infra (1) · governance (4)\nproduct-ref (3) · methodology (1) · customer-evidence (4)\nrfp-examples (1) · corporate (6) · partners (1) · openshift-ai (5)"]
+    end
+
+    AutoRAG -->|"ingest"| CorpusList
+
+    %% ── Evaluation (attached to OGX) ────────────────────────────────────────
+    subgraph EVAL["Evaluation — ns: rfp-agent-eval"]
+        GoldData["Gold Benchmarks\n(benchmark_rhoai.json, answer keys)"]
+        EvalJob["K8s Job: rfp-agent-rag-eval"]
+        RAGAS["RAGAS (faithfulness, relevancy,\ncontext precision, recall)"]
+        MLflow["MLflow Tracking"]
+        EvalHub["EvalHub / TrustyAI\n(threshold: 0.7)"]
+    end
+
+    GoldData --> EvalJob --> RAGAS
+    EvalJob -->|"queries"| OGX
+    RAGAS --> MLflow & EvalHub

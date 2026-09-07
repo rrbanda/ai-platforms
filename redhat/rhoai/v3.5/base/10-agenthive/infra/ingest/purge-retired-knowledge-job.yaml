@@ -1,0 +1,122 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: purge-retired-knowledge
+  namespace: rfp-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: openshell-sandbox
+      containers:
+      - name: purge
+        image: registry.access.redhat.com/ubi9/python-311:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -euo pipefail
+          pip install --quiet boto3
+          python3 - <<'PURGE'
+          import json, os, urllib.error, urllib.request
+          from botocore.client import Config
+          import boto3
+
+          ogx = os.environ["OGX_SERVICE_URL"].rstrip("/")
+          retired_stores = {
+              n.strip() for n in os.environ["RETIRED_VECTOR_STORES"].split(",") if n.strip()
+          }
+          retired_buckets = {
+              n.strip() for n in os.environ["RETIRED_MINIO_BUCKETS"].split(",") if n.strip()
+          }
+          protected_stores = {
+              n.strip() for n in os.environ["PROTECTED_VECTOR_STORES"].split(",") if n.strip()
+          }
+          protected_buckets = {
+              n.strip() for n in os.environ["PROTECTED_MINIO_BUCKETS"].split(",") if n.strip()
+          }
+          if retired_stores & protected_stores or retired_buckets & protected_buckets:
+              raise SystemExit("retired list overlaps protected list")
+
+          def ogx_json(method, path):
+              req = urllib.request.Request(ogx + path, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as resp:
+                      raw = resp.read()
+                      return json.loads(raw.decode()) if raw else {}
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 404:
+                      return None
+                  raise
+
+          listed = ogx_json("GET", "/v1/vector_stores") or {}
+          items = listed.get("data") or listed.get("vector_stores") or []
+          for vs in items:
+              name = vs.get("name") or ""
+              vid = vs.get("id") or ""
+              if name in protected_stores or vid in protected_stores:
+                  print(f"keep store {vid} name={name!r}")
+                  continue
+              if name not in retired_stores:
+                  continue
+              print(f"delete store {vid} name={name!r}")
+              ogx_json("DELETE", f"/v1/vector_stores/{vid}")
+
+          s3 = boto3.client(
+              "s3",
+              endpoint_url=os.environ["MINIO_ENDPOINT"],
+              aws_access_key_id=os.environ["MINIO_ACCESS_KEY"],
+              aws_secret_access_key=os.environ["MINIO_SECRET_KEY"],
+              region_name="us-east-1",
+              config=Config(signature_version="s3v4"),
+          )
+          for bucket in sorted(retired_buckets):
+              if bucket in protected_buckets:
+                  raise SystemExit(f"refusing to delete protected bucket {bucket}")
+              try:
+                  s3.head_bucket(Bucket=bucket)
+              except Exception:
+                  print(f"bucket {bucket} already gone")
+                  continue
+              paginator = s3.get_paginator("list_objects_v2")
+              deleted = 0
+              for page in paginator.paginate(Bucket=bucket):
+                  for obj in page.get("Contents") or []:
+                      s3.delete_object(Bucket=bucket, Key=obj["Key"])
+                      deleted += 1
+              s3.delete_bucket(Bucket=bucket)
+              print(f"deleted bucket {bucket} ({deleted} objects)")
+          print("purge complete")
+          PURGE
+        env:
+        - name: OGX_SERVICE_URL
+          value: "http://rfp-ogx-service.rfp-agent.svc.cluster.local:8321"
+        - name: MINIO_ENDPOINT
+          value: "http://minio.minio.svc.cluster.local:9000"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dspa-minio-creds
+              key: root-password
+        - name: RETIRED_VECTOR_STORES
+          value: "ask_brent_knowledge_v1"
+        - name: RETIRED_MINIO_BUCKETS
+          value: "ask-brent-knowledge"
+        - name: PROTECTED_VECTOR_STORES
+          value: "rfp_knowledge_v1"
+        - name: PROTECTED_MINIO_BUCKETS
+          value: "rfp-agent-knowledge"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi

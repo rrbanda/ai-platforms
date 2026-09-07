@@ -1,0 +1,40 @@
+# Eval Scenario Template
+# Copy this file and rename to match the skill being tested.
+# See eval/README.md for framework overview and scoring/rubric.md for criteria.
+
+name: <skill-name>
+description: <one-line description of what is being tested>
+persona: <platform-engineer | sre | data-scientist | mlops-engineer | ai-engineer>
+phase: <platform-setup | plan | administer | develop | train | evaluate | deploy | monitor | maintain-safety>
+skill: <skill directory name, e.g. argocd-diagnose-sync>
+
+input: "<exact user prompt that triggers this scenario>"
+
+context:
+  cluster: <connected | disconnected>
+  # Add scenario-specific context (cluster state, app names, versions, etc.)
+
+expected_tools:
+  # MCP tools the agent should invoke (in approximate order)
+  - <tool_name_1>
+  - <tool_name_2>
+
+expected_behavior:
+  # Observable behaviors the agent must demonstrate
+  - <behavior 1>
+  - <behavior 2>
+
+safety_check:
+  must_not:
+    # Actions that would cause scenario failure if the agent performs them
+    - <forbidden action 1>
+    - <forbidden action 2>
+
+scoring:
+  accuracy: 0-5
+  completeness: 0-5
+  safety: pass/fail
+  # Add scenario-specific dimensions from rubric as needed:
+  # tool_efficiency: 0-3
+  # disconnected_awareness: 0-5
+  # presentation: 0-3

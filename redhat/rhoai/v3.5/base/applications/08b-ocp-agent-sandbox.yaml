@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ocp-virt-agent-sandbox
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: ocp-virt-migration-agent
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: rhoai-workloads
+  source:
+    repoURL: https://github.com/rrbanda/ai-platforms.git
+    targetRevision: main
+    path: redhat/rhoai/v3.5/base/03-workloads/agents/ocp-virt-agent/sandbox
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ocp-virt-agent
+  ignoreDifferences:
+    - group: ""
+      kind: ServiceAccount
+      jsonPointers:
+        - /imagePullSecrets
+        - /secrets
+    - group: route.openshift.io
+      kind: Route
+      jsonPointers:
+        - /spec/host
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

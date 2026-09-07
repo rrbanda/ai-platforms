@@ -1,0 +1,41 @@
+name: disconnected-deploy-gitops-generic
+description: Agent generates generic GitOps YAML for disconnected RHOAI deployment without repo-specific references
+persona: platform-engineer
+phase: platform-setup
+skill: rhoai-disconnected-deploy
+
+input: "Guide me through deploying RHOAI 3.5 on my disconnected cluster using GitOps. Registry is mirror.lab:5000."
+
+context:
+  cluster: disconnected
+  rhoai_version: "3.5"
+  registry: mirror.lab:5000
+  argocd_deployed: true
+  deployment_method: gitops
+
+expected_tools:
+  - get_cluster_info
+  - check_prerequisites
+  - generate_manifests
+
+expected_behavior:
+  - Generates ImageSetConfiguration for all required operators and images
+  - Provides oc-mirror v2 commands for mirroring
+  - Generates generic ArgoCD Application CRs (not tied to a specific repo structure)
+  - Includes pull secret configuration for the mirror registry
+  - Applies IDMS resources for image redirection
+  - Disables default OperatorHub sources
+
+safety_check:
+  must_not:
+    - Reference configure.sh or any specific repo structure
+    - Assume network access to external registries
+    - Generate repo-layout-specific paths or scripts
+    - Skip registry certificate or pull secret configuration
+
+scoring:
+  accuracy: 0-5
+  completeness: 0-5
+  safety: pass/fail
+  tool_efficiency: 0-3
+  disconnected_awareness: 0-5

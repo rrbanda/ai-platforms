@@ -1,0 +1,234 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: ocp-virt-migration-agent
+  labels:
+    app: ocp-virt-migration-agent
+    app.kubernetes.io/name: ocp-virt-migration-agent
+    app.kubernetes.io/part-of: ocp-virt-migration-agent
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  podTemplate:
+    metadata:
+      labels:
+        app: ocp-virt-migration-agent
+    spec:
+      containers:
+      - name: agent
+        image: ghcr.io/rrbanda/ocp-virt-migration-agent-sandbox:latest
+        imagePullPolicy: Always
+        command:
+        - bash
+        - /mnt/startup/startup.sh
+        env:
+        # -- OpenShell wiring --
+        - name: OPENSHELL_SANDBOX
+          value: ocp-virt-migration-agent
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: "true"
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: "1001310000"
+        - name: OPENSHELL_SANDBOX_GID
+          value: "1001310000"
+        # -- Agent environment --
+        - name: HOME
+          value: /sandbox
+        - name: PORT
+          value: "8080"
+        - name: SKILLS_DIR
+          value: /sandbox/skills
+        - name: AGENT_MODE
+          value: pipeline
+        - name: MIGRATION_DRY_RUN
+          value: "false"
+        - name: MAX_LLM_CALLS
+          value: "200"
+        - name: PATH
+          value: /opt/app-root/bin:/usr/local/bin:/usr/bin:/bin
+        - name: PYTHONPATH
+          value: /sandbox
+        # -- LLM (MaaS premium endpoint) --
+        - name: ADK_MODEL
+          value: openai/gemini-2.5-flash
+        - name: ADK_MODEL_FAST
+          value: openai/gemini-2.5-flash
+        - name: ADK_MODEL_REASONING
+          value: openai/gemini-2.5-pro
+        - name: LITELLM_SSL_VERIFY
+          value: "false"
+        - name: AGENT_CONFIG_PATH
+          value: "/mnt/config/agents.yaml"
+        - name: OPENAI_API_BASE
+          value: https://maas.apps.ocp.qn6c5.sandbox1388.opentlc.com/v1
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: gemini-api-key
+              name: ocp-virt-migration-agent-secret
+              optional: true
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: gemini-api-key
+              name: ocp-virt-migration-agent-secret
+              optional: true
+        # -- Multi-cluster (VMware/OCP Virt) --
+        - name: MTV_API_URL
+          value: "https://api.cluster-lprk6.dyn.redhatworkshops.io:6443"
+        - name: VIRT_API_URL
+          value: "https://api.cluster-lprk6.dyn.redhatworkshops.io:6443"
+        - name: MTV_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: mtv-api-token
+              name: ocp-virt-migration-agent-secret
+              optional: true
+        - name: MTV_INVENTORY_URL
+          value: "https://forklift-inventory-openshift-mtv.apps.cluster-lprk6.dyn.redhatworkshops.io"
+        - name: OCP_CA_BUNDLE
+          value: "false"
+        - name: DEFAULT_MTV_NAMESPACE
+          value: mtv-user1
+        - name: DEFAULT_VIRT_NAMESPACE
+          value: vmimported-user1
+        - name: MTV_OPERATOR_NAMESPACE
+          value: openshift-mtv
+        - name: TARGET_STORAGE_CLASS
+          value: ocs-external-storagecluster-ceph-rbd
+        # -- MLflow tracing (RHOAI MLflow) --
+        - name: MLFLOW_TRACKING_URI
+          value: "https://mlflow.redhat-ods-applications.svc.cluster.local:8443/mlflow"
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: "ocp-virt-migration-agent"
+        - name: MLFLOW_TRACKING_INSECURE_TLS
+          value: "true"
+        - name: MLFLOW_TRACKING_AUTH
+          value: "kubernetes-namespaced"
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8081
+          name: openai
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          runAsUser: 0
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /sandbox
+          name: workspace
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /mnt/config
+          name: agent-config
+      initContainers:
+      - name: openshell-supervisor-install
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        imagePullPolicy: IfNotPresent
+        command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      - name: workspace-init
+        image: ghcr.io/rrbanda/ocp-virt-migration-agent-sandbox:latest
+        imagePullPolicy: Always
+        command:
+        - sh
+        - -c
+        - |
+          echo "Copying fresh app code from image to workspace PVC..."
+          [ -d /sandbox/app ] && cp -a /sandbox/app /workspace-pvc/app
+          [ -f /sandbox/pyproject.toml ] && cp -a /sandbox/pyproject.toml /workspace-pvc/
+          echo "App code updated from image"
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /workspace-pvc
+          name: workspace
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      volumes:
+      - name: openshell-supervisor-bin
+        emptyDir: {}
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - name: openshell-policy
+        configMap:
+          name: ocp-virt-migration-agent-openshell-policy
+      - name: startup
+        configMap:
+          name: ocp-virt-migration-agent-startup
+          defaultMode: 493
+      - name: agent-config
+        configMap:
+          name: ocp-virt-migration-agent-config
+          optional: true
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi

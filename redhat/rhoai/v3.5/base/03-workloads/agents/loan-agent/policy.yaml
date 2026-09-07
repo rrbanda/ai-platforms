@@ -1,0 +1,65 @@
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /etc
+    - /var/log
+    - /dev/urandom
+    - /opt/openshell
+  read_write:
+    - /app
+    - /tmp
+    - /dev/null
+    - /mnt
+    - /run
+    - /opt/app-root
+
+landlock:
+  compatibility: best_effort
+
+network_policies:
+  maas_inference:
+    name: Red Hat MaaS (model serving)
+    endpoints:
+      - host: maas.apps.ocp.qn6c5.sandbox1388.opentlc.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /opt/app-root/bin/python3.12
+
+  autorag_ogx:
+    name: AutoRAG OGX vector store
+    endpoints:
+      - host: autorag-ogx-service.autorag.svc.cluster.local
+        port: 8321
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /opt/app-root/bin/python3.12
+
+  openshell_gateway:
+    name: OpenShell gateway
+    endpoints:
+      - host: openshell.openshell.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /opt/openshell/bin/openshell-sandbox
+
+  cluster_dns:
+    name: Cluster DNS
+    endpoints:
+      - host: "172.30.0.10"
+        port: 53
+      - host: "172.30.0.10"
+        port: 5353
+    binaries:
+      - path: /**

@@ -1,0 +1,29 @@
+{
+  "display_name": "autorag-rfp-agent-rhoai-docs",
+  "description": "AutoRAG for rfp-agent after official OpenShift AI 3.3/3.4/3.5 docs ingest. Bucket rfp-agent-knowledge only. Test data is benchmark_rhoai.json (OpenShift AI questions), not the old sandbox-blog benchmark_data.json.",
+  "pipeline_name": "documents-rag-optimization-pipeline",
+  "pipeline_version_name": "rhoai-3.5-ea.1-fixed",
+  "pipeline_id": "",
+  "pipeline_version_id": "",
+  "experiment_name": "rfp-agent-autorag",
+  "runtime_config": {
+    "parameters": {
+      "input_data_bucket_name": "rfp-agent-knowledge",
+      "input_data_key": "input_data",
+      "input_data_secret_name": "autorag-s3-connection",
+      "test_data_bucket_name": "rfp-agent-knowledge",
+      "test_data_key": "benchmark_rhoai.json",
+      "test_data_secret_name": "autorag-s3-connection",
+      "ogx_secret_name": "autorag-llama-stack",
+      "vector_io_provider_id": "milvus",
+      "embedding_models": [
+        "sentence-transformers/nomic-ai/nomic-embed-text-v1.5"
+      ],
+      "generation_models": [
+        "gemini/models/gemini-2.5-flash"
+      ],
+      "optimization_metric": "faithfulness",
+      "optimization_max_rag_patterns": 4
+    }
+  }
+}

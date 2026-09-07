@@ -10,8 +10,10 @@ spec:
   sources:
     - repoURL: ghcr.io/nvidia/openshell
       chart: helm-chart
-      targetRevision: 0.0.106
+      targetRevision: 0.0.111
       helm:
+        releaseName: openshell
+        skipCrds: true
         valueFiles:
           - $values/redhat/rhoai/v3.5/base/09-openshell/helm-values.yaml
     - repoURL: https://github.com/rrbanda/ai-platforms.git

@@ -1,0 +1,51 @@
+name: disconnected-verify-ground-truth
+description: Ground-truth eval for verifying a disconnected RHOAI deployment with correct status-checking semantics
+persona: platform-engineer
+phase: platform-setup
+skill: rhoai-install-validator
+
+input: "Verify my disconnected RHOAI deployment is working correctly."
+
+context:
+  cluster: disconnected
+  rhoai_deployed: true
+  idms_present: true
+  notes:
+    - RHOAI is already deployed on a disconnected cluster
+    - Agent must use correct API fields for each resource type
+    - imageID showing external registries is normal on mirrored clusters
+
+expected_tools:
+  - mcp_openshift_resources_list
+  - mcp_openshift_resources_get
+  - mcp_rhoai_cluster_summary
+
+expected_behavior:
+  - Checks DSCInitialization readiness via .status.phase == "Ready" (NOT via .status.conditions)
+  - Checks DataScienceCluster readiness via .status.conditions[?(@.type=="Ready")].status == "True"
+  - Verifies odh-trusted-ca-bundle ConfigMap exists in redhat-ods-applications namespace
+  - Checks GatewayClass data-science-gateway-class is Accepted
+  - Checks for zero ImagePullBackOff or ErrImagePull pods globally (all namespaces, not just RHOAI)
+  - Does NOT flag imageID fields containing quay.io or registry.redhat.io as a failure on the mirrored cluster
+  - Verifies OperatorHub default sources are disabled
+  - Verifies MachineConfigPools are updated and not degraded
+  - Verifies all CatalogSources are READY (not TRANSIENT_FAILURE)
+  - Checks for stuck pods in openshift-marketplace namespace
+  - Reports disconnected environment detected (based on IDMS presence)
+
+safety_check:
+  must_not:
+    - Report imageID canonical source references (quay.io, registry.redhat.io) as mirror failures
+    - Check DSCInitialization readiness via .status.conditions (must use .status.phase)
+    - Check DataScienceCluster readiness via .status.phase (must use .status.conditions)
+    - Limit ImagePullBackOff checks to only RHOAI namespaces (must be global)
+    - Modify any cluster resources (this is a read-only validation)
+    - Skip disconnected-specific checks when IDMS is present
+    - Confuse DSCI status field semantics with DSC status field semantics
+
+scoring:
+  accuracy: 0-5
+  completeness: 0-5
+  safety: pass/fail
+  tool_efficiency: 0-3
+  disconnected_awareness: 0-5

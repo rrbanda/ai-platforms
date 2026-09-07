@@ -1,0 +1,97 @@
+# Knowledge Retrieval
+
+> Search the AutoRAG-optimized vector knowledge base via the OGX (Llama Stack) vector-io API and return relevant passages with source citations.
+
+## When to Use
+
+- Before answering ANY technical, product, or methodology question
+- When verifying a product name, component status, or capability claim
+- When mapping RFP requirements to Red Hat capabilities
+- When you need benchmark data or customer evidence (not pricing tables — those are human)
+
+## How It Works
+
+The knowledge base is a Milvus vector index built by AutoRAG with optimized chunking
+and embedding settings. Retrieval goes through the **OGX (Llama Stack) server's
+`/v1/vector-io/query` API** — OGX handles embedding and vector search internally.
+Config is at `/sandbox/.hermes/rag-config.json`.
+
+## Code
+
+```python
+import json, requests
+from pathlib import Path
+
+config = json.loads(Path("/sandbox/.hermes/rag-config.json").read_text())
+OGX_BASE_URL = config["ogx_base_url"]
+VECTOR_STORE_ID = config["vector_store_id"]
+TOP_K = config.get("top_k", 5)
+
+
+def search_knowledge(query, top_k=None):
+    k = top_k or TOP_K
+    resp = requests.post(
+        f"{OGX_BASE_URL}/v1/vector-io/query",
+        json={
+            "vector_store_id": VECTOR_STORE_ID,
+            "query": query,
+            "params": {"max_chunks": k},
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    chunks = data.get("chunks", [])
+    scores = data.get("scores", [])
+    if not chunks:
+        return "No relevant documents found for this query."
+    lines = []
+    for i, chunk in enumerate(chunks, 1):
+        content = chunk.get("content", "")
+        metadata = chunk.get("metadata", {})
+        doc_id = metadata.get("document_id", "unknown")
+        score = scores[i - 1] if i - 1 < len(scores) else 0
+        lines.append(f"### Result {i} (relevance: {round(score, 3)}, source: {doc_id})")
+        lines.append("")
+        lines.append(content)
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+    header = f"Found {len(chunks)} passages for: {query}"
+    return header + "\n\n" + "\n".join(lines)
+
+
+result = search_knowledge(QUERY)
+print(result)
+```
+
+## Usage
+
+1. Set `QUERY` to the question you need answered
+2. Run the code block
+3. Use the returned passages to ground your response
+4. Always cite content sources using the `document_id` from metadata
+
+## Categories
+
+| Category | Content |
+|----------|---------|
+| Security | Vulnerability methodology, ACS scanning, AI safety stack |
+| Platform | OpenShift AI components (DSC, workbenches, pipelines), vLLM, llm-d, AutoRAG, disconnected, GPU/Kueue |
+| Agent Infrastructure | OpenShell, Sandbox CRD, MCP Gateway, AgentOps (only if the RFP asks) |
+| Governance | TrustyAI, NeMo Guardrails, Garak, responsible AI, certifications |
+| Product Reference | Canonical naming, component maturity table |
+| Methodology | Consulting engagement model (not a full SOW/pricing library) |
+| Customer Evidence | Industry case studies — brochure-depth; no permissioned GPU metrics unless in the file |
+| RFP Examples | Questionnaire **response pattern** only (`08-rfp-examples/`); not past winning proposals |
+
+Pricing, SKUs, legal terms, and unapproved customer metrics are **not** in this corpus. If retrieval is empty, say so.
+
+## Rules
+
+- ALWAYS search before claiming a product name, capability, or status
+- If no results, say so — do NOT fabricate
+- Tag confidence:
+  - **[GROUNDED]** — directly from a retrieved passage with citation
+  - **[INFERRED]** — synthesized from multiple passages, flag for review
+  - **[NEEDS HUMAN INPUT]** — not found in knowledge base

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: stale-image-finder
+
+resources:
+  - sandbox.yaml
+  - startup.yaml
+  - service.yaml
+  - route.yaml
+  - soul.yaml
+  - config.yaml
+  - restart-hook.yaml
+  - restart-rbac.yaml
+  - skills/skill-stale-image-finder.yaml
+  - skills/skill-image-compliance-classifier.yaml
+  - skills/skill-image-refresh-pr.yaml
+  - skills/skill-image-rebuild-redeploy.yaml
+
+configMapGenerator:
+  - name: stale-image-finder-openshell-policy
+    files:
+      - sandbox-policy.rego
+      - policy.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

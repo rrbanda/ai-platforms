@@ -1,0 +1,41 @@
+sequenceDiagram
+    participant Agent as AI Agent<br/>(Claude / Cursor)
+    participant GW as MCP Gateway<br/>(Hub - mcp-system)
+    participant KC as Keycloak<br/>(Hub - OIDC)
+    participant MCP as MCP Server<br/>(Hub - openshift-mcp-server)
+    participant OCM as OCM APIs<br/>(Hub - ManagedCluster CRs)
+    participant Proxy as cluster-proxy-addon<br/>(Hub - multicluster-engine)
+    participant SpokeAgent as cluster-proxy agent<br/>(Spoke - pre-existing)
+    participant API as kube-apiserver<br/>(Spoke)
+
+    Agent->>GW: 1. POST /mcp tools/call + OAuth Token<br/>"list crashing pods on prod-east"
+
+    GW->>KC: 2. Validate JWT (signature, expiry, issuer)
+    KC-->>GW: Token valid
+
+    GW->>GW: 3. AuthPolicy: is user allowed to call pods_list?
+    Note over GW: Authorized ✓
+
+    GW->>MCP: 4. Forward via HTTPRoute<br/>backendRef openshift-mcp-server:8080
+
+    MCP->>OCM: 5. list ManagedClusters<br/>cluster.open-cluster-management.io/v1
+    OCM-->>MCP: Cluster inventory:<br/>prod-east (Ready), prod-west (Ready), staging (Ready)
+
+    MCP->>KC: 6. RFC 8693 Token Exchange<br/>broad token → scoped token for prod-east
+    KC-->>MCP: Scoped access token<br/>(audience: prod-east)
+
+    MCP->>Proxy: 7. Discover cluster-proxy-addon service<br/>in multicluster-engine namespace
+    Proxy-->>MCP: Endpoint: cluster-proxy-addon.multicluster-engine.svc:8090
+
+    MCP->>Proxy: 8. Dial via konnectivity-client<br/>target: prod-east kube-apiserver + scoped token
+    Proxy->>SpokeAgent: 9. Route through existing gRPC reverse tunnel<br/>(spoke initiated this outbound connection)
+    SpokeAgent->>API: 10. Forward to local kube-apiserver<br/>GET /api/v1/pods
+
+    API-->>SpokeAgent: 11. Pod list response
+    SpokeAgent-->>Proxy: Return via tunnel
+    Proxy-->>MCP: Response data
+
+    MCP-->>GW: 12. Structured MCP tool result
+    GW-->>Agent: 13. Return to AI agent
+
+    Note over Agent: LLM analyzes:<br/>"3 pods in CrashLoopBackOff<br/>in namespace payments"

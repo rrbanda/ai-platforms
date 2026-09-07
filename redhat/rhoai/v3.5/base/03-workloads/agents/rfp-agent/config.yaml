@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rfp-agent-config
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+data:
+  config.yaml: |
+    model:
+      default: "gemini-2.5-pro"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+      provider: custom
+      api_key: "${OPENAI_API_KEY}"
+    gateway:
+      enabled: false
+    tools:
+      code_execution:
+        enabled: "on"
+        backend: local
+      file_operations:
+        enabled: "on"
+      web_search:
+        enabled: "on"
+      browser:
+        enabled: "off"
+    toolsets:
+      skills: true
+      memory: true
+      session_search: true
+      delegation: true
+      cronjob: false
+      kanban: false
+    delegation:
+      max_concurrent_children: 3
+    memory:
+      enabled: true
+      providers: []
+    skills:
+      enabled: true
+      directory: /sandbox/.hermes/skills
+      curator:
+        enabled: true
+    display:
+      skin:
+        branding:
+          agent_name: "RFP Agent"
+          welcome: "Upload an RFP document and I'll help draft your response."
+          response_label: "RFP Agent"
+    dashboard:
+      title: "RFP Response Agent"
+      subtitle: "AI-powered RFP response automation"

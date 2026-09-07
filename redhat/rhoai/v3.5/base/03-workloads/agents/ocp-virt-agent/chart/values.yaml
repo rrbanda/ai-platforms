@@ -1,0 +1,84 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/rrbanda/ocp-virt-migration-agent
+  tag: "latest"
+  pullPolicy: Always
+
+nameOverride: ""
+fullnameOverride: ""
+
+env:
+  # LLM
+  ADK_MODEL: ""
+  OPENAI_API_BASE: ""
+  # Agent
+  AGENT_MODE: "pipeline"
+  SKILLS_DIR: "/skills"
+  MAX_LLM_CALLS: "200"
+  MIGRATION_DRY_RUN: "true"
+  # Multi-cluster (empty = in-cluster auth)
+  MTV_API_URL: ""
+  VIRT_API_URL: ""
+  MTV_INVENTORY_URL: ""
+  AAP_URL: ""
+  OCP_CA_BUNDLE: ""
+  # Namespace / storage defaults
+  DEFAULT_MTV_NAMESPACE: "openshift-mtv"
+  DEFAULT_VIRT_NAMESPACE: "vmimported"
+  MTV_OPERATOR_NAMESPACE: "openshift-mtv"
+  TARGET_STORAGE_CLASS: ""
+  # Tuning
+  COMPACTION_TOKEN_THRESHOLD: "8000"
+  COMPACTION_EVENT_RETENTION: "5"
+  MAX_MONITOR_POLLS: "30"
+  DEFAULT_NETWORK_DESTINATION: "pod"
+
+secrets:
+  openaiApiKey: ""
+  geminiApiKey: ""
+  mtvApiToken: ""
+  virtApiToken: ""
+  aapToken: ""
+  mlflowTrackingToken: ""
+
+extraEnv: {}
+
+service:
+  port: 8000
+  type: ClusterIP
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+openshift:
+  route:
+    enabled: true
+    timeout: "600s"
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+
+healthCheck:
+  path: /health
+  livenessInitialDelay: 30
+  livenessPeriod: 30
+  livenessTimeout: 5
+  readinessInitialDelay: 15
+  readinessPeriod: 10
+  readinessTimeout: 3
+
+serviceAccount:
+  create: true
+  name: ""
+
+rbac:
+  create: true
+
+volumes: []
+volumeMounts: []

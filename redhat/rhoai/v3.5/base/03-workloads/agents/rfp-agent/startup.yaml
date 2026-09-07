@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rfp-agent-startup
+  labels:
+    app.kubernetes.io/part-of: rfp-agent
+data:
+  startup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export HOME=/sandbox
+    export HERMES_HOME=/sandbox/.hermes
+    export PATH="/sandbox/.venv/bin:/usr/local/bin:${PATH}"
+
+    if ! command -v hermes >/dev/null 2>&1; then
+      echo "ERROR: hermes not found. Rebuild image." >&2
+      exit 1
+    fi
+
+    echo "Hermes $(hermes --version 2>&1 || true)"
+
+    echo "Checking document libraries..."
+    python3 -c "import docx, PyPDF2, mammoth, pypandoc, xhtml2pdf" 2>/dev/null \
+      && echo "Document libraries pre-installed in image" \
+      || {
+        echo "Installing document libraries at runtime..."
+        pip install --quiet --no-cache-dir --user \
+          python-docx PyPDF2 openpyxl pandas mammoth pypandoc-binary xhtml2pdf \
+          2>&1 | tail -3 || echo "WARN: pip install failed. Agent can install later via code execution."
+      }
+    echo "Document libraries ready"
+
+    # Symlink pandoc binary onto PATH so the agent can call it as CLI
+    PANDOC_BIN=$(python3 -c "import pypandoc; print(pypandoc.get_pandoc_path())" 2>/dev/null || true)
+    if [ -n "$PANDOC_BIN" ] && [ -f "$PANDOC_BIN" ]; then
+      ln -sf "$PANDOC_BIN" /usr/local/bin/pandoc 2>/dev/null || true
+      echo "pandoc linked to PATH"
+    fi
+
+    SKILLS="rh-knowledge-retrieval rh-rfp-intake rh-rfp-analysis rh-rfp-strategy rh-rfp-drafting rh-rfp-review rh-product-naming rh-accuracy-review"
+
+    mkdir -p \
+      /sandbox/.hermes/skills \
+      /sandbox/.hermes/memory \
+      /sandbox/.hermes/sessions \
+      /sandbox/.hermes/profiles \
+      /sandbox/.hermes/auto-skills \
+      /sandbox/.hermes/db \
+      /sandbox/data \
+      /sandbox/output
+
+    for s in $SKILLS; do
+      mkdir -p "/sandbox/.hermes/skills/$s"
+      cp "/mnt/skill-$s/SKILL.md" "/sandbox/.hermes/skills/$s/SKILL.md"
+    done
+
+    cp /mnt/soul/SOUL.md /sandbox/.hermes/SOUL.md
+    cp /mnt/config/config.yaml /sandbox/.hermes/config.yaml
+
+    # Write RAG config — retrieval goes through OGX /v1/vector-io/query (the RHOAI way)
+    # Auto-discovers vector store by name if OGX_VECTOR_STORE_ID is not set
+    python3 - <<'PYRAG'
+    import json, os, urllib.request
+    ogx_url = os.environ.get("OGX_BASE_URL", "http://rfp-ogx-service.rfp-agent.svc.cluster.local:8321")
+    vs_id = os.environ.get("OGX_VECTOR_STORE_ID", "")
+    vs_name = os.environ.get("VECTOR_STORE_NAME", "rfp_knowledge_v1")
+    if not vs_id:
+        try:
+            req = urllib.request.Request(f"{ogx_url}/v1/vector_stores",
+                headers={"Authorization": "Bearer unused"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                stores = json.loads(resp.read())
+            for s in stores.get("data", []):
+                if s.get("name") == vs_name:
+                    vs_id = s["id"]
+                    print(f"Discovered vector store: {vs_name} -> {vs_id}")
+                    break
+        except Exception as e:
+            print(f"Vector store discovery failed: {e}")
+    if not vs_id:
+        vs_id = "not-configured"
+        print(f"WARNING: No vector store found. Set OGX_VECTOR_STORE_ID or run the ingest Job.")
+    config = {
+        "ogx_base_url": ogx_url,
+        "vector_store_id": vs_id,
+        "top_k": int(os.environ.get("RAG_TOP_K", "5")),
+    }
+    with open("/sandbox/.hermes/rag-config.json", "w") as f:
+        json.dump(config, f, indent=2)
+    print(f"RAG config: vector_store_id={vs_id}")
+    PYRAG
+
+    python3 <<PY
+    import os, yaml
+    with open("/sandbox/.hermes/config.yaml") as f:
+        cfg = yaml.safe_load(f)
+
+    cfg.setdefault("skills", {})["directory"] = "/sandbox/.hermes/skills"
+
+    cfg.setdefault("model", {})
+    cfg["model"]["default"] = os.environ.get("LLM_MODEL", "gemini-2.5-pro")
+    cfg["model"]["base_url"] = os.environ.get("OPENAI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+    cfg["model"]["provider"] = "custom"
+    cfg["model"]["api_key"] = os.environ.get("OPENAI_API_KEY", "")
+
+    with open("/sandbox/.hermes/config.yaml", "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+    print(f"Config updated: model={cfg['model']['default']}, base_url={cfg['model']['base_url']}")
+    print("Skills:", ", ".join(sorted(os.listdir("/sandbox/.hermes/skills"))))
+    PY
+
+    echo "=== Starting Hermes gateway (background) ==="
+    hermes gateway run > /tmp/hermes-gateway.log 2>&1 &
+    sleep 5
+
+    echo "=== Starting Hermes dashboard ==="
+    exec hermes dashboard \
+      --host "${HERMES_DASHBOARD_HOST:-0.0.0.0}" \
+      --port "${HERMES_DASHBOARD_PORT:-9119}" \
+      --no-open --skip-build --insecure

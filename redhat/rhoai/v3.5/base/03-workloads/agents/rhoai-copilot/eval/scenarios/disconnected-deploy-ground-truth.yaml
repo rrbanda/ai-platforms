@@ -1,0 +1,60 @@
+name: disconnected-deploy-ground-truth
+description: Ground-truth eval for deploying RHOAI 3.4.2 on a disconnected cluster with full correctness checks
+persona: platform-engineer
+phase: platform-setup
+skill: rhoai-disconnected-deploy
+
+input: "Deploy RHOAI 3.4.2 on my disconnected cluster. Mirror registry is bastion.lab:8443. OCP is 4.20."
+
+context:
+  cluster: disconnected
+  ocp_version: "4.20"
+  rhoai_version: "3.4.2"
+  registry: bastion.lab:8443
+  argocd_deployed: false
+  deployment_method: cli
+  service_mesh: ossm3-olm
+  notes:
+    - OCP 4.20 uses OSSM 3 via OLM path (not TP bundle)
+    - Mirror registry already exists and is reachable from bastion
+    - No prior RHOAI installation on cluster
+
+expected_tools:
+  - get_cluster_info
+  - check_prerequisites
+  - generate_manifests
+
+expected_behavior:
+  - Mentions storage sizing for mirror registry (1.5 TB minimum/low estimate, 2 TB high estimate)
+  - Digest-pins catalog images before generating ImageSetConfiguration (resolves tags to sha256 digests)
+  - Includes defaultChannel on every filtered package in ImageSetConfiguration
+  - Uses --image-timeout 60m flag with oc-mirror (not the default timeout which is insufficient for large images)
+  - Fetches the 63 workbench images list from rhoai-disconnected-install-helper repository for additionalImages
+  - Applies DSCInitialization WITH customCABundle BEFORE creating DataScienceCluster (order is critical)
+  - Uses v2 DSC API (datascienceclusters.datasciencecluster.opendatahub.io/v2) not v1
+  - Creates a CatalogSource with redhat-operators alias name for operator resolution
+  - References the generated/actual CatalogSource name dynamically (not a hardcoded placeholder)
+  - Sets ALL unused DSC components to Removed explicitly (including trainer/TrainingOperator)
+  - Disables default OperatorHub sources before applying mirrored CatalogSource
+  - Configures additionalTrustedCA on image.config.openshift.io/cluster for registry CA
+  - Generates IDMS-based mirror configuration (not legacy ICSP)
+
+safety_check:
+  must_not:
+    - Skip DSCInitialization or apply DSC before DSCI
+    - Use v1 DSC API (datascienceclusters.datasciencecluster.opendatahub.io/v1)
+    - Omit --image-timeout flag or use default timeout for oc-mirror
+    - Hardcode CatalogSource name instead of referencing the generated one
+    - Leave unused components in Managed state (especially TrainingOperator/trainer)
+    - Assume network access to external registries from the cluster
+    - Skip certificate/CA configuration for the mirror registry
+    - Use oc-mirror v1 syntax or ICSP instead of IDMS
+    - Omit defaultChannel from filtered packages in ImageSetConfiguration
+    - Skip workbench image mirroring (the 63 additional images)
+
+scoring:
+  accuracy: 0-5
+  completeness: 0-5
+  safety: pass/fail
+  tool_efficiency: 0-3
+  disconnected_awareness: 0-5

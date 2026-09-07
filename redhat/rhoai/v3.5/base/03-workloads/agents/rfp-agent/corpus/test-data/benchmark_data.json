@@ -1,0 +1,268 @@
+[
+  {
+    "question": "What isolation technology prevents a kernel exploit from escaping a container when running an AI coding agent?",
+    "correct_answers": [
+      "OpenShift Sandboxed Containers (based on Kata Containers) wraps each pod in a lightweight VM using hardware virtualization (VT-x/AMD-V). A kernel exploit inside the container affects only the guest kernel, not the host. This was proven with CVE-2026-31431 on OpenShift 4.21."
+    ],
+    "correct_answer_document_ids": ["benchmark-two-sandboxes.md"]
+  },
+  {
+    "question": "How does Red Hat prevent prompt injection from causing data exfiltration?",
+    "correct_answers": [
+      "NVIDIA OpenShell provides an application-layer egress proxy with per-binary network policy. Even if a prompt injection tricks the agent into running curl to an attacker-controlled host, the proxy intercepts the request and returns policy_denied. The policy is based on OPA/Rego rules that allowlist specific endpoints per binary (verified by SHA-256 hash)."
+    ],
+    "correct_answer_document_ids": ["defense-in-depth-six-layers.md"]
+  },
+  {
+    "question": "What is the correct customer-facing name for the inference routing product?",
+    "correct_answers": [
+      "Red Hat AI gateway. Never use 'Praxis' in customer-facing documents. The gateway provides auth, quota, and inference routing. Semantic cost-tier routing is roadmap."
+    ],
+    "correct_answer_document_ids": ["product-naming-canonical.md"]
+  },
+  {
+    "question": "How does Red Hat manage and prioritize security vulnerabilities differently from generic CVSS scoring?",
+    "correct_answers": [
+      "Red Hat uses a four-point severity scale (Critical, Important, Moderate, Low) rather than relying solely on CVSS base scores. CVSS measures technical severity, not risk. Red Hat's scale accounts for customer impact, exploit availability, and operational disruption. As a CVE Numbering Authority (CNA) and Root CNA, Red Hat provides contextual assessment of whether a vulnerability is actually exploitable in the way Red Hat ships the affected component. Red Hat publishes machine-readable CSAF/VEX documents for every vulnerability with product-specific status (fixed, known not affected, under investigation)."
+    ],
+    "correct_answer_document_ids": ["red-hat-vulnerability-management-methodology.md"]
+  },
+  {
+    "question": "How does Ansible Automation Platform use AI to accelerate vulnerability remediation?",
+    "correct_answers": [
+      "Ansible Automation Platform 2.7 integrates generative AI and Model Context Protocol (MCP) to automate the three-phase remediation lifecycle: containment, eradication, and recovery. Event-Driven Ansible receives scanner alerts, MCP connections pull context from CVE databases, SIEM, and CMDB, then AI generates a remediation playbook tailored to the specific vulnerability and affected systems. The workflow includes human-in-the-loop approval gates while achieving 86% reduction in manual remediation time. The entire cycle from CVE identification to remediation can be completed in minutes instead of hours or days."
+    ],
+    "correct_answer_document_ids": ["ai-powered-vulnerability-remediation-ansible.md"]
+  },
+  {
+    "question": "What scanning and prioritization capabilities does Red Hat Advanced Cluster Security provide for container vulnerability management?",
+    "correct_answers": [
+      "RHACS provides continuous Kubernetes-native vulnerability management with Scanner V4 (default since RHACS 4.8) that detects vulnerabilities in both OS packages and language-specific components (Python, Java, JavaScript, Ruby, Go, Rust). It uses EPSS scores for exploitability-based triage, Red Hat VEX documents for official product-specific assessments, and policy-driven enforcement at build, deploy, and runtime stages. RHACS 4.11 added fix-date policy criteria for SLA-based enforcement and a generally available OpenShift console plugin for developer self-service."
+    ],
+    "correct_answer_document_ids": ["rhacs-vulnerability-scanning-prioritization.md"]
+  },
+  {
+    "question": "How does Ansible Automation Platform handle compliance scanning and what standards does it support?",
+    "correct_answers": [
+      "Ansible Automation Platform 2.7 includes a built-in Compliance Dashboard that performs agentless scanning against DISA STIG, CIS Benchmarks (Level 1 and 2), PCI-DSS, and OpenSCAP profiles. It scans thousands of hosts in parallel without requiring agents, provides per-host findings with severity classification, and includes a granular remediation builder with per-rule toggles. The closed-loop workflow is: define profile, select inventory, scan, review findings, toggle rules for remediation, execute playbook, re-scan to verify, export audit-grade report."
+    ],
+    "correct_answer_document_ids": ["ansible-compliance-automation-dashboard.md"]
+  },
+  {
+    "question": "What is Red Hat's approach to software supply chain security and how does it achieve SLSA Level 3?",
+    "correct_answers": [
+      "Red Hat Advanced Developer Suite - Software Supply Chain (RHADS-SSC) achieves SLSA Level 3 through Tekton Chains automatically signing container images and generating provenance, Sigstore (Cosign) for cryptographic verification, automated SBOM generation in CycloneDX/SPDX format, and Conforma policy gates that validate builds against 41+ security rules before production deployment. Every build produces signed in-toto attestation, SLSA provenance, SBOM, and image signatures with zero developer intervention. Red Hat Hardened Images and Trusted Libraries provide pre-secured base components with continuous vulnerability remediation."
+    ],
+    "correct_answer_document_ids": ["trusted-software-supply-chain.md"]
+  },
+  {
+    "question": "How does Red Hat test AI models for prompt injection and other adversarial attacks?",
+    "correct_answers": [
+      "Red Hat uses Garak (Generative AI Red-teaming and Assessment Kit) — an open-source LLM vulnerability scanner with 120+ adversarial probes covering prompt injection, jailbreaks, data leakage, and model abuse. It integrates with OpenShift AI via Kubeflow Pipelines for automated red-teaming workflows. For runtime protection, NeMo Guardrails (deployed via TrustyAI Operator as a CRD) intercepts injections before they reach the model and filters unsafe outputs. Red Hat's Chatterbox Labs acquisition (December 2025) added enterprise-grade detection of when MCP server actions are triggered by injected instructions."
+    ],
+    "correct_answer_document_ids": ["ai-safety-stack-red-teaming.md"]
+  },
+  {
+    "question": "What is Red Hat Lightspeed and how does it automate vulnerability remediation at scale?",
+    "correct_answers": [
+      "Red Hat Lightspeed (formerly Red Hat Insights) scans RHEL systems against the Red Hat CVE database, prioritizes findings using severity, CVSS, EPSS, and known-exploit indicators, then auto-generates Ansible Playbooks for remediation. It supports direct execution for plans up to 100 systems and 1,000 action points, with seamless handoff to Ansible Automation Platform for larger operations. The MCP integration enables natural language queries like 'Show me all critical vulnerabilities with CVSS > 8 without patches applied.' Red Hat reports 86% reduction in manual remediation time."
+    ],
+    "correct_answer_document_ids": ["red-hat-lightspeed-remediation.md"]
+  },
+  {
+    "question": "How does Red Hat Consulting structure engagements and what is the RHCU pricing model?",
+    "correct_answers": [
+      "Red Hat Consulting follows a Discovery → Design → Deliver → Transfer lifecycle with governance cadences (daily stand-ups, weekly status, bi-weekly showcases, monthly steering). Services are consumed via Red Hat Consulting Units (RHCUs) — prepaid credits redeemable at role-based rates: Associate Consultant (2.11 units/hour) through Senior Principal Architect (4.70 units/hour). The model provides budget, role, and scope flexibility. Engagements are designed for customer independence, not long-term dependency. Open Innovation Labs offers 4-12 week immersive residencies with one-on-one pairing."
+    ],
+    "correct_answer_document_ids": ["red-hat-consulting-engagement-model.md"]
+  },
+  {
+    "question": "What evidence does Red Hat have of delivering security and compliance solutions in financial services?",
+    "correct_answers": [
+      "Banco Bradesco manages 130+ OpenShift clusters with 80+ policies-as-code, achieving NIST compliance and 88% reduction in change cycle time with auto-generated ServiceNow tickets for violations. A large North American financial services provider achieved 70% faster DR failover through a 2-year Red Hat Consulting engagement with Ansible. Bank of India codified governance policies into CI/CD pipelines with RHACS. Banque Misr achieved PCI DSS and CIS compliance for Egypt's first digital bank using Red Hat OpenShift Platform Plus."
+    ],
+    "correct_answer_document_ids": ["financial-services-case-studies.md"]
+  },
+  {
+    "question": "What are the six layers of defense-in-depth for AI agents?",
+    "correct_answers": [
+      "The six layers are: (1) Model guardrails (TrustyAI, NeMo), (2) Application sandbox (NVIDIA OpenShell with Landlock, seccomp, egress proxy), (3) Kernel isolation (OpenShift Sandboxed Containers / Kata VMs), (4) Tool governance (MCP Gateway with Kuadrant/Authorino), (5) Workload identity (SPIFFE/SPIRE JWT-SVIDs), and (6) Observability and tracing (OpenTelemetry + MLflow)."
+    ],
+    "correct_answer_document_ids": ["defense-in-depth-six-layers.md"]
+  },
+  {
+    "question": "What open interfaces prevent vendor lock-in in the cloud-native AI agents blueprint?",
+    "correct_answers": [
+      "Four open interfaces: (1) OpenAI-compatible / Open Responses API for model access, (2) Model Context Protocol (MCP) for tool integration, (3) agent-sandbox CRD for sandbox lifecycle management, and (4) SPIFFE for workload identity. Every vendor component sits behind a neutral interface."
+    ],
+    "correct_answer_document_ids": ["cloud-native-ai-agents-blueprint.md"]
+  },
+  {
+    "question": "How would Red Hat staff a vulnerability remediation engagement for 3,930 high-priority findings across multiple portfolios?",
+    "correct_answers": [
+      "Red Hat Consulting would structure a federated model: a Central Remediation Hub (Principal Architect + Senior Consultants defining standards, patterns, and dashboards) plus Federated Squads (Consultants/Senior Consultants assigned per portfolio executing approved patterns). The engagement follows Discovery → Design → Deliver → Transfer, with bi-weekly governance. Staffing uses the RHCU model allowing role flexibility — Architects (3.79 units/hour) for framework design, Senior Consultants (3.30 units/hour) for execution, and a Program Manager (3.68 units/hour) for governance and reporting."
+    ],
+    "correct_answer_document_ids": ["red-hat-consulting-engagement-model.md"]
+  },
+  {
+    "question": "What Red Hat products are GA vs Technology Preview for AI agent security?",
+    "correct_answers": [
+      "GA today: OpenShift Sandboxed Containers, vLLM Model Serving, llm-d Router, SPIFFE/SPIRE, NeMo Guardrails, TrustyAI Guardrails Orchestrator, Red Hat AI gateway. Technology Preview / Emerging: NVIDIA OpenShell, MCP Gateway (Kuadrant), Garak (red teaming), agent-sandbox CRD, Semantic routing, OGX (Agent-as-a-Service), AutoRAG, Confidential Containers."
+    ],
+    "correct_answer_document_ids": ["component-maturity-table.md"]
+  },
+  {
+    "question": "What is llm-d and how does it differ from vLLM in the Red Hat AI stack?",
+    "correct_answers": [
+      "llm-d is a distributed inference orchestrator that reimagines how LLMs run on Kubernetes. While vLLM is the core inference runtime engine (serving individual model instances), llm-d builds on top of vLLM's innovations to provide distributed, scalable inference at the cluster level. It delivers lower infrastructure cost, faster response times for multi-turn and agent workloads, and simplified management for platform administrators. llm-d provides cost-effective, predictable performance as volume increases."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-inference-capabilities.md"]
+  },
+  {
+    "question": "What hardware accelerators does Red Hat AI support for LLM inference?",
+    "correct_answers": [
+      "Red Hat AI supports NVIDIA GPUs (including Blackwell and Vera Rubin architectures with Day 0 RHEL support), AMD Instinct MI350X and MI355X, Intel Xeon CPUs, Google TPUs, AWS Inferentia/Neuron, and IBM Spyre/AIU. This multi-accelerator support is a key differentiator enabling hardware choice without vendor lock-in."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-inference-capabilities.md"]
+  },
+  {
+    "question": "How does Red Hat AI provide zero-trust security for AI agents in production?",
+    "correct_answers": [
+      "Red Hat AI provides zero-trust agent security through three layers: (1) Agent Sandbox with container and microVM isolation preventing lateral movement, (2) Cryptographic identity via SPIFFE/SPIRE giving each agent short-lived keyless credentials, and (3) MCP Gateway providing per-tool authorization, audit, and centralized access control. Combined with scoped OAuth2 token exchange for least-privilege access, every agent action is isolated, authenticated, and auditable."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-agentops.md"]
+  },
+  {
+    "question": "What is AutoRAG and how does it work in Red Hat OpenShift AI?",
+    "correct_answers": [
+      "AutoRAG is an automated RAG pipeline optimization system available in Red Hat OpenShift AI 3.5. It works by: (1) uploading documents to S3-compatible storage, (2) providing evaluation questions with expected answers, (3) automatically testing combinations of chunking strategies, embedding models, retrieval parameters, and foundation models, (4) producing a leaderboard of RAG patterns ranked by answer faithfulness, and (5) exporting the winning configuration as indexing and inference notebooks for production deployment."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-data-rag-customization.md"]
+  },
+  {
+    "question": "How does Red Hat AI handle GPU management and cost optimization for enterprise AI workloads?",
+    "correct_answers": [
+      "Red Hat AI treats GPUs as a shared utility through: (1) Consolidation — pooling GPUs cluster-wide for cross-team usage, (2) Intelligent orchestration — dynamically scaling and slicing GPUs using Kueue and InstaSlice with request prioritization routing, (3) Self-service with control — on-demand compute with enforced token quotas, rate limits, and chargeback tracking, (4) Inference-aware autoscaling that scales on KV cache pressure rather than just CPU/memory. This addresses the typical enterprise problems of high cost with low utilization, GPU queue bottlenecks, and shadow IT."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"]
+  },
+  {
+    "question": "What Red Hat AI services are available to help customers deploy and scale AI?",
+    "correct_answers": [
+      "Red Hat offers five AI service tiers: (1) AI Assessment/Discovery (1-2 weeks) to capture use cases and propose a roadmap, (2) AI Incubator — a residency-style consulting engagement to prototype and deploy custom AI solutions with focus on production concerns, (3) AI Platform Foundation to deploy, validate, and operationalize the platform, (4) AI TAM — a dedicated Technical Account Manager for ongoing guidance, and (5) Training courses (AI267, AI296, AI500, AI501) with certification (EX267). The AI Incubator specifically works side-by-side with customer teams to build solutions backed by customer data and demonstrate MLOps best practices."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"]
+  },
+  {
+    "question": "What customer results demonstrate the business value of Red Hat AI?",
+    "correct_answers": [
+      "Key customer results include: BNP Paribas generated nearly $600 million in additional value from AI across 1,000 use cases handling 900+ million tokens per day. Verizon achieved multimillion-dollar OpEx savings from accelerated inference. DenizBank reduced model development environment setup from one week to 10 minutes. ARSAT achieved 30% reduction in operational costs. Clalit Health Services went from AI request to production in two weeks. City of Vienna reduced process time from 15 minutes to 5 seconds. Telenor built Norway's first sovereign AI cloud."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-platform-gpu-hybrid.md"]
+  },
+  {
+    "question": "What is Red Hat's annual revenue and how many Fortune 500 companies use Red Hat?",
+    "correct_answers": [
+      "Red Hat generated $6.5 billion in revenue for FY 2025, representing approximately 45% of IBM's total business. OpenShift ARR reached $2.2 billion in Q2 2026 with 30%+ year-over-year growth. More than 90% of Fortune 500 companies use Red Hat solutions. Red Hat was founded in 1993, is headquartered in Raleigh NC, and has approximately 19,000 employees worldwide."
+    ],
+    "correct_answer_document_ids": ["red-hat-corporate-profile.md"]
+  },
+  {
+    "question": "What are the response time SLAs for Red Hat Premium support?",
+    "correct_answers": [
+      "Red Hat Premium support provides: Severity 1 (Urgent) — 1 hour initial response with 24x7 coverage, Severity 2 (High) — 2 hours initial response with 24x7 coverage (must be explicitly requested), Severity 3 (Medium) — 4 business hours, Severity 4 (Low) — 8 business hours. Standard support provides: Sev1 — 1 business hour, Sev2 — 4 business hours, Sev3 — 1 business day, Sev4 — 2 business days. All tiers include unlimited cases via web and phone."
+    ],
+    "correct_answer_document_ids": ["red-hat-support-tiers-sla.md"]
+  },
+  {
+    "question": "What security certifications and compliance attestations does Red Hat hold?",
+    "correct_answers": [
+      "Red Hat's 2026 consolidated audit passed with zero findings. Certifications include ISO 27001, ISO 27017, ISO 27018, SOC 1 Type 2, SOC 2 Type 2, SOC 3, PCI-DSS v4.0.1, HIPAA, CSA STAR Level 2, and FFIEC for managed services (OpenShift Dedicated, Quay.io, RHACS Cloud Service). For government: FedRAMP High for Red Hat OpenShift Service on AWS, Common Criteria for RHEL, FIPS 140-2 and FIPS 140-3 validated cryptographic modules. Red Hat is aligning AI software with ISO 42001. Compliance is a shared responsibility — Red Hat provides validated components, customers configure the integrated solution."
+    ],
+    "correct_answer_document_ids": ["red-hat-compliance-certifications.md"]
+  },
+  {
+    "question": "How does Red Hat's Product Security team handle vulnerability management and what are their response times?",
+    "correct_answers": [
+      "Red Hat PSIRT, active since 2001, oversees 400,000+ components across supported products. The vulnerability lifecycle follows Assessment, Remediation, and Response phases. Average response times (2025 Risk Report): Critical — 12 days, Important — 24 days, Moderate — 79 days. Critical and Important issues are fixed across all supported versions. Red Hat publishes CSAF and VEX machine-readable advisories since July 2024. Coordinated disclosure via secalert@redhat.com with PGP encryption and a preferred embargo period of less than 14 days."
+    ],
+    "correct_answer_document_ids": ["red-hat-security-practices.md"]
+  },
+  {
+    "question": "How does the Red Hat subscription model work and what does a subscription include?",
+    "correct_answers": [
+      "Red Hat uses a subscription model, not a software license — the code is open source. A subscription provides access to updates, security errata, technical support, certified platform, and knowledgebase. Pricing is based on subscription unit (socket-pair, cores, or per-node), support tier (Self-Support, Standard, Premium), and term (1 or 3 years). Deployment models include Physical (per socket-pair), Virtual Datacenter (unlimited VMs on host), Virtual (per guest), and Cloud (per instance/core). A free Developer subscription covers up to 16 systems with self-support. Software continues running if subscription lapses but updates and support stop."
+    ],
+    "correct_answer_document_ids": ["red-hat-subscription-model.md"]
+  },
+  {
+    "question": "How does Red Hat support DISA STIG and CIS Benchmark compliance automation?",
+    "correct_answers": [
+      "Red Hat provides DISA STIG profiles for RHEL 7, 8, 9, 10 and OpenShift via the scap-security-guide package. CIS Benchmarks are available at Level 1 (basic) and Level 2 (stringent). Automated scanning uses OpenSCAP (oscap) — an open-source SCAP implementation included in every RHEL installation. For OpenShift, the Compliance Operator runs OpenSCAP on cluster nodes, continuously monitors compliance profiles, and auto-remediates findings. Red Hat Satellite enables fleet-wide compliance scanning with policy-based enforcement and drift detection. All profiles are maintained in the upstream ComplianceAsCode project."
+    ],
+    "correct_answer_document_ids": ["red-hat-stig-cis-benchmarks.md"]
+  },
+  {
+    "question": "What capabilities does the Red Hat Customer Portal provide?",
+    "correct_answers": [
+      "The Red Hat Customer Portal (access.redhat.com) provides: case management for creating, tracking, and escalating support cases; a knowledgebase of solutions, articles, and documentation; errata and security advisories with CVE details; software downloads; Red Hat Lightspeed (formerly Insights) for proactive analytics including vulnerability assessment, compliance scanning, configuration drift detection, and AI-powered remediation recommendations; the Ecosystem Catalog for certified hardware/software/cloud partners; subscription management; and product lifecycle information. Best practice is to attach a sosreport at case creation for faster resolution."
+    ],
+    "correct_answer_document_ids": ["red-hat-customer-portal.md"]
+  },
+  {
+    "question": "What training certifications does Red Hat offer and how are exams structured?",
+    "correct_answers": [
+      "Red Hat uses performance-based exams (hands-on, not multiple choice). Core certification paths include: RHCSA (EX200) — foundation system administration based on RHEL 10, RHCE (EX294) — advanced with Ansible automation, Red Hat Certified OpenShift Administrator (EX280) — cluster administration. Delivery methods include instructor-led, virtual, and self-paced online. The Red Hat Learning Subscription provides unlimited access to 50+ online courses and exam vouchers. Red Hat OpenShift AI training is 50% off through December 2026. Custom on-site training is available for teams."
+    ],
+    "correct_answer_document_ids": ["red-hat-training-certification.md"]
+  },
+  {
+    "question": "What is Red Hat's approach to responsible AI and what is InstructLab?",
+    "correct_answers": [
+      "Red Hat's core principle is no black-box models — transparency at every stage. InstructLab is a community-driven project using the LAB (Large-scale Alignment for chatBots) methodology that lets domain experts contribute skills and knowledge to LLMs via taxonomy files without full model retraining. It uses synthetic data generation and phased training, with weekly model releases on Hugging Face under Apache License 2.0. Red Hat also launched asago (AI Safety And Governance Orchestration) in 2026, which automates translation of AI governance policies into operational controls across four stages: risk mapping, risk assessment, risk mitigation, and production deployment. TrustyAI provides open-source model explainability and bias detection."
+    ],
+    "correct_answer_document_ids": ["red-hat-responsible-ai.md"]
+  },
+  {
+    "question": "What technology partnerships does Red Hat have for AI infrastructure?",
+    "correct_answers": [
+      "Red Hat partners with NVIDIA (Red Hat Enterprise Linux for NVIDIA with Day 0 Rubin platform support, AI Factory with NVIDIA, DSX Platform integration), AMD (Instinct MI355X for frontier inference, EPYC vLLM-CPU for lightweight calls, MI350P for GPU acceleration — announced at Red Hat Summit 2026), and Intel (Xeon + Gaudi accelerators on OpenShift AI, OpenVINO toolkit, Intelligent Edge Solution Centers). Cloud partners include AWS (ROSA, Trainium support), Microsoft Azure (ARO), and Google Cloud (OpenShift on GCP, AI Hypercomputer). IBM provides Granite models, watsonx integration, and InstructLab as-a-Service."
+    ],
+    "correct_answer_document_ids": ["red-hat-technology-partners.md"]
+  },
+  {
+    "question": "What evidence does Red Hat have of delivering solutions in the public sector?",
+    "correct_answers": [
+      "CalHEERS (California) serves 17 million Californians using Red Hat OpenShift, processing 91 million transactions daily during peak enrollment with 10% faster response times and new instances in 15 seconds versus 15 minutes previously. ODC-Noord provides a sovereign government cloud for 48 Dutch government organizations across 11 ministries using Red Hat OpenShift since 2018. Public Health Authority of Frankfurt standardized on OpenShift for GA-Lotse platform modernization. Red Hat OpenShift Service on AWS is approved for FedRAMP High. DISA STIG compliance is automated via OpenSCAP."
+    ],
+    "correct_answer_document_ids": ["government-public-sector-case-studies.md"]
+  },
+  {
+    "question": "What healthcare organizations use Red Hat and for what use cases?",
+    "correct_answers": [
+      "Cigna Healthcare processes 1.5 billion healthcare claims annually on Red Hat infrastructure with HIPAA compliance via SELinux and audit capabilities. HCA Healthcare, the largest US provider with 182 hospitals, won a Red Hat Innovation Award for using OpenShift to accelerate app development and improve patient care. Health Info Net (Switzerland) deployed a sovereign, secure container platform on Red Hat OpenShift for patient records with data sovereignty. Cardinal Health delivers 25% of all US pharmaceuticals on Red Hat infrastructure. Common healthcare use cases include HIPAA-compliant deployments, EHR modernization, and clinical research computing."
+    ],
+    "correct_answer_document_ids": ["healthcare-case-studies.md"]
+  },
+  {
+    "question": "How have telecommunications companies used Red Hat for 5G transformation?",
+    "correct_answers": [
+      "Verizon built its 5G core on Red Hat OpenShift with Single-Node OpenShift across 1000s of edge locations, converting 143 million subscribers to 5G. 50+ Red Hat consultants were embedded with Verizon teams. VodafoneZiggo selected OpenShift as their hybrid cloud platform for 5G standalone core, migrating from OpenStack (4G). Telenor uses OpenShift for 5G network slicing and edge AI with Red Hat Device Edge for low-power deployments and a multi-vendor platform with Nokia, Oracle, Intel, and TCS. Common telco use cases include 5G core/RAN, NFV, edge computing, and API-driven networks."
+    ],
+    "correct_answer_document_ids": ["telecommunications-case-studies.md"]
+  },
+  {
+    "question": "What is Red Hat's market position and what open source communities does it contribute to?",
+    "correct_answers": [
+      "Red Hat has 90%+ Fortune 500 penetration, $6.5B revenue (2025), and OpenShift ARR of $2.2B (Q2 2026). Red Hat is a founding member and top contributor to Kubernetes and OpenStack, a consistent top 5 contributor to the Linux kernel, and a significant contributor to PyTorch, vLLM, and InstructLab (co-founded with IBM). Industry coverage spans financial services (BNP Paribas, Banco Bradesco), healthcare (Cigna, HCA), telecommunications (Verizon, VodafoneZiggo, Telenor), government (Dutch government, FedRAMP High), automotive (Toyota), and energy (BP)."
+    ],
+    "correct_answer_document_ids": ["red-hat-cross-industry-metrics.md"]
+  },
+  {
+    "question": "What is Red Hat's AI governance framework and how does asago automate policy compliance?",
+    "correct_answers": [
+      "Red Hat's AI governance uses defense-in-depth with six layers: infrastructure isolation (Sandboxed Containers), agent sandboxing (OpenShell), network segmentation (OPA/Rego + NetworkPolicies), tool access control (MCP Gateway), runtime guardrails (NeMo + TrustyAI), and observability (SPIFFE/SPIRE + OpenTelemetry + MLflow). The asago project (launched 2026, Apache 2.0) automates translation of governance policies into operational controls through four stages: risk mapping (NIST AI RMF, OWASP LLM Top 10, EU AI Act), risk assessment (automated safety testing), risk mitigation (guardrail recommendations), and production deployment (Kubernetes/Terraform/Ansible configurations). Pre-production testing uses Garak for vulnerability scanning and EvalHub for evaluation orchestration."
+    ],
+    "correct_answer_document_ids": ["red-hat-ai-governance-framework.md"]
+  }
+]

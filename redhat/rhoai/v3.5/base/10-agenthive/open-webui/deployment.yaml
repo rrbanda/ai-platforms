@@ -37,7 +37,7 @@ spec:
           value: "false"
         - name: OPENAI_API_BASE_URLS
           value: >-
-            http://rfp-agent-dashboard.rfp-agent.svc.cluster.local:8642/v1;http://rhoai-copilot-dashboard.rhoai-copilot.svc.cluster.local:8642/v1;http://pod-health-watcher-dashboard.pod-health-watcher.svc.cluster.local:8642/v1;http://stale-image-finder-dashboard.stale-image-finder.svc.cluster.local:8642/v1;http://pr-review-bot-dashboard.pr-review-bot.svc.cluster.local:8642/v1;http://loan-agent-api.loan-agent.svc.cluster.local:8080/v1
+            http://rfp-agent-dashboard.rfp-agent.svc.cluster.local:8642/v1;http://rhoai-copilot-dashboard.rhoai-copilot.svc.cluster.local:8642/v1;http://pod-health-watcher-dashboard.pod-health-watcher.svc.cluster.local:8642/v1;http://stale-image-finder-dashboard.stale-image-finder.svc.cluster.local:8642/v1;http://pr-review-bot-dashboard.pr-review-bot.svc.cluster.local:8642/v1;http://loan-agent-api.loan-agent.svc.cluster.local:8080/v1;http://ocp-virt-migration-agent.ocp-virt-agent.svc.cluster.local:8080/v1
         - name: OPENAI_API_KEYS
           valueFrom:
             secretKeyRef:

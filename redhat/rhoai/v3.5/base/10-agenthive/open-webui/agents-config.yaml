@@ -54,3 +54,9 @@ data:
         description: "Loan processing and approval agent"
         agent_mode: true
         stream: true
+
+      - name: ocp-virt-migration-agent
+        base_model_id: app
+        description: "VMware-to-OpenShift Virtualization migration coordinator"
+        agent_mode: true
+        stream: true

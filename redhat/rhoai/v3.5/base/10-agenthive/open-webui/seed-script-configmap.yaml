@@ -32,14 +32,6 @@ data:
         local name="$1" base_model_id="$2" description="$3" agent_mode="$4" stream="$5"
         echo "Creating workspace model: $name (base=$base_model_id, agent_mode=$agent_mode, stream=$stream)"
 
-        check=$(curl -s -o /dev/null -w "%{http_code}" \
-            "$OWUI_URL/api/v1/models/$name" \
-            -H "Authorization: Bearer $OWUI_KEY")
-        if [ "$check" = "200" ]; then
-            echo "  Already exists (skipping)"
-            return 0
-        fi
-
         if [ "$agent_mode" = "true" ]; then
             caps='{"agent_mode":true,"builtin_tools":false,"memory":false,"web_search":false,"code_interpreter":false,"file_context":false,"status_updates":true}'
         else
@@ -53,6 +45,8 @@ data:
         fi
 
         display_name=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+
+        # Always try to create -- handle "already exists" as success
         response=$(curl -s -w "\n%{http_code}" \
             -X POST "$OWUI_URL/api/v1/models/create" \
             -H "Authorization: Bearer $OWUI_KEY" \
@@ -69,7 +63,11 @@ data:
             echo "  Created ($http_code)"
         else
             body=$(echo "$response" | sed '$d')
-            echo "  FAILED ($http_code): $body" >&2
+            if echo "$body" | grep -qi "already exists\|duplicate\|UNIQUE constraint"; then
+                echo "  Already exists (OK)"
+            else
+                echo "  FAILED ($http_code): $body" >&2
+            fi
         fi
     }
 

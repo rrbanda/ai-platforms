@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: fine-tuning-demo-secrets
+  name: fine-tuning-demo
   namespace: openshift-gitops
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   project: rhoai-workloads
   source:
@@ -14,6 +14,22 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: fine-tuning-demo
+  ignoreDifferences:
+    - group: kubeflow.org
+      kind: Notebook
+      jsonPointers:
+        - /metadata/annotations
+        - /spec/template/spec/volumes
+        - /spec/template/spec/initContainers
+        - /spec/template/spec/affinity
+        - /spec/template/spec/enableServiceLinks
+        - /spec/template/spec/serviceAccountName
+        - /spec/template/spec/containers
+    - group: serving.kserve.io
+      kind: LLMInferenceService
+      jsonPointers:
+        - /status
+        - /metadata/annotations
   syncPolicy:
     automated:
       selfHeal: true
@@ -27,3 +43,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

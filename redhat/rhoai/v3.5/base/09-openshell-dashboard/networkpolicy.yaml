@@ -25,10 +25,8 @@ spec:
         - port: 4180
           protocol: TCP
   egress:
-    # Allow DNS resolution
-    - to:
-        - namespaceSelector: {}
-      ports:
+    # Allow DNS resolution (must not restrict destination — CoreDNS uses ClusterIP)
+    - ports:
         - port: 53
           protocol: UDP
         - port: 53

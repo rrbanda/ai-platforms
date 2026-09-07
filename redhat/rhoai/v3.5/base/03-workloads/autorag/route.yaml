@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: autorag-ogx
+  namespace: autorag
+spec:
+  to:
+    kind: Service
+    name: autorag-ogx-service
+  port:
+    targetPort: 8321
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

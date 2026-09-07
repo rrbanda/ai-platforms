@@ -444,7 +444,7 @@ make test
 
 ---
 
-## Customer Demo Coverage
+## Demo Coverage
 
 | Requirement | Pipeline Phase | Status |
 |-------------|---------------|--------|

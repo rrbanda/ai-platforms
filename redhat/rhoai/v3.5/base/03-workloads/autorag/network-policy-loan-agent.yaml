@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: autorag-ogx-allow-loan-agent
+  namespace: autorag
+spec:
+  podSelector:
+    matchLabels:
+      app: ogx
+      app.kubernetes.io/instance: autorag-ogx
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow the OpenShift HAProxy router (for external Route access)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          network.openshift.io/policy-group: ingress
+    ports:
+    - port: 8321
+      protocol: TCP
+  # Allow the loan-agent Sandbox pod
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: loan-agent
+    ports:
+    - port: 8321
+      protocol: TCP

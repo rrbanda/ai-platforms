@@ -20,9 +20,6 @@ spec:
       jsonPointers:
         - /status
   syncPolicy:
-    automated:
-      selfHeal: true
-      prune: true
     retry:
       limit: 10
       backoff:

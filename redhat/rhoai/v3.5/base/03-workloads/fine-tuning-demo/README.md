@@ -444,9 +444,9 @@ make test
 
 ---
 
-## Wells Fargo Demo Coverage
+## Customer Demo Coverage
 
-| Diego's Step | Pipeline Phase | Status |
+| Requirement | Pipeline Phase | Status |
 |-------------|---------------|--------|
 | 1. Select & cleanse dataset | Phase 1 + 1.5 (Gemini LLM judge) | Demonstrated |
 | 2. Select base model | `base_model` parameter | Demonstrated |

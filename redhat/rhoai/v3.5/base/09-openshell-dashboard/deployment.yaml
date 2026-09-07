@@ -48,13 +48,14 @@ spec:
             httpGet:
               path: /ping
               port: 4180
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /ping
               port: 4180
-            initialDelaySeconds: 3
+            initialDelaySeconds: 30
             periodSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false

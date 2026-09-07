@@ -5,35 +5,5 @@ resources:
   - ../../../base/09-openshell-dashboard
   - sealed-oauth2-secret.yaml
 
-patches:
-  - target:
-      kind: ConfigMap
-      name: oauth2-proxy-config
-    patch: |
-      - op: replace
-        path: /data/oauth2-proxy.cfg
-        value: |
-          provider = "oidc"
-          oidc_issuer_url = "https://sso.apps.ocp.qn6c5.sandbox1388.opentlc.com/realms/openshift"
-          client_id = "openshell-dashboard"
-          redirect_url = "https://openshell-dashboard-openshell-dashboard.apps.ocp.qn6c5.sandbox1388.opentlc.com/oauth2/callback"
-
-          http_address = "0.0.0.0:4180"
-          upstream = "http://127.0.0.1:8080"
-
-          email_domains = ["*"]
-          skip_provider_button = true
-          pass_access_token = true
-          set_xauthrequest = true
-          cookie_secure = true
-          cookie_httponly = true
-          cookie_samesite = "lax"
-
-          scope = "openid profile email"
-  - target:
-      kind: Route
-      name: open-webui
-    patch: |
-      - op: replace
-        path: /metadata/name
-        value: openshell-dashboard
+patchesStrategicMerge:
+  - oauth2-proxy-config-patch.yaml

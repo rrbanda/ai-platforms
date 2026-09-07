@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oauth2-proxy-config
+  namespace: openshell-dashboard
+data:
+  oauth2-proxy.cfg: |
+    provider = "oidc"
+    oidc_issuer_url = "https://sso.apps.ocp.qn6c5.sandbox1388.opentlc.com/realms/openshift"
+    client_id = "openshell-dashboard"
+    redirect_url = "https://openshell-dashboard-openshell-dashboard.apps.ocp.qn6c5.sandbox1388.opentlc.com/oauth2/callback"
+    http_address = "0.0.0.0:4180"
+    upstream = "http://127.0.0.1:8080"
+    email_domains = ["*"]
+    skip_provider_button = true
+    pass_access_token = true
+    set_xauthrequest = true
+    cookie_secure = true
+    cookie_httponly = true
+    cookie_samesite = "lax"
+    scope = "openid profile email"

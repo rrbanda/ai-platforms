@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: virt-migration-agent
+  name: ocp-virt-agent-sandbox
   namespace: openshift-gitops
   labels:
     app.kubernetes.io/part-of: ocp-virt-migration-agent

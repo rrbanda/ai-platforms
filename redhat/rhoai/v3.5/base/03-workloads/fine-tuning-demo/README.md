@@ -455,5 +455,5 @@ make test
 | 5. Pipeline triggers | Not implemented | Architecture only |
 | 6. Serve for evaluation | Phase 4a (KServe vLLM via EvalHub) | Demonstrated |
 | 7. LMEval + results | Phase 4a + 4b (EvalHub + lm-eval) | Demonstrated |
-| 8. Compare results | MLflow dataset tracking | Partial |
+| 8. Compare results | MLflow Experiments comparison UI (Develop & train → Experiments → Compare) | Demonstrated |
 | 9. Model Registry | Phase 5 (full provenance) | Demonstrated |

@@ -71,7 +71,7 @@ spec:
         - name: AUTORAG_BASE_URL
           value: http://autorag-ogx-service.autorag.svc.cluster.local:8321
         - name: AUTORAG_VECTOR_STORE_ID
-          value: "vs_6a95b05a-49cc-4f64-9061-b2712f8e7399"
+          value: "vs_23c69157-2907-4576-8fe0-dc491de89d14"
         - name: AUTORAG_SSL_VERIFY
           value: "false"
         # ── Agent settings ───────────────────────────────────────────────────

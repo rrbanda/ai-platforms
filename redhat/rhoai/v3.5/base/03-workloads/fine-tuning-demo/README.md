@@ -301,6 +301,8 @@ curl -X POST "$KFP_ROUTE/apis/v2beta1/runs" \
 
 ## Supported Techniques
 
+All four techniques share the same 7-phase pipeline. Switch at runtime with the `technique` parameter — no recompilation or pipeline changes needed.
+
 ```mermaid
 flowchart TD
     subgraph techniques [Training Techniques]
@@ -330,7 +332,32 @@ flowchart TD
     end
 ```
 
-Switch technique at runtime with the `technique` parameter — no pipeline changes needed.
+### Technique Details
+
+| Technique | Backend | Multi-node | Validated | Recommended Parameters |
+|-----------|---------|------------|-----------|----------------------|
+| **LoRA / QLoRA** | Unsloth | Single-node | ✅ End-to-end | `memory_per_worker=32Gi`, `cpu_per_worker=4` |
+| **SFT** | InstructLab | Multi-node (FSDP) | ✅ Unit tested | `memory_per_worker=64Gi`, `cpu_per_worker=4` |
+| **OSFT** | mini-trainer | Multi-node (FSDP) | ✅ Unit tested | `memory_per_worker=64Gi`, `cpu_per_worker=8` |
+| **Custom** | PyTorch / PEFT | Single-node | ✅ Unit tested | `memory_per_worker=32Gi`, `cpu_per_worker=4` |
+
+All techniques use the same NFS-safe output pattern, evaluation pipeline, and model registry integration. The dispatch logic in `train_model.py` routes to technique-specific modules under `shared/techniques/`, each implementing `build_params()`, `train_func()`, and `log_metrics()`.
+
+### Quick Start for Each Technique
+
+```bash
+# LoRA (fastest, parameter-efficient)
+technique=lora, epochs=2, lora_r=16, lora_alpha=32, lora_load_in_4bit=true
+
+# SFT (full weight update, distributed)
+technique=sft, epochs=1, memory_per_worker=64Gi, sft_fsdp_sharding=FULL_SHARD
+
+# OSFT (preserves base capabilities)
+technique=osft, epochs=1, memory_per_worker=64Gi, cpu_per_worker=8, osft_unfreeze_ratio=0.25
+
+# Custom (bring-your-own PyTorch code)
+technique=custom, epochs=1, memory_per_worker=32Gi
+```
 
 ---
 
@@ -361,15 +388,15 @@ gantt
 
 ## Local Component Forks
 
-Three upstream `pipelines-components` components are forked locally to fix cluster-specific issues:
+Three upstream `pipelines-components` components are forked locally to fix cluster-specific issues. Upstream PRs have been submitted for all three:
 
-| Component | Issue | Fix |
-|-----------|-------|-----|
-| `evalhub_eval.py` | No GPU tolerations on ISVC | Added `tolerations` + `nodeSelector` to predictor spec |
-| `model_registry.py` | Hardcoded `is_secure=False` | Changed to `is_secure=True` + `https://` scheme |
-| `holdout_eval.py` | `ubi9/python-311` has no CUDA toolkit | Uses CUDA training-hub image as base |
+| Component | Issue | Fix | Upstream PR |
+|-----------|-------|-----|-------------|
+| `evalhub_eval.py` | No GPU tolerations on ISVC | Added `tolerations` + `nodeSelector` to predictor spec | [#180](https://github.com/red-hat-data-services/pipelines-components/pull/180) |
+| `model_registry.py` | Hardcoded `is_secure=False` | Added `is_secure` parameter + `https://` scheme | [#181](https://github.com/red-hat-data-services/pipelines-components/pull/181) |
+| `holdout_eval.py` | `ubi9/python-311` has no CUDA toolkit | Added `enforce_eager` param + vLLM env vars | [#182](https://github.com/red-hat-data-services/pipelines-components/pull/182) |
 
-These fixes should be upstreamed to `pipelines-components`.
+Once upstream PRs are merged, the local forks can be replaced with the upstream components.
 
 ---
 
@@ -433,7 +460,7 @@ oc exec deploy/minio-dspa -n fine-tuning-demo -- sh -c 'rm -rf /data/mlpipeline/
 make test
 
 # Tests cover:
-# - Technique build_params (LoRA, SFT, OSFT, custom)
+# - All 4 technique modules (LoRA, SFT, OSFT, custom) — build_params, dispatch, defaults
 # - Flash attention / sample_packing safety guard
 # - QLoRA mutual exclusion
 # - Data utilities (resolve, prepare, OCI download)
@@ -448,12 +475,38 @@ make test
 
 | Requirement | Pipeline Phase | Status |
 |-------------|---------------|--------|
-| 1. Select & cleanse dataset | Phase 1 + 1.5 (Gemini LLM judge) | Demonstrated |
-| 2. Select base model | `base_model` parameter | Demonstrated |
-| 3. Tokenization & formatting | Phase 2 (unitxt validator) | Demonstrated |
-| 4. Distributed pipeline | Phase 3 (Kubeflow Trainer v2) | Demonstrated |
-| 5. Pipeline triggers | Not implemented | Architecture only |
-| 6. Serve for evaluation | Phase 4a (KServe vLLM via EvalHub) | Demonstrated |
-| 7. LMEval + results | Phase 4a + 4b (EvalHub + lm-eval) | Demonstrated |
-| 8. Compare results | MLflow Experiments comparison UI (Develop & train → Experiments → Compare) | Demonstrated |
-| 9. Model Registry | Phase 5 (full provenance) | Demonstrated |
+| 1. Select & cleanse dataset | Phase 1 + 1.5 (Gemini LLM judge) | ✅ Demonstrated |
+| 2. Select base model | `base_model` parameter | ✅ Demonstrated |
+| 3. Tokenization & formatting | Phase 2 (unitxt validator) | ✅ Demonstrated |
+| 4. Multi-technique fine-tuning | Phase 3 — LoRA, SFT, OSFT, Custom (single `technique` param) | ✅ Demonstrated |
+| 5. Distributed training | Kubeflow Trainer v2 + FSDP (SFT/OSFT) | ✅ Supported |
+| 6. Pipeline triggers | Scheduled runs via RHOAI Dashboard or KFP API | ✅ Supported |
+| 7. Serve for evaluation | Phase 4a (KServe vLLM via EvalHub) | ✅ Demonstrated |
+| 8. LMEval + results | Phase 4a + 4b (EvalHub benchmarks + lm-eval holdout) | ✅ Demonstrated |
+| 9. Compare results | MLflow Experiments comparison UI (Develop & train → Experiments → Compare) | ✅ Demonstrated |
+| 10. Model Registry | Phase 5 (full provenance, hyperparams, eval scores) | ✅ Demonstrated |
+
+---
+
+## Adding a New Technique
+
+The pipeline is designed to be extensible. To add a new technique:
+
+1. Create a module in `local_components/shared/techniques/my_technique.py`
+2. Export the required interface:
+
+```python
+ALGORITHM_NAME = "SFT"            # TrainingHubAlgorithms enum name
+IS_SINGLE_NODE = False            # True = force num_workers=1
+DEFAULT_LR = 5e-6                 # Default learning rate
+DEFAULT_EPOCHS = 1                # Default epoch count
+METRICS_FILES = []                # Metric JSONL filenames to look for
+
+def build_params(common, **kw):   # Add technique-specific params
+def train_func(**p):              # Serialized to run inside TrainJob pod
+def log_metrics(output, params):  # Log technique-specific KFP metrics
+```
+
+3. Register it in `shared/techniques/__init__.py` (add to `SUPPORTED_TECHNIQUES` and the import block)
+4. Add technique-specific parameters to `finetuning_pipeline.py` if needed
+5. Recompile with `make pipeline`

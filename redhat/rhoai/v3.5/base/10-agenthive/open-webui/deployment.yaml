@@ -20,7 +20,7 @@ spec:
       serviceAccountName: open-webui
       containers:
       - name: open-webui
-        image: ghcr.io/open-webui/open-webui:v0.11.0
+        image: ghcr.io/rrbanda/open-webui:latest
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -75,10 +75,20 @@ spec:
           value: "openid email profile"
         - name: OPENID_REDIRECT_URI
           value: "https://open-webui-open-webui.apps.ocp.qn6c5.sandbox1388.opentlc.com/oauth/oidc/callback"
+        - name: ENABLE_OAUTH_SIGNUP
+          value: "true"
         - name: AIOHTTP_CLIENT_TIMEOUT
           value: "300"
         - name: REQUEST_TIMEOUT
           value: "300"
+        - name: ENABLE_TITLE_GENERATION
+          value: "false"
+        - name: ENABLE_TAGS_GENERATION
+          value: "false"
+        - name: ENABLE_FOLLOW_UP_GENERATION
+          value: "false"
+        - name: ENABLE_MEMORIES
+          value: "false"
         readinessProbe:
           httpGet:
             path: /health

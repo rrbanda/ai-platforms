@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-agent-models
+  namespace: open-webui
+  labels:
+    app.kubernetes.io/part-of: agenthive
+    app.kubernetes.io/component: seed
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: agenthive
+        app.kubernetes.io/component: seed
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: curlimages/curl:latest
+          command: ["/bin/sh", "/scripts/seed-models.sh", "/config/agents.yaml"]
+          env:
+            - name: OWUI_URL
+              value: http://open-webui.open-webui.svc:8080
+            - name: OWUI_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: open-webui-providers
+                  key: WEBUI_SECRET_KEY
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: seed-agent-models-script
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: agent-model-config

@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-model-config
+  namespace: open-webui
+  labels:
+    app.kubernetes.io/part-of: agenthive
+data:
+  agents.yaml: |
+    # Agent workspace model definitions for Open WebUI.
+    # The seed-agent-models Job reads this and creates workspace models
+    # with agent_mode (bypasses Open WebUI's agentic loop) and
+    # stream_response settings per agent.
+    #
+    # base_model_id: the model ID as discovered by Open WebUI from the
+    #   agent's /v1/models endpoint. Check Open WebUI model picker for
+    #   the exact ID if unsure.
+    # agent_mode: true = Open WebUI sends raw messages only (no injections)
+    # stream: false = Open WebUI sends stream:false (for agents that
+    #   return a JSON blob instead of SSE chunks)
+    agents:
+      - name: rfp-agent
+        base_model_id: rfp-agent
+        description: "RFP response agent powered by Hermes"
+        agent_mode: true
+        stream: true
+
+      - name: rhoai-copilot
+        base_model_id: rhoai-copilot
+        description: "RHOAI Copilot agent"
+        agent_mode: true
+        stream: true
+
+      - name: pod-health-watcher
+        base_model_id: pod-health-watcher
+        description: "Pod health monitoring agent"
+        agent_mode: true
+        stream: true
+
+      - name: stale-image-finder
+        base_model_id: stale-image-finder
+        description: "Stale container image finder agent"
+        agent_mode: true
+        stream: true
+
+      - name: pr-review-bot
+        base_model_id: pr-review-bot
+        description: "PR review bot agent"
+        agent_mode: true
+        stream: true
+
+      - name: loan-agent
+        base_model_id: loan-agent
+        description: "Loan processing and approval agent"
+        agent_mode: true
+        stream: true

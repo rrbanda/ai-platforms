@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seed-agent-models-script
+  namespace: open-webui
+  labels:
+    app.kubernetes.io/part-of: agenthive
+data:
+  seed-models.sh: |
+    #!/bin/sh
+    set -e
+
+    OWUI_URL="${OWUI_URL:?OWUI_URL is required}"
+    OWUI_KEY="${OWUI_KEY:?OWUI_KEY is required}"
+
+    echo "Waiting for Open WebUI at $OWUI_URL..."
+    retries=0
+    while [ $retries -lt 60 ]; do
+        if curl -s --max-time 3 "$OWUI_URL/health" | grep -q '"status":true'; then
+            echo "Open WebUI is ready"
+            break
+        fi
+        retries=$((retries + 1))
+        sleep 5
+    done
+    if [ $retries -ge 60 ]; then
+        echo "ERROR: Open WebUI did not become ready" >&2
+        exit 1
+    fi
+
+    create_model() {
+        local name="$1" base_model_id="$2" description="$3" agent_mode="$4" stream="$5"
+        echo "Creating workspace model: $name (base=$base_model_id, agent_mode=$agent_mode, stream=$stream)"
+
+        check=$(curl -s -o /dev/null -w "%{http_code}" \
+            "$OWUI_URL/api/v1/models/$name" \
+            -H "Authorization: Bearer $OWUI_KEY")
+        if [ "$check" = "200" ]; then
+            echo "  Already exists (skipping)"
+            return 0
+        fi
+
+        if [ "$agent_mode" = "true" ]; then
+            caps='{"agent_mode":true,"builtin_tools":false,"memory":false,"web_search":false,"code_interpreter":false,"file_context":false,"status_updates":true}'
+        else
+            caps='{"status_updates":true}'
+        fi
+
+        if [ "$stream" = "false" ]; then
+            params='{"stream_response":false}'
+        else
+            params='{}'
+        fi
+
+        display_name=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+        response=$(curl -s -w "\n%{http_code}" \
+            -X POST "$OWUI_URL/api/v1/models/create" \
+            -H "Authorization: Bearer $OWUI_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+                \"id\": \"$name\",
+                \"name\": \"$display_name\",
+                \"base_model_id\": \"$base_model_id\",
+                \"meta\": {\"description\": \"$description\", \"capabilities\": $caps},
+                \"params\": $params
+            }")
+        http_code=$(echo "$response" | tail -1)
+        if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "  Created ($http_code)"
+        else
+            body=$(echo "$response" | sed '$d')
+            echo "  FAILED ($http_code): $body" >&2
+        fi
+    }
+
+    AGENTS_FILE="${1:-/config/agents.yaml}"
+    if [ ! -f "$AGENTS_FILE" ]; then
+        echo "ERROR: agents.yaml not found at $AGENTS_FILE" >&2
+        exit 1
+    fi
+
+    echo "Reading agents from $AGENTS_FILE"
+    current_name="" current_base="" current_desc="" current_agent_mode="false" current_stream="true"
+    while IFS= read -r line; do
+        case "$line" in
+            *"- name:"*)
+                if [ -n "$current_name" ] && [ -n "$current_base" ]; then
+                    create_model "$current_name" "$current_base" "$current_desc" "$current_agent_mode" "$current_stream" || true
+                fi
+                current_name=$(echo "$line" | sed 's/.*- name: *//' | tr -d '"' | tr -d "'")
+                current_base="" current_desc="" current_agent_mode="false" current_stream="true"
+                ;;
+            *"base_model_id:"*) current_base=$(echo "$line" | sed 's/.*base_model_id: *//' | tr -d '"' | tr -d "'") ;;
+            *"description:"*) current_desc=$(echo "$line" | sed 's/.*description: *//' | tr -d '"' | tr -d "'") ;;
+            *"agent_mode:"*) current_agent_mode=$(echo "$line" | sed 's/.*agent_mode: *//' | tr -d '"' | tr -d "'" | tr -d ' ') ;;
+            *"stream:"*) current_stream=$(echo "$line" | sed 's/.*stream: *//' | tr -d '"' | tr -d "'" | tr -d ' ') ;;
+        esac
+    done < "$AGENTS_FILE"
+    if [ -n "$current_name" ] && [ -n "$current_base" ]; then
+        create_model "$current_name" "$current_base" "$current_desc" "$current_agent_mode" "$current_stream" || true
+    fi
+    echo "Model seeding complete"

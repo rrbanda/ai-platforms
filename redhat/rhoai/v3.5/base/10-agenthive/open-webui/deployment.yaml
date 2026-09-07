@@ -75,8 +75,6 @@ spec:
           value: "openid email profile"
         - name: OPENID_REDIRECT_URI
           value: "https://open-webui-open-webui.apps.ocp.qn6c5.sandbox1388.opentlc.com/oauth/oidc/callback"
-        - name: ENABLE_OAUTH_SIGNUP
-          value: "true"
         - name: AIOHTTP_CLIENT_TIMEOUT
           value: "300"
         - name: REQUEST_TIMEOUT

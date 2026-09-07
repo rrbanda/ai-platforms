@@ -1,14 +1,6 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: sandbox-restart
-rules:
-  - apiGroups: ["agents.x-k8s.io"]
-    resources: ["sandboxes"]
-    verbs: ["get", "patch"]
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list"]
+# ClusterRole/sandbox-restart is managed by the RHOAI platform
+# (09-openshell/scc-rbac.yaml). Only the per-agent ClusterRoleBindings
+# are defined here.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

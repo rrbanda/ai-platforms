@@ -102,14 +102,10 @@ def submit_run(dspa_url: str, token: str, pipeline_id: str, version_id: str,
     """Submit a pipeline run."""
     runtime_config = {"parameters": {}}
     for k, v in params.items():
-        if isinstance(v, bool):
-            runtime_config["parameters"][k] = {"boolValue": v}
-        elif isinstance(v, int):
-            runtime_config["parameters"][k] = {"intValue": str(v)}
-        elif isinstance(v, float):
-            runtime_config["parameters"][k] = {"doubleValue": v}
-        elif isinstance(v, list):
+        if isinstance(v, list):
             runtime_config["parameters"][k] = {"listValue": {"values": [{"stringValue": str(x)} for x in v]}}
+        elif isinstance(v, bool):
+            runtime_config["parameters"][k] = {"stringValue": str(v).lower()}
         else:
             runtime_config["parameters"][k] = {"stringValue": str(v)}
 

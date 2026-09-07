@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/part-of: openshell
 data:
   oauth2-proxy.cfg: |
-    provider = "oidc"
+    provider = "keycloak-oidc"
     # Dex issuer -- overridden per-cluster via overlay patch
     oidc_issuer_url = "https://dex-openshell.apps.CLUSTER_DOMAIN"
     client_id = "openshell-dashboard"

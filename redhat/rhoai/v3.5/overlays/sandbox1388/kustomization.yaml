@@ -7,3 +7,4 @@ resources:
   - amortized/argocd-app.yaml
   - fine-tuning-demo/argocd-app.yaml
   - workloads/argocd-app.yaml
+  - dashboard/argocd-app.yaml

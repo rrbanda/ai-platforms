@@ -1,0 +1,15 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: open-webui-admin
+  namespace: open-webui
+spec:
+  encryptedData:
+    email: AgBz+/XnYz6wDc/yPkJX+uv5mZiiF4majpQsW8qCDoPOu3+C/edm3/d6V4vtJ6te0tCvqceUpJEe3Qm4uyakDu75RFbVB0uSWZ8wiWOZWEunP7QC5BurXwlb1SqlieC+FtIXflSJMZGQyCZKI0wuYSoA+PNoVOWwupZfT/CMSXnxbwFyTJYiQ060TgneRLDQoiVSoAwb+nq2dvzES/RLjrzX2CPO6FqFuAFfPUlaB+85DosGMFRxdBfS8hZHW4ZUp56ASSICy67eNU94Nq+piQHxGlYQ86tBGkjyo26rW2/5GmQjIMtx47C40KuxelgSAETOefYR8mJcIOaoqoa2IgR9jPPx80S7+bkOr0Tmrt50NrF5LwOrB/imlvTO7KMs7o7QM+8ixIfM6qyD480vwZygPJwp/vpTt7uyBHKo9AeRn/Yht/jAMtLVQvIcx6J/CrfooApjBGlDmAMJ//VtgzbU/w8W3myIJb0kGAiEkVHBJ+WixPATcMYhBorwVaxKdXDQNlRs08rXUeXLwyg2mUJBu41iKCgVs03lY5DZQZxxgsE/Pi5e0xNqnQbvSwgiqvk/ZAe+3H7ANr7S3ZZ/kDqzLBOxU/UdYiczB+el8+3krgabdckifM1qXnyha/kGYV4Fcs49GML4oNf3g/anKPftcZ/ehxT4zCuAuRmzcvjp59Ftp/VtKev8PQZ6wKxJGAQntruN2nu0JvZLi1A4zXEI/g==
+    password: AgA5kBrBT4pNxdFWJ+DeY+YD7Gxh6jl8xEK1qSy28Dhfss1aUev7LOCovXFk1QDl2AC/lCozj1ShuaVnMqqtErKq8MS3SmosFpjIXNVbuhKOifEWCJQ4nwr1Ii1ojvc1Um7EPfCP1m7pWozTKBCDASwpRHzLWwa47QpZrCGKV8BBxVMLnREljaALgErM6rD6dEHWg3A4UkfXoTod/7VBkdzh0pL+qQdXIjz1WaMAkBgtxchmDJN88u8AotXTAapu3Acw2MLQi/QeIa0e3GZ1CXg1aVa6/V5ATMvJlsmX4MqlxRz+HSr3Axhkk8zJcO6OXhAHZGBZbobk6AQxOY09TwOJWwDza7v0ddcFP3nKY6jerXO//rI0pgfDXNEyHnT/bkZ5KiloILCoYXoYii9ffo68zCPUDOaAAfGgSHoao4Ewq/QgZzeR7TwmQiX+omeaSbD1XUtSX8f61QV8RHYX0ZydMBaJoS/SbifIhBPAYNtI1XzN7/m4vDr1FJzU/J8y2X0VcLYZy0SH273LuX+m+uTCHFJUtqzhEu7p/1Pt0dupYI0n/iiRU3hJQ5d+865tTxXSsr/3CQ6VDvLb8KNsAVelPfprUwo8EwMsnXLNqAm3p0+sRMr6QpewFYUGQSbKs/5pYNwWYwcpp63hw1m9avcufdGcroO5dOf2UdfQJB0WBXLeDAoadwfRiZnZ9gl6ClUNOpRlqg==
+  template:
+    metadata:
+      name: open-webui-admin
+      namespace: open-webui
+    type: Opaque

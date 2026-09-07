@@ -13,6 +13,7 @@ resources:
   - functions-import-job.yaml
   - sealed-open-webui-providers.yaml
   - sealed-open-webui-oidc.yaml
+  - sealed-open-webui-admin.yaml
   - agents-config.yaml
   - seed-script-configmap.yaml
   - seed-agent-models-job.yaml

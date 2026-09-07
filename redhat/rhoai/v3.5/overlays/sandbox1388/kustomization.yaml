@@ -6,3 +6,4 @@ resources:
   - gemini-external/argocd-app.yaml
   - amortized/argocd-app.yaml
   - fine-tuning-demo/argocd-app.yaml
+  - workloads/argocd-app.yaml

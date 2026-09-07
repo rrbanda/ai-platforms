@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: open-webui-oidc
+  namespace: open-webui
+spec:
+  encryptedData:
+    OAUTH_CLIENT_SECRET: AgCECY8VM4huG/VJGw1TLfloYrcH1an7y49dVlus3VRnuLQLAhaETZOcAyhQ1hfP1t+S4d6Fw5s/ogKjDfn0sF9T2E8u4C8zmWUq0KR6n36mEgf065Tc3wFCNUpXlDHhQRSnDOzQLQkRqK1cd2i0+YwJD6SEuLULQDfXg+fluZoKK9kERlsOfrdEYI+qLfg+U40dE2He4bOW+R5OJLwFzaSymXjKnxoQV/IS+vh8A+1V6AX1Npb0TvrNA7mzqb5mQ16SKzWrNcw7KUMTfd77Lx+WrzyQLfmDdPCu7i3G6ov5yrDZ8SYJ9RrUBRNffKFOdCBTev/rFvAE6MvqDEfJBRgXlVB3FB6WTh5P7AKQOJng7hsToAZ1MIhh44Yh05jTFxjDG1e/sHOBiIsRL1GOdjHnT+nHeG0O9gKzIkPuf2MVdC6WqFFlw/+Cx8UoeHimAVvnZnffAJ9+LBuQtCQfgUlhSgGGtfVjOTt2snCkh5YrzKGKHSJxA1giTBFTrREVmgDky6v0sIP4CMHlCv81+jSbxfMBwHHM+dVz9fypuQ3w82eB9t8YjIbZQyoNmuQIm03xrlNGFFd4SsuuAn/FteW1TMT+GHEjdiNtmlfgEKjum8yBYTKQfso1S7L0lYxcK9AUfMyu1PoQfs98wmn6ObJMTtPtOQEO5xI6gOdRWWd9RUxQs6QUSG3vq5fE2cVog0ZIWS33aLjai4Jcu800MGUFkcKplf16dzc9PDKuoFWiMHRXZQszGxOg6Ls2Y0SfinHd09N6TQMLdH8NBkMNnP23eKCdPpZLkZx6n8wqtt4j/CPkfGao14ot2Deh472UAbtA+sn42RWrts92c3J6mIjKyfEqHa7kw/x4hq+WkS1sk7ZlknYa9XBmrkY89V1Gf+XIONwcOFj28nkLdlUAiZatQIpqbuSUTxt4sNVqr3fpKWuzGYQ=
+  template:
+    metadata:
+      name: open-webui-oidc
+      namespace: open-webui
+    type: Opaque

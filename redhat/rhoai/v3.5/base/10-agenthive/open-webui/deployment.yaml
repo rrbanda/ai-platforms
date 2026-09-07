@@ -20,7 +20,7 @@ spec:
       serviceAccountName: open-webui
       containers:
       - name: open-webui
-        image: ghcr.io/rrbanda/open-webui:git-9449d5ae5
+        image: ghcr.io/rrbanda/open-webui:git-9449d5a
         imagePullPolicy: Always
         ports:
         - name: http

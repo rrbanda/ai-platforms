@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshell-dashboard
+  namespace: openshell-dashboard
+  labels:
+    app.kubernetes.io/name: openshell-dashboard
+    app.kubernetes.io/part-of: openshell
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openshell-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openshell-dashboard
+        app.kubernetes.io/part-of: openshell
+    spec:
+      serviceAccountName: openshell-dashboard
+      containers:
+        # oauth2-proxy: fronting auth proxy (ADR 0002).
+        # Terminates OIDC, injects x-forwarded-access-token, proxies to BFF.
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
+          args:
+            - --config=/etc/oauth2-proxy/oauth2-proxy.cfg
+          ports:
+            - name: proxy
+              containerPort: 4180
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: openshell-dashboard-oauth2
+          volumeMounts:
+            - name: oauth2-proxy-config
+              mountPath: /etc/oauth2-proxy
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+
+        # BFF: Go relay server (ADR 0002 -- never validates tokens).
+        - name: bff
+          image: quay.io/gkrumbach07/openshell-dashboard:latest
+          envFrom:
+            - configMapRef:
+                name: openshell-dashboard-config
+          ports:
+            - name: bff
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /api/v1/healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/v1/readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+
+      volumes:
+        - name: oauth2-proxy-config
+          configMap:
+            name: oauth2-proxy-config

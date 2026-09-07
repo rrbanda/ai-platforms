@@ -1,0 +1,21 @@
+# OpenShift Route: edge-terminated TLS, traffic goes to oauth2-proxy (port 4180)
+# which then proxies to the BFF on localhost:8080 inside the pod.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshell-dashboard
+  namespace: openshell-dashboard
+  labels:
+    app.kubernetes.io/name: openshell-dashboard
+    app.kubernetes.io/part-of: openshell
+spec:
+  to:
+    kind: Service
+    name: openshell-dashboard
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

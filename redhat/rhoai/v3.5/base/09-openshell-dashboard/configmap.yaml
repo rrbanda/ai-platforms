@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openshell-dashboard-config
+  namespace: openshell-dashboard
+  labels:
+    app.kubernetes.io/name: openshell-dashboard
+    app.kubernetes.io/part-of: openshell
+data:
+  PORT: "8080"
+  OPENSHELL_GATEWAY_URL: "grpc://openshell-gateway.openshell.svc.cluster.local:50051"
+  AUTH_DISABLED: "false"
+  AUTH_TOKEN_HEADER: "x-forwarded-access-token"
+  AUTH_USER_HEADER: "x-auth-request-user"
+  ADMIN_ROLE: "openshell-admins"
+  LOGOUT_URL: "/oauth2/sign_out"
+  STATIC_DIR: "/srv/static"
+  FEATURE_TERMINAL: "true"
+  FEATURE_FILE_TRANSFER: "true"
+  FEATURE_SETTINGS: "true"
+  FEATURE_GLOBAL_POLICY: "true"
+  FEATURE_CREDENTIAL_REFRESH: "true"
+  FEATURE_SERVICES: "true"
+  FEATURE_DRAFT_POLICY: "true"

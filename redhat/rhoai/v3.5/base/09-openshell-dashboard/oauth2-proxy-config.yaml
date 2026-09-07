@@ -1,0 +1,34 @@
+# oauth2-proxy configuration for the OpenShell Dashboard.
+# The dashboard BFF is a relay-only auth proxy (ADR 0002): it never validates
+# tokens. oauth2-proxy sits in front, terminates OIDC, and injects
+# x-forwarded-access-token on every request to the BFF.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oauth2-proxy-config
+  namespace: openshell-dashboard
+  labels:
+    app.kubernetes.io/name: openshell-dashboard
+    app.kubernetes.io/component: oauth2-proxy
+    app.kubernetes.io/part-of: openshell
+data:
+  oauth2-proxy.cfg: |
+    provider = "oidc"
+    # Dex issuer -- overridden per-cluster via overlay patch
+    oidc_issuer_url = "https://dex-openshell.apps.CLUSTER_DOMAIN"
+    client_id = "openshell-dashboard"
+    # client_secret is injected via env from the sealed secret
+    redirect_url = "https://openshell-dashboard-openshell-dashboard.apps.CLUSTER_DOMAIN/oauth2/callback"
+
+    http_address = "0.0.0.0:4180"
+    upstream = "http://127.0.0.1:8080"
+
+    email_domains = ["*"]
+    skip_provider_button = true
+    pass_access_token = true
+    set_xauthrequest = true
+    cookie_secure = true
+    cookie_httponly = true
+    cookie_samesite = "lax"
+
+    scope = "openid profile email groups"

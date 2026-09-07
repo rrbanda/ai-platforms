@@ -1,0 +1,48 @@
+# Per-cluster overlay for the OpenShell Dashboard.
+#
+# Setup for a new cluster:
+#   1. cp -r redhat/rhoai/v3.5/overlays/EXAMPLE-dashboard redhat/rhoai/v3.5/overlays/<cluster>/dashboard
+#   2. Seal the secret (see instructions in sealed-oauth2-secret-TEMPLATE.yaml)
+#   3. Edit kustomization.yaml to set CLUSTER_DOMAIN
+#   4. Add the ArgoCD app reference to your cluster's root kustomization.yaml:
+#        resources:
+#          - dashboard/argocd-app.yaml
+#   5. git add, commit, push
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../base/09-openshell-dashboard
+  # Uncomment after sealing the secret:
+  # - sealed-openshell-dashboard-oauth2.yaml
+
+patches:
+  # Patch oauth2-proxy config with cluster-specific URLs
+  - target:
+      kind: ConfigMap
+      name: oauth2-proxy-config
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: oauth2-proxy-config
+      data:
+        oauth2-proxy.cfg: |
+          provider = "oidc"
+          oidc_issuer_url = "https://dex-openshell.apps.REPLACE_CLUSTER_DOMAIN"
+          client_id = "openshell-dashboard"
+          redirect_url = "https://openshell-dashboard-openshell-dashboard.apps.REPLACE_CLUSTER_DOMAIN/oauth2/callback"
+          http_address = "0.0.0.0:4180"
+          upstream = "http://127.0.0.1:8080"
+          email_domains = ["*"]
+          skip_provider_button = true
+          pass_access_token = true
+          set_xauthrequest = true
+          cookie_secure = true
+          cookie_httponly = true
+          cookie_samesite = "lax"
+          scope = "openid profile email groups"
+
+images:
+  - name: quay.io/gkrumbach07/openshell-dashboard
+    newTag: latest

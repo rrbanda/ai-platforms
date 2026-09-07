@@ -1,0 +1,12 @@
+{
+  "_comment": "Sample training metrics from a successful LoRA fine-tuning run. Used for fixture-based testing without a cluster.",
+  "technique": "lora",
+  "num_epochs": 2.0,
+  "effective_batch_size": 128.0,
+  "learning_rate": 0.0002,
+  "max_seq_len": 8192.0,
+  "num_workers": 1.0,
+  "gpu_per_worker": 1.0,
+  "lora_r": 16,
+  "lora_alpha": 32
+}

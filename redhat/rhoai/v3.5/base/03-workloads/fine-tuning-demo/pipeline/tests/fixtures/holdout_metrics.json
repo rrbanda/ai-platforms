@@ -1,0 +1,9 @@
+{
+  "_comment": "Sample holdout eval metrics from a successful lm-eval run on arc_easy. Only actual metric scores — duration/sample count are logged as metadata strings by the upstream component.",
+  "acc": 0.68,
+  "acc_norm": 0.71,
+  "exact_match": 0.65,
+  "eval_tasks": "arc_easy",
+  "eval_duration_seconds": "120.5",
+  "eval_num_samples": "100"
+}

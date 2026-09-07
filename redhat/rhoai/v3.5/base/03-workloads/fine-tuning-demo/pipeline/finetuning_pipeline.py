@@ -5,10 +5,11 @@ A 7-phase KFP pipeline supporting multiple fine-tuning techniques
 
   Phase 1:   Dataset Download    -- S3/HF/HTTP -> chat-format JSONL, 90/10 train/eval split
   Phase 1.5: Data Quality Filter -- Dedup (exact + near), quality scoring, format validation
-  Phase 2:   Model Download      -- Pre-cache base model to PVC (idempotent)
+  Phase 2:   Format Validation   -- unitxt chat template enforcement + tokenization check
   Phase 3:   Training            -- dispatches to LoRA/SFT/OSFT/custom via TrainingHub
   Phase 4a:  Benchmark Eval      -- EvalHub + ephemeral vLLM KServe + MLflow logging
   Phase 4b:  Holdout Eval        -- lm-eval on held-out eval split (exact_match, BLEU, ROUGE)
+  Phase 4c:  Quality Gate        -- enforce minimum eval score before registry
   Phase 5:   Model Registry      -- register trained model with provenance + all eval metrics
 
 Submit from the RHOAI Dashboard -> Data Science Pipelines UI. No notebook needed.
@@ -66,39 +67,116 @@ PIPELINE_VERSION = _pipeline.get("version", "v5")
 
 
 # =============================================================================
-# Inline model download component
+# Quality gate + consolidated MLflow logger
 # =============================================================================
 @dsl.component(
     base_image=_config.get("images", {}).get("pipeline_base", "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"),
-    packages_to_install=["huggingface_hub>=0.20.0"],
+    packages_to_install=["mlflow>=2.12.0"],
 )
-def download_base_model(
-    model_name: str,
-    pvc_mount_path: str,
+def eval_quality_gate(
+    eval_metrics: dsl.Input[dsl.Metrics],
+    holdout_metrics: dsl.Input[dsl.Metrics],
+    training_metrics: dsl.Input[dsl.Metrics],
+    min_eval_score: float,
+    run_name: str = "",
+    mlflow_tracking_uri: str = "",
+    mlflow_experiment_name: str = "",
 ) -> str:
-    """Pre-cache a HuggingFace model to the workspace PVC."""
+    """Quality gate + consolidated MLflow logger.
+
+    Logs training hyperparameters, EvalHub benchmarks, and holdout eval
+    scores to a single MLflow run. Then checks eval scores against a
+    minimum threshold before allowing model registration.
+
+    Returns 'pass' or raises an exception to block downstream registry.
+    """
     import os
-    from huggingface_hub import snapshot_download
 
-    model_dir_name = model_name.replace("/", "--")
-    model_path = os.path.join(pvc_mount_path, "models", model_dir_name)
-    sentinel = os.path.join(model_path, ".download_complete")
+    print("=" * 60)
+    print(f"QUALITY GATE — {run_name or 'unnamed run'}")
+    print("=" * 60)
 
-    if os.path.exists(sentinel):
-        file_count = sum(1 for _ in os.scandir(model_path) if _.is_file())
-        print(f"Model '{model_name}' already cached at {model_path} ({file_count} files). Skipping.")
-        return model_dir_name
+    # -- Collect all metrics --
+    _SKIP_KEYS = {"display_name", "store_session_info"}
+    eval_meta = getattr(eval_metrics, "metadata", {}) or {}
+    holdout_meta = getattr(holdout_metrics, "metadata", {}) or {}
+    training_meta = getattr(training_metrics, "metadata", {}) or {}
 
-    print(f"Downloading model '{model_name}' to {model_path}...")
-    os.makedirs(model_path, exist_ok=True)
-    snapshot_download(repo_id=model_name, local_dir=model_path, local_dir_use_symlinks=False)
+    training_params = {}
+    for k, v in training_meta.items():
+        if k not in _SKIP_KEYS:
+            training_params[k] = v
+    if training_params:
+        print(f"\n  Training: {len(training_params)} params")
+        for k in ["technique", "num_epochs", "learning_rate", "effective_batch_size"]:
+            if k in training_params:
+                print(f"    {k}: {training_params[k]}")
 
-    with open(sentinel, "w") as f:
-        f.write(model_name)
+    evalhub_score = None
+    evalhub_state = eval_meta.get("evalhub_state", "unknown")
+    if evalhub_state != "skipped":
+        raw = eval_meta.get("eval_overall_score")
+        if raw is not None:
+            evalhub_score = float(raw)
+            print(f"  EvalHub overall score: {evalhub_score:.4f}")
 
-    file_count = sum(1 for _ in os.scandir(model_path) if _.is_file())
-    print(f"Model '{model_name}' downloaded ({file_count} files).")
-    return model_dir_name
+    holdout_scores = {}
+    for k, v in holdout_meta.items():
+        if k not in _SKIP_KEYS and isinstance(v, (int, float)):
+            holdout_scores[k] = float(v)
+    if holdout_scores:
+        print(f"  Holdout: {len(holdout_scores)} metrics")
+        for k, v in sorted(holdout_scores.items()):
+            print(f"    {k}: {v:.4f}" if isinstance(v, float) else f"    {k}: {v}")
+
+    # -- Log everything to MLflow in one run --
+    if mlflow_tracking_uri and mlflow_experiment_name:
+        try:
+            os.environ["MLFLOW_TRACKING_URI"] = mlflow_tracking_uri
+            os.environ["MLFLOW_TRACKING_INSECURE_TLS"] = "true"
+            import mlflow
+
+            mlflow.set_experiment(mlflow_experiment_name)
+            mlflow_run_name = run_name or "finetuning-run"
+            with mlflow.start_run(run_name=mlflow_run_name):
+                for k, v in training_params.items():
+                    if isinstance(v, (int, float)):
+                        mlflow.log_metric(f"training/{k}", float(v))
+                    else:
+                        mlflow.log_param(f"training/{k}", str(v))
+                for k, v in holdout_scores.items():
+                    mlflow.log_metric(f"holdout/{k}", v)
+                if evalhub_score is not None:
+                    mlflow.log_metric("evalhub/overall_score", evalhub_score)
+                for k, v in eval_meta.items():
+                    if k not in _SKIP_KEYS and isinstance(v, (int, float)):
+                        mlflow.log_metric(f"evalhub/{k}", float(v))
+            total = len(training_params) + len(holdout_scores) + (1 if evalhub_score else 0)
+            print(f"  MLflow: logged {total} metrics/params as '{mlflow_run_name}' in '{mlflow_experiment_name}'")
+        except Exception as e:
+            print(f"  MLflow logging failed (non-fatal): {e}")
+
+    # -- Quality gate check --
+    best_score = evalhub_score
+    if best_score is None and holdout_scores:
+        best_score = max(holdout_scores.values())
+    if best_score is None:
+        best_score = 0.0
+
+    print(f"\n  Best score:     {best_score:.4f}")
+    print(f"  Min threshold:  {min_eval_score:.4f}")
+
+    if min_eval_score > 0.0 and best_score < min_eval_score:
+        msg = (
+            f"QUALITY GATE FAILED: best score {best_score:.4f} < "
+            f"threshold {min_eval_score:.4f}. Model will NOT be registered."
+        )
+        print(f"\n  {msg}")
+        raise ValueError(msg)
+
+    print("\n  QUALITY GATE PASSED")
+    print("=" * 60)
+    return "pass"
 
 
 @dsl.pipeline(
@@ -117,6 +195,11 @@ def download_base_model(
     ),
 )
 def finetuning_pipeline(
+    # =========================================================================
+    # RUN IDENTITY
+    # =========================================================================
+    run_name: str = _defaults.get("run_name", "lora-qwen25-finetuning"),
+
     # =========================================================================
     # TECHNIQUE SELECTION
     # =========================================================================
@@ -212,6 +295,11 @@ def finetuning_pipeline(
     holdout_enforce_eager: bool = True,
 
     # =========================================================================
+    # PHASE 4c: QUALITY GATE (0.0 = disabled, any positive value = threshold)
+    # =========================================================================
+    min_eval_score: float = _evaluation.get("min_eval_score", 0.0),
+
+    # =========================================================================
     # PHASE 5: MODEL REGISTRY
     # =========================================================================
     registry_address: str = _services.get("registry_address", ""),
@@ -220,6 +308,7 @@ def finetuning_pipeline(
     registry_model_version: str = "1.0.0",
     registry_author: str = "pipeline",
     registry_description: str = "",
+    registry_stage: str = _defaults.get("registry_stage", "dev"),
 ):
     """Fine-Tuning Pipeline.
 
@@ -426,7 +515,26 @@ def finetuning_pipeline(
         )
 
     # =========================================================================
-    # Phase 5: Model Registry
+    # Phase 4c: Quality Gate + Consolidated MLflow Logger
+    #   Logs training params, eval benchmarks, holdout scores to one MLflow run.
+    #   Blocks registry if score < min_eval_score.
+    # =========================================================================
+    mlflow_uri = "https://mlflow.redhat-ods-applications.svc.cluster.local:8443" if mlflow_experiment else ""
+    gate_task = eval_quality_gate(
+        eval_metrics=eval_task.outputs["output_metrics"],
+        holdout_metrics=holdout_eval_task.outputs["output_metrics"],
+        training_metrics=training_task.outputs["output_metrics"],
+        min_eval_score=min_eval_score,
+        run_name=run_name,
+        mlflow_tracking_uri=mlflow_uri,
+        mlflow_experiment_name=mlflow_experiment if mlflow_experiment else "",
+    )
+    gate_task.set_caching_options(False)
+    kfp.kubernetes.set_image_pull_policy(gate_task, "IfNotPresent")
+
+    # =========================================================================
+    # Phase 5: Model Registry (only runs if quality gate passes)
+    #   Includes stage label (dev/staging/prod) for promotion workflow.
     # =========================================================================
     registry_task = model_registry(
         pvc_mount_path=dsl.WORKSPACE_PATH_PLACEHOLDER,
@@ -442,13 +550,14 @@ def finetuning_pipeline(
         model_format_version="1.0",
         model_description=registry_description,
         author=registry_author,
+        registry_stage=registry_stage,
         shared_log_file="pipeline_log.txt",
         source_pipeline_name=PIPELINE_NAME,
         source_pipeline_run_id=dsl.PIPELINE_JOB_ID_PLACEHOLDER,
-        source_pipeline_run_name=dsl.PIPELINE_JOB_NAME_PLACEHOLDER,
+        source_pipeline_run_name=run_name,
         source_namespace="",
     )
-    registry_task.after(holdout_eval_task)
+    registry_task.after(gate_task)
     registry_task.set_caching_options(False)
     kfp.kubernetes.set_image_pull_policy(registry_task, "IfNotPresent")
 

@@ -148,6 +148,41 @@ spec:
               artifactType:
                 schemaTitle: system.Dataset
                 schemaVersion: 0.0.1
+      comp-eval-quality-gate:
+        executorLabel: exec-eval-quality-gate
+        inputDefinitions:
+          artifacts:
+            eval_metrics:
+              artifactType:
+                schemaTitle: system.Metrics
+                schemaVersion: 0.0.1
+            holdout_metrics:
+              artifactType:
+                schemaTitle: system.Metrics
+                schemaVersion: 0.0.1
+            training_metrics:
+              artifactType:
+                schemaTitle: system.Metrics
+                schemaVersion: 0.0.1
+          parameters:
+            min_eval_score:
+              parameterType: NUMBER_DOUBLE
+            mlflow_experiment_name:
+              defaultValue: ''
+              isOptional: true
+              parameterType: STRING
+            mlflow_tracking_uri:
+              defaultValue: ''
+              isOptional: true
+              parameterType: STRING
+            run_name:
+              defaultValue: ''
+              isOptional: true
+              parameterType: STRING
+        outputDefinitions:
+          parameters:
+            Output:
+              parameterType: STRING
       comp-evalhub-evaluator-kserve:
         executorLabel: exec-evalhub-evaluator-kserve
         inputDefinitions:
@@ -342,6 +377,10 @@ spec:
               description: 'Model Registry server port (default: 8080).'
               isOptional: true
               parameterType: NUMBER_INTEGER
+            registry_stage:
+              defaultValue: dev
+              isOptional: true
+              parameterType: STRING
             shared_log_file:
               defaultValue: pipeline_log.txt
               description: Filename for shared pipeline log.
@@ -743,7 +782,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'sdg-hub>=0.7.0,<1.0' 'requests' 'mlflow>=2.0'  &&  python3 -m pip\
-              \ install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps'\
+              \ install --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps'\
               \ 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"\
               $@\"\n"
             - sh
@@ -1022,7 +1061,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'datasets>=2.14.0' 'huggingface-hub>=0.20.0' 's3fs>=2023.1.0'  &&\
-              \  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
+              \  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
               \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'\
               \ && \"$0\" \"$@\"\n"
             - sh
@@ -1289,6 +1328,97 @@ spec:
               \ Exception as e:\n        error_msg = f\"ERROR in dataset download:\
               \ {str(e)}\"\n        log_message(error_msg)\n        raise\n\n"
             image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+        exec-eval-quality-gate:
+          container:
+            args:
+            - --executor_input
+            - '{{$}}'
+            - --function_to_execute
+            - eval_quality_gate
+            command:
+            - sh
+            - -c
+            - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip\
+              \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
+              \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
+              \ 'mlflow>=2.12.0'  &&  python3 -m pip install --quiet --no-warn-script-location\
+              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              3.9\"' && \"$0\" \"$@\"\n"
+            - sh
+            - -ec
+            - 'program_path=$(mktemp -d)
+
+
+              printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+              _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+              '
+            - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing\
+              \ import *\n\ndef eval_quality_gate(\n    eval_metrics: dsl.Input[dsl.Metrics],\n\
+              \    holdout_metrics: dsl.Input[dsl.Metrics],\n    training_metrics:\
+              \ dsl.Input[dsl.Metrics],\n    min_eval_score: float,\n    run_name:\
+              \ str = \"\",\n    mlflow_tracking_uri: str = \"\",\n    mlflow_experiment_name:\
+              \ str = \"\",\n) -> str:\n    \"\"\"Quality gate + consolidated MLflow\
+              \ logger.\n\n    Logs training hyperparameters, EvalHub benchmarks,\
+              \ and holdout eval\n    scores to a single MLflow run. Then checks eval\
+              \ scores against a\n    minimum threshold before allowing model registration.\n\
+              \n    Returns 'pass' or raises an exception to block downstream registry.\n\
+              \    \"\"\"\n    import os\n\n    print(\"=\" * 60)\n    print(f\"QUALITY\
+              \ GATE \u2014 {run_name or 'unnamed run'}\")\n    print(\"=\" * 60)\n\
+              \n    # -- Collect all metrics --\n    _SKIP_KEYS = {\"display_name\"\
+              , \"store_session_info\"}\n    eval_meta = getattr(eval_metrics, \"\
+              metadata\", {}) or {}\n    holdout_meta = getattr(holdout_metrics, \"\
+              metadata\", {}) or {}\n    training_meta = getattr(training_metrics,\
+              \ \"metadata\", {}) or {}\n\n    training_params = {}\n    for k, v\
+              \ in training_meta.items():\n        if k not in _SKIP_KEYS:\n     \
+              \       training_params[k] = v\n    if training_params:\n        print(f\"\
+              \\n  Training: {len(training_params)} params\")\n        for k in [\"\
+              technique\", \"num_epochs\", \"learning_rate\", \"effective_batch_size\"\
+              ]:\n            if k in training_params:\n                print(f\"\
+              \    {k}: {training_params[k]}\")\n\n    evalhub_score = None\n    evalhub_state\
+              \ = eval_meta.get(\"evalhub_state\", \"unknown\")\n    if evalhub_state\
+              \ != \"skipped\":\n        raw = eval_meta.get(\"eval_overall_score\"\
+              )\n        if raw is not None:\n            evalhub_score = float(raw)\n\
+              \            print(f\"  EvalHub overall score: {evalhub_score:.4f}\"\
+              )\n\n    holdout_scores = {}\n    for k, v in holdout_meta.items():\n\
+              \        if k not in _SKIP_KEYS and isinstance(v, (int, float)):\n \
+              \           holdout_scores[k] = float(v)\n    if holdout_scores:\n \
+              \       print(f\"  Holdout: {len(holdout_scores)} metrics\")\n     \
+              \   for k, v in sorted(holdout_scores.items()):\n            print(f\"\
+              \    {k}: {v:.4f}\" if isinstance(v, float) else f\"    {k}: {v}\")\n\
+              \n    # -- Log everything to MLflow in one run --\n    if mlflow_tracking_uri\
+              \ and mlflow_experiment_name:\n        try:\n            os.environ[\"\
+              MLFLOW_TRACKING_URI\"] = mlflow_tracking_uri\n            os.environ[\"\
+              MLFLOW_TRACKING_INSECURE_TLS\"] = \"true\"\n            import mlflow\n\
+              \n            mlflow.set_experiment(mlflow_experiment_name)\n      \
+              \      mlflow_run_name = run_name or \"finetuning-run\"\n          \
+              \  with mlflow.start_run(run_name=mlflow_run_name):\n              \
+              \  for k, v in training_params.items():\n                    if isinstance(v,\
+              \ (int, float)):\n                        mlflow.log_metric(f\"training/{k}\"\
+              , float(v))\n                    else:\n                        mlflow.log_param(f\"\
+              training/{k}\", str(v))\n                for k, v in holdout_scores.items():\n\
+              \                    mlflow.log_metric(f\"holdout/{k}\", v)\n      \
+              \          if evalhub_score is not None:\n                    mlflow.log_metric(\"\
+              evalhub/overall_score\", evalhub_score)\n                for k, v in\
+              \ eval_meta.items():\n                    if k not in _SKIP_KEYS and\
+              \ isinstance(v, (int, float)):\n                        mlflow.log_metric(f\"\
+              evalhub/{k}\", float(v))\n            total = len(training_params) +\
+              \ len(holdout_scores) + (1 if evalhub_score else 0)\n            print(f\"\
+              \  MLflow: logged {total} metrics/params as '{mlflow_run_name}' in '{mlflow_experiment_name}'\"\
+              )\n        except Exception as e:\n            print(f\"  MLflow logging\
+              \ failed (non-fatal): {e}\")\n\n    # -- Quality gate check --\n   \
+              \ best_score = evalhub_score\n    if best_score is None and holdout_scores:\n\
+              \        best_score = max(holdout_scores.values())\n    if best_score\
+              \ is None:\n        best_score = 0.0\n\n    print(f\"\\n  Best score:\
+              \     {best_score:.4f}\")\n    print(f\"  Min threshold:  {min_eval_score:.4f}\"\
+              )\n\n    if min_eval_score > 0.0 and best_score < min_eval_score:\n\
+              \        msg = (\n            f\"QUALITY GATE FAILED: best score {best_score:.4f}\
+              \ < \"\n            f\"threshold {min_eval_score:.4f}. Model will NOT\
+              \ be registered.\"\n        )\n        print(f\"\\n  {msg}\")\n    \
+              \    raise ValueError(msg)\n\n    print(\"\\n  QUALITY GATE PASSED\"\
+              )\n    print(\"=\" * 60)\n    return \"pass\"\n\n"
+            image: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
         exec-evalhub-evaluator-kserve:
           container:
             args:
@@ -1305,7 +1435,7 @@ spec:
               \ --index-url https://pypi.org/simple --trusted-host https://pypi.org/simple\
               \ 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
               \ --index-url https://pypi.org/simple --trusted-host https://pypi.org/simple\
-              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -1593,13 +1723,17 @@ spec:
               \   \"name\": resolved_model_name,\n        }\n        logger.info(f\"\
               Model name for Eval Hub: {resolved_model_name}\")\n\n        eval_config\
               \ = {\n            \"name\": evalhub_job_name,\n            \"model\"\
-              : model_spec,\n        }\n        if mlflow_experiment_name.strip():\n\
-              \            eval_config[\"experiment\"] = {\"name\": mlflow_experiment_name.strip()}\n\
-              \            logger.info(f\"MLflow enabled (experiment: {mlflow_experiment_name.strip()})\"\
-              )\n        else:\n            logger.info(\"MLflow disabled (no mlflow_experiment_name\
-              \ provided)\")\n\n        cleaned_collection = collection_id.strip().strip('\"\
-              ').strip(\"'\") if collection_id else \"\"\n        if cleaned_collection:\n\
-              \            eval_config[\"collection\"] = {\"id\": cleaned_collection}\n\
+              : model_spec,\n        }\n        resolved_mlflow_name = mlflow_experiment_name.strip()\
+              \ if mlflow_experiment_name else \"\"\n        if not resolved_mlflow_name:\n\
+              \            resolved_mlflow_name = os.environ.get(\"MLFLOW_EXPERIMENT_NAME\"\
+              , \"\").strip()\n        if resolved_mlflow_name:\n            eval_config[\"\
+              experiment\"] = {\"name\": resolved_mlflow_name}\n            logger.info(f\"\
+              MLflow enabled (experiment: {resolved_mlflow_name})\")\n        else:\n\
+              \            logger.info(\"MLflow disabled (no mlflow_experiment_name\
+              \ provided \u2014 set MLFLOW_EXPERIMENT_NAME env var as fallback)\"\
+              )\n\n        cleaned_collection = collection_id.strip().strip('\"').strip(\"\
+              '\") if collection_id else \"\"\n        if cleaned_collection:\n  \
+              \          eval_config[\"collection\"] = {\"id\": cleaned_collection}\n\
               \        elif benchmarks:\n            parsed = benchmarks if isinstance(benchmarks,\
               \ list) else json.loads(benchmarks)\n            eval_config[\"benchmarks\"\
               ] = parsed\n        else:\n            raise ValueError(\"Provide either\
@@ -1716,7 +1850,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'model-registry>=0.3.6'  &&  python3 -m pip install --quiet --no-warn-script-location\
-              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -1736,8 +1870,9 @@ spec:
               ,\n    registry_port: int = 8080,\n    model_name: str = \"fine-tuned-model\"\
               ,\n    model_version: str = \"1.0.0\",\n    model_format_name: str =\
               \ \"pytorch\",\n    model_format_version: str = \"1.0\",\n    model_description:\
-              \ str = \"\",\n    author: str = \"pipeline\",\n    shared_log_file:\
-              \ str = \"pipeline_log.txt\",\n    # -------------------------------------------------------------------------\n\
+              \ str = \"\",\n    author: str = \"pipeline\",\n    registry_stage:\
+              \ str = \"dev\",\n    shared_log_file: str = \"pipeline_log.txt\",\n\
+              \    # -------------------------------------------------------------------------\n\
               \    # PROVENANCE / LINEAGE FIELDS (auto-populated from KFP placeholders)\n\
               \    # -------------------------------------------------------------------------\n\
               \    source_pipeline_name: str = \"\",\n    source_pipeline_run_id:\
@@ -1780,11 +1915,12 @@ spec:
               \ Name: {resolved_model_name}\")\n    if base_model_name:\n        print(f\"\
               \  Base Model: {base_model_name}\")\n    print(f\"  Model Version: {model_version}\"\
               )\n    print(f\"  Model URI: {model_uri}\")\n    print(f\"  Registry:\
-              \ {registry_address}:{registry_port}\")\n\n    # Register to Model Registry\n\
-              \    model_id = \"SKIPPED\"\n    if registry_address:\n        print(\"\
-              \\n[Registering to Model Registry...]\")\n\n        # Ensure address\
-              \ has scheme for client URL building\n        server_addr = registry_address\n\
-              \        if not server_addr.startswith(\"http://\") and not server_addr.startswith(\"\
+              \ {registry_address}:{registry_port}\")\n    print(f\"  Stage: {registry_stage}\"\
+              )\n\n    # Register to Model Registry\n    model_id = \"SKIPPED\"\n\
+              \    if registry_address:\n        print(\"\\n[Registering to Model\
+              \ Registry...]\")\n\n        # Ensure address has scheme for client\
+              \ URL building\n        server_addr = registry_address\n        if not\
+              \ server_addr.startswith(\"http://\") and not server_addr.startswith(\"\
               https://\"):\n            server_addr = f\"https://{server_addr}\"\n\
               \        # Create client (HTTP/insecure)\n        client = ModelRegistry(\n\
               \            server_address=server_addr,\n            port=registry_port,\n\
@@ -1810,14 +1946,16 @@ spec:
               \                print(f\"    - Run Name: {source_pipeline_run_name}\
               \ (used for UI link text)\")\n            if resolved_namespace:\n \
               \               print(f\"    - Namespace: {resolved_namespace}\")\n\n\
-              \            # Add base model info\n            if base_model_name:\n\
-              \                version_metadata[\"base_model\"] = base_model_name\n\
-              \n            # Add training metrics (hyperparameters)\n           \
-              \ if input_metrics and getattr(input_metrics, \"metadata\", None):\n\
-              \                print(\"\\n  Training Hyperparameters:\")\n       \
-              \         for k, v in input_metrics.metadata.items():\n            \
-              \        if k not in (\"display_name\", \"store_session_info\"):\n \
-              \                       version_metadata[f\"training_{k}\"] = str(v)\n\
+              \            # Stage label (dev/staging/prod)\n            if registry_stage:\n\
+              \                version_metadata[\"stage\"] = registry_stage\n    \
+              \            print(f\"    - Stage: {registry_stage}\")\n\n         \
+              \   # Add base model info\n            if base_model_name:\n       \
+              \         version_metadata[\"base_model\"] = base_model_name\n\n   \
+              \         # Add training metrics (hyperparameters)\n            if input_metrics\
+              \ and getattr(input_metrics, \"metadata\", None):\n                print(\"\
+              \\n  Training Hyperparameters:\")\n                for k, v in input_metrics.metadata.items():\n\
+              \                    if k not in (\"display_name\", \"store_session_info\"\
+              ):\n                        version_metadata[f\"training_{k}\"] = str(v)\n\
               \                        print(f\"    - {k}: {v}\")\n\n            #\
               \ Add evaluation metrics\n            if eval_metrics and getattr(eval_metrics,\
               \ \"metadata\", None):\n                print(\"\\n  Evaluation Metrics:\"\
@@ -1888,7 +2026,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'kubernetes' 'olot' 'matplotlib'  &&  python3 -m pip install --quiet\
-              \ --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+              \ --no-warn-script-location 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
               \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -2115,7 +2253,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'unitxt' 'transformers' 'mlflow>=2.0'  &&  python3 -m pip install\
-              \ --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+              \ --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
               \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -2308,7 +2446,7 @@ spec:
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'lm-eval[vllm]' 'unitxt' 'sacrebleu' 'rouge-score' 'datasets' 'accelerate'\
               \ 'torch' 'transformers'  &&  python3 -m pip install --quiet --no-warn-script-location\
-              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -2775,6 +2913,40 @@ spec:
                   componentInputParameter: train_split_ratio
             taskInfo:
               name: dataset-download
+          eval-quality-gate:
+            cachingOptions: {}
+            componentRef:
+              name: comp-eval-quality-gate
+            dependentTasks:
+            - evalhub-evaluator-kserve
+            - train-model
+            - universal-llm-evaluator
+            inputs:
+              artifacts:
+                eval_metrics:
+                  taskOutputArtifact:
+                    outputArtifactKey: output_metrics
+                    producerTask: evalhub-evaluator-kserve
+                holdout_metrics:
+                  taskOutputArtifact:
+                    outputArtifactKey: output_metrics
+                    producerTask: universal-llm-evaluator
+                training_metrics:
+                  taskOutputArtifact:
+                    outputArtifactKey: output_metrics
+                    producerTask: train-model
+              parameters:
+                min_eval_score:
+                  componentInputParameter: min_eval_score
+                mlflow_experiment_name:
+                  componentInputParameter: mlflow_experiment
+                mlflow_tracking_uri:
+                  runtimeValue:
+                    constant: https://mlflow.redhat-ods-applications.svc.cluster.local:8443
+                run_name:
+                  componentInputParameter: run_name
+            taskInfo:
+              name: eval-quality-gate
           evalhub-evaluator-kserve:
             cachingOptions: {}
             componentRef:
@@ -2825,9 +2997,9 @@ spec:
             componentRef:
               name: comp-kubeflow-model-registry
             dependentTasks:
+            - eval-quality-gate
             - evalhub-evaluator-kserve
             - train-model
-            - universal-llm-evaluator
             inputs:
               artifacts:
                 eval_metrics:
@@ -2868,6 +3040,8 @@ spec:
                   componentInputParameter: registry_address
                 registry_port:
                   componentInputParameter: registry_port
+                registry_stage:
+                  componentInputParameter: registry_stage
                 shared_log_file:
                   runtimeValue:
                     constant: pipeline_log.txt
@@ -2881,8 +3055,7 @@ spec:
                   runtimeValue:
                     constant: '{{$.pipeline_job_uuid}}'
                 source_pipeline_run_name:
-                  runtimeValue:
-                    constant: '{{$.pipeline_job_name}}'
+                  componentInputParameter: run_name
             taskInfo:
               name: kubeflow-model-registry
           train-model:
@@ -3222,6 +3395,10 @@ spec:
             defaultValue: 32Gi
             isOptional: true
             parameterType: STRING
+          min_eval_score:
+            defaultValue: 0.0
+            isOptional: true
+            parameterType: NUMBER_DOUBLE
           mlflow_experiment:
             defaultValue: finetuning-experiments
             isOptional: true
@@ -3286,6 +3463,14 @@ spec:
             defaultValue: 8443.0
             isOptional: true
             parameterType: NUMBER_INTEGER
+          registry_stage:
+            defaultValue: dev
+            isOptional: true
+            parameterType: STRING
+          run_name:
+            defaultValue: lora-qwen25-finetuning
+            isOptional: true
+            parameterType: STRING
           seed:
             defaultValue: 42.0
             isOptional: true
@@ -3327,7 +3512,7 @@ spec:
             isOptional: true
             parameterType: BOOLEAN
     schemaVersion: 2.1.0
-    sdkVersion: kfp-2.16.1
+    sdkVersion: kfp-2.17.0
   platformSpec:
     platforms:
       kubernetes:
@@ -3365,6 +3550,8 @@ spec:
                 secretNameParameter:
                   runtimeValue:
                     constant: hf-token
+            exec-eval-quality-gate:
+              imagePullPolicy: IfNotPresent
             exec-evalhub-evaluator-kserve:
               imagePullPolicy: IfNotPresent
               secretAsEnv:

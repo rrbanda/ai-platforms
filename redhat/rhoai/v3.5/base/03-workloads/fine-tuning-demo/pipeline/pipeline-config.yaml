@@ -83,6 +83,8 @@ defaults:
   memory_per_worker: "32Gi"
   training_runtime: "training-hub"
   seed: 42
+  run_name: "lora-qwen25-finetuning"
+  registry_stage: "dev"
 
 # =============================================================================
 # Evaluation Defaults
@@ -108,6 +110,7 @@ evaluation:
   holdout_tasks:
     - "arc_easy"
   holdout_limit: 100
+  min_eval_score: 0.0
   timeout: 7200
   gpu_count: 1
   cpu: "2"

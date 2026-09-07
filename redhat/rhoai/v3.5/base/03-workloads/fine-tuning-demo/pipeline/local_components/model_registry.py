@@ -24,6 +24,7 @@ def kubeflow_model_registry(
     model_format_version: str = "1.0",
     model_description: str = "",
     author: str = "pipeline",
+    registry_stage: str = "dev",
     shared_log_file: str = "pipeline_log.txt",
     # -------------------------------------------------------------------------
     # PROVENANCE / LINEAGE FIELDS (auto-populated from KFP placeholders)
@@ -89,6 +90,7 @@ def kubeflow_model_registry(
     print(f"  Model Version: {model_version}")
     print(f"  Model URI: {model_uri}")
     print(f"  Registry: {registry_address}:{registry_port}")
+    print(f"  Stage: {registry_stage}")
 
     # Register to Model Registry
     model_id = "SKIPPED"
@@ -136,6 +138,11 @@ def kubeflow_model_registry(
                 print(f"    - Run Name: {source_pipeline_run_name} (used for UI link text)")
             if resolved_namespace:
                 print(f"    - Namespace: {resolved_namespace}")
+
+            # Stage label (dev/staging/prod)
+            if registry_stage:
+                version_metadata["stage"] = registry_stage
+                print(f"    - Stage: {registry_stage}")
 
             # Add base model info
             if base_model_name:

@@ -453,11 +453,14 @@ def evalhub_evaluator_kserve(
             "name": evalhub_job_name,
             "model": model_spec,
         }
-        if mlflow_experiment_name.strip():
-            eval_config["experiment"] = {"name": mlflow_experiment_name.strip()}
-            logger.info(f"MLflow enabled (experiment: {mlflow_experiment_name.strip()})")
+        resolved_mlflow_name = mlflow_experiment_name.strip() if mlflow_experiment_name else ""
+        if not resolved_mlflow_name:
+            resolved_mlflow_name = os.environ.get("MLFLOW_EXPERIMENT_NAME", "").strip()
+        if resolved_mlflow_name:
+            eval_config["experiment"] = {"name": resolved_mlflow_name}
+            logger.info(f"MLflow enabled (experiment: {resolved_mlflow_name})")
         else:
-            logger.info("MLflow disabled (no mlflow_experiment_name provided)")
+            logger.info("MLflow disabled (no mlflow_experiment_name provided — set MLFLOW_EXPERIMENT_NAME env var as fallback)")
 
         cleaned_collection = collection_id.strip().strip('"').strip("'") if collection_id else ""
         if cleaned_collection:

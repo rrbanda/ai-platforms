@@ -1,0 +1,14 @@
+{
+  "_comment": "Sample EvalHub metrics from a successful evaluation run.",
+  "evalhub_job_id": "abc-123",
+  "evalhub_state": "completed",
+  "evalhub_url": "https://evalhub.example.com",
+  "model_name": "finetuned-model",
+  "model_path": "/workspace/final_model",
+  "serving_method": "kserve",
+  "isvc_name": "evalhub-isvc-abc123",
+  "isvc_startup_seconds": 45.2,
+  "eval_overall_score": 0.72,
+  "eval_pass": 1.0,
+  "mlflow_experiment_name": "finetuning-experiments"
+}

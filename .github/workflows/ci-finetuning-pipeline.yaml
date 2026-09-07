@@ -1,0 +1,39 @@
+name: Fine-Tuning Pipeline CI
+
+on:
+  pull_request:
+    paths:
+      - 'redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline/**'
+  push:
+    branches: [main]
+    paths:
+      - 'redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline
+
+jobs:
+  test:
+    name: Pipeline Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install --quiet pytest pyyaml kfp kfp-kubernetes
+
+      - name: Run unit + fixture tests
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Validate pipeline config
+        run: python -c "import yaml; c=yaml.safe_load(open('pipeline-config.yaml')); assert 'pipeline' in c; print('Config OK')"
+
+      - name: Validate Python syntax
+        run: python -c "import ast; ast.parse(open('finetuning_pipeline.py').read()); print('Syntax OK')"

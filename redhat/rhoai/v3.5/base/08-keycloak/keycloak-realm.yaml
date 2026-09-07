@@ -1,8 +1,9 @@
-# Keycloak Realm for MCP token exchange.
-# Three clients:
+# Keycloak Realm for MCP token exchange and OpenShell Dashboard.
+# Four clients:
 #   mcp-client (public) - for browser/agent OAuth login
 #   mcp-server (confidential) - MCP server exchanges tokens
 #   openshift (confidential) - target audience for K8s API
+#   openshell-dashboard (confidential) - OpenShell Dashboard oauth2-proxy
 apiVersion: k8s.keycloak.org/v2alpha1
 kind: KeycloakRealmImport
 metadata:
@@ -49,6 +50,20 @@ spec:
         enabled: true
         publicClient: false
         serviceAccountsEnabled: true
+      - clientId: openshell-dashboard
+        enabled: true
+        publicClient: false
+        standardFlowEnabled: true
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        redirectUris:
+          - "https://openshell-dashboard-openshell-dashboard.apps.*/oauth2/callback"
+        webOrigins:
+          - "https://openshell-dashboard-openshell-dashboard.apps.*"
+        defaultClientScopes:
+          - openid
+          - profile
+          - email
     clientScopes:
       - name: mcp-server
         protocol: openid-connect

@@ -129,14 +129,22 @@ class TestPipelineCompilation:
             pytest.fail(f"Pipeline has syntax error: {e}")
 
     def test_pipeline_function_exists(self):
-        from finetuning_pipeline import finetuning_pipeline
-
-        assert callable(finetuning_pipeline)
+        try:
+            from finetuning_pipeline import finetuning_pipeline
+            assert callable(finetuning_pipeline)
+        except ImportError as e:
+            if "components" in str(e):
+                pytest.skip(f"pipelines-components not available: {e}")
+            raise
 
     def test_quality_gate_function_exists(self):
-        from finetuning_pipeline import eval_quality_gate
-
-        assert callable(eval_quality_gate)
+        try:
+            from finetuning_pipeline import eval_quality_gate
+            assert callable(eval_quality_gate)
+        except ImportError as e:
+            if "components" in str(e):
+                pytest.skip(f"pipelines-components not available: {e}")
+            raise
 
     @pytest.fixture(autouse=True)
     def _parse_pipeline_params(self):

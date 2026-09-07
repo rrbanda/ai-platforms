@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-AGENTS = ROOT / "agents"
+AGENTS = ROOT / "03-workloads" / "agents"
 
 
 def skill_sources(agent_dir: Path) -> set[str]:
@@ -84,6 +84,8 @@ def main() -> int:
     errors: list[str] = []
     for agent_dir in sorted(AGENTS.iterdir()):
         if not (agent_dir / "kustomization.yaml").is_file():
+            continue
+        if not (agent_dir / "skill-sources").is_dir():
             continue
         errors.extend(check_agent(agent_dir.name))
     if errors:

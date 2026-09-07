@@ -1,0 +1,51 @@
+name: Weekly Audit
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pip-audit
+        run: pip install --quiet pip-audit
+      - name: Scan Python dependencies
+        run: |
+          REQ="redhat/rhoai/v3.5/base/10-agenthive/image/requirements.txt"
+          if [ -f "$REQ" ]; then
+            pip-audit -r "$REQ" --desc || true
+          fi
+      - name: Scan npm dependencies
+        run: |
+          PKG="redhat/rhoai/v3.5/base/10-agenthive/diagrams/package.json"
+          if [ -f "$PKG" ]; then
+            cd "$(dirname "$PKG")"
+            npm audit --omit=dev || true
+          fi
+
+  stale-image-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for stale image tags
+        run: |
+          echo "=== Images using :latest tag ==="
+          grep -r "image:.*:latest" redhat/ --include="*.yaml" \
+            -l 2>/dev/null | grep -v "node_modules\|chart/templates" || echo "None found."
+          echo ""
+          echo "=== Unique image references ==="
+          grep -roh "image: [^ ]*" redhat/ --include="*.yaml" 2>/dev/null | \
+            sort -u | grep -v "chart/templates"
+
+  orphan-detection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect orphaned files and broken paths
+        run: bash .github/scripts/orphan-detection.sh

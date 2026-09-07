@@ -1,0 +1,208 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  change-scope:
+    runs-on: ubuntu-latest
+    outputs:
+      agents: ${{ steps.filter.outputs.agents }}
+      agenthive: ${{ steps.filter.outputs.agenthive }}
+      platform: ${{ steps.filter.outputs.platform }}
+      helm: ${{ steps.filter.outputs.helm }}
+      python: ${{ steps.filter.outputs.python }}
+      rego: ${{ steps.filter.outputs.rego }}
+      containers: ${{ steps.filter.outputs.containers }}
+      overlays: ${{ steps.filter.outputs.overlays }}
+      pipeline: ${{ steps.filter.outputs.pipeline }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            agents:
+              - 'redhat/rhoai/v3.5/base/03-workloads/agents/**'
+            agenthive:
+              - 'redhat/rhoai/v3.5/base/10-agenthive/**'
+            platform:
+              - 'redhat/rhoai/v3.5/base/0*-*/**'
+              - 'redhat/rhoai/v3.5/base/applications/**'
+              - 'redhat/rhoai/v3.5/setup/**'
+              - 'redhat/rhoai/v3.5/clusters/**'
+              - 'redhat/rhoai/v3.5/overlays/**'
+            helm:
+              - 'redhat/rhoai/v3.5/**/chart/**'
+              - 'redhat/rhoai/v3.5/**/Chart.yaml'
+            python:
+              - '**/*.py'
+            rego:
+              - '**/*.rego'
+            containers:
+              - 'redhat/rhoai/v3.5/base/10-agenthive/image/**'
+            overlays:
+              - 'redhat/rhoai/v3.5/overlays/**'
+            pipeline:
+              - 'redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline/**'
+
+  yaml-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet yamllint
+      - name: Lint all YAML
+        run: |
+          yamllint -d '{extends: relaxed, rules: {line-length: {max: 200}}}' \
+            -f github \
+            $(find redhat/ -name '*.yaml' \
+              -not -path '*/node_modules/*' \
+              -not -path '*/chart/templates/*' \
+              -not -path '*/.git/*' \
+              | sort)
+
+  kustomize-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kustomize
+        run: |
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | \
+            tar xz -C /usr/local/bin
+      - name: Validate all kustomizations
+        run: |
+          FAILED=0
+          while IFS= read -r f; do
+            dir=$(dirname "$f")
+            if ! kustomize build "$dir" > /dev/null 2>&1; then
+              echo "::error file=$f::kustomize build failed for $dir"
+              FAILED=$((FAILED + 1))
+            fi
+          done < <(find redhat/ -name kustomization.yaml \
+            -not -path '*/node_modules/*' \
+            -not -path '*/.git/*' | sort)
+          echo "Validated $(find redhat/ -name kustomization.yaml -not -path '*/node_modules/*' | wc -l) kustomization roots."
+          [ "$FAILED" -eq 0 ] || { echo "$FAILED kustomization(s) failed."; exit 1; }
+
+  helm-validate:
+    needs: change-scope
+    if: needs.change-scope.outputs.helm == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Lint and template Helm charts
+        run: |
+          for chart_dir in $(find redhat/ -name Chart.yaml -exec dirname {} \;); do
+            echo "--- Linting $chart_dir ---"
+            helm lint "$chart_dir" || true
+            helm template test "$chart_dir" > /dev/null
+            echo "OK: $chart_dir"
+          done
+
+  python-lint:
+    needs: change-scope
+    if: needs.change-scope.outputs.python == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet ruff
+      - name: Lint Python files
+        run: |
+          ruff check $(find redhat/ .github/ -name '*.py' -not -path '*/node_modules/*' | sort) \
+            --select E,W,F --ignore E501
+      - name: Check Python formatting
+        run: |
+          ruff format --check $(find redhat/ .github/ -name '*.py' -not -path '*/node_modules/*' | sort) || true
+
+  shell-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint shell scripts
+        run: |
+          SCRIPTS=$(find redhat/ .github/ -name '*.sh' -not -path '*/node_modules/*' | sort)
+          if [ -n "$SCRIPTS" ]; then
+            shellcheck --severity=error $SCRIPTS || true
+            echo "Checked $(echo "$SCRIPTS" | wc -l) shell scripts."
+          fi
+
+  rego-check:
+    needs: change-scope
+    if: needs.change-scope.outputs.rego == 'true' || needs.change-scope.outputs.agents == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OPA
+        run: |
+          curl -sL -o /usr/local/bin/opa https://openpolicyagent.org/downloads/v1.4.2/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+      - name: Validate Rego policies
+        run: |
+          FAILED=0
+          for f in $(find redhat/ -name '*.rego' | sort); do
+            if ! opa check "$f" 2>/dev/null; then
+              echo "::error file=$f::OPA check failed"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+          echo "Checked $(find redhat/ -name '*.rego' | wc -l) Rego policies."
+          [ "$FAILED" -eq 0 ] || exit 1
+
+  containerfile-lint:
+    needs: change-scope
+    if: needs.change-scope.outputs.containers == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint Containerfiles
+        run: |
+          for f in $(find redhat/ -name 'Containerfile*' -o -name 'Dockerfile*' | sort); do
+            echo "--- $f ---"
+            docker run --rm -i hadolint/hadolint < "$f" || true
+          done
+
+  skill-parity:
+    needs: change-scope
+    if: needs.change-scope.outputs.agents == 'true' || needs.change-scope.outputs.agenthive == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check skill-sources match runtime lists
+        run: python3 redhat/rhoai/v3.5/base/10-agenthive/scripts/check-skill-parity.py
+
+  argocd-app-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet pyyaml
+      - name: Validate ArgoCD Applications
+        run: python3 .github/scripts/argocd-app-validate.py
+
+  sealed-secret-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit SealedSecrets
+        run: bash .github/scripts/sealed-secret-audit.sh
+
+  kfp-pipeline-compile:
+    needs: change-scope
+    if: needs.change-scope.outputs.pipeline == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate pipeline Python syntax
+        run: |
+          cd redhat/rhoai/v3.5/base/03-workloads/fine-tuning-demo/pipeline
+          python3 -m py_compile finetuning_pipeline.py 2>/dev/null || \
+            python3 -c "import ast; ast.parse(open('finetuning_pipeline.py').read()); print('Pipeline syntax OK')"

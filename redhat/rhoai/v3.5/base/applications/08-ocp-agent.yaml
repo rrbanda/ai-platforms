@@ -4,18 +4,24 @@ metadata:
   name: rhoai-ocp-agent
   namespace: openshift-gitops
   labels:
-    app.kubernetes.io/part-of: ocp-agent
+    app.kubernetes.io/part-of: ocp-virt-migration-agent
   annotations:
     argocd.argoproj.io/sync-wave: "8"
 spec:
   project: rhoai-workloads
-  source:
-    repoURL: https://github.com/rrbanda/google-adk-ocp-agent.git
-    targetRevision: main
-    path: helm
+  sources:
+    - repoURL: https://github.com/rrbanda/ai-platforms.git
+      targetRevision: main
+      path: redhat/rhoai/v3.5/base/03-workloads/agents/ocp-virt-agent/chart
+      helm:
+        valueFiles:
+          - $values/redhat/rhoai/v3.5/base/03-workloads/agents/ocp-virt-agent/values/values-agent.yaml
+    - repoURL: https://github.com/rrbanda/ai-platforms.git
+      targetRevision: main
+      ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: ocp-agent
+    namespace: ocp-virt-agent
   syncPolicy:
     retry:
       limit: 5

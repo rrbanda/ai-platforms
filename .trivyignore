@@ -1,0 +1,23 @@
+# Trivy IaC scan exceptions for the ai-platforms GitOps repo.
+#
+# OpenShell sandboxes require elevated privileges by design — the NVIDIA
+# supervisor needs SYS_ADMIN, NET_ADMIN, and SYS_PTRACE to manage isolated
+# agent containers. These are policy-controlled via OPA Rego.
+
+# Sandbox containers require SYS_ADMIN for namespace isolation
+AVD-KSV-0005
+
+# Sandbox containers run as root (required by OpenShell supervisor)
+AVD-KSV-0001
+
+# Sandbox containers have NET_ADMIN capability
+AVD-KSV-0003
+
+# Sandbox containers have SYS_PTRACE capability
+AVD-KSV-0024
+
+# Sandbox containers use AppArmor Unconfined
+AVD-KSV-0002
+
+# Milvus/etcd use default service accounts in their own namespaces
+AVD-KSV-0041

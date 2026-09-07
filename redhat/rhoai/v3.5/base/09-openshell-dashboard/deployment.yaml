@@ -101,8 +101,15 @@ spec:
               drop: [ALL]
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: openshell-client-tls
+              mountPath: /etc/openshell-tls
+              readOnly: true
 
       volumes:
         - name: oauth2-proxy-config
           configMap:
             name: oauth2-proxy-config
+        - name: openshell-client-tls
+          secret:
+            secretName: openshell-client-tls

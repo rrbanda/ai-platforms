@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ../../../base/09-openshell-dashboard
   - sealed-oauth2-secret.yaml
+  - sealed-openshell-client-tls.yaml
 
 patchesStrategicMerge:
   - oauth2-proxy-config-patch.yaml

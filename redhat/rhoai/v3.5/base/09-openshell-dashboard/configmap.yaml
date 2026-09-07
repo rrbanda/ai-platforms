@@ -8,7 +8,10 @@ metadata:
     app.kubernetes.io/part-of: openshell
 data:
   PORT: "8080"
-  OPENSHELL_GATEWAY_URL: "grpc://openshell.openshell.svc.cluster.local:8080"
+  OPENSHELL_GATEWAY_URL: "grpcs://openshell.openshell.svc.cluster.local:8080"
+  GATEWAY_CA_CERT: "/etc/openshell-tls/ca.crt"
+  GATEWAY_CLIENT_CERT: "/etc/openshell-tls/tls.crt"
+  GATEWAY_CLIENT_KEY: "/etc/openshell-tls/tls.key"
   AUTH_DISABLED: "false"
   AUTH_TOKEN_HEADER: "x-forwarded-access-token"
   AUTH_USER_HEADER: "x-auth-request-user"

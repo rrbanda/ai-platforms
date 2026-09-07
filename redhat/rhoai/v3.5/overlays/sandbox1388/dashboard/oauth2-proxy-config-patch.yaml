@@ -6,7 +6,7 @@ metadata:
 data:
   oauth2-proxy.cfg: |
     provider = "oidc"
-    oidc_issuer_url = "https://sso.apps.ocp.qn6c5.sandbox1388.opentlc.com/realms/openshift"
+    oidc_issuer_url = "https://sso.apps.ocp.qn6c5.sandbox1388.opentlc.com/realms/master"
     client_id = "openshell-dashboard"
     redirect_url = "https://openshell-dashboard-openshell-dashboard.apps.ocp.qn6c5.sandbox1388.opentlc.com/oauth2/callback"
     http_address = "0.0.0.0:4180"

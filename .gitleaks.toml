@@ -6,7 +6,12 @@ paths = [
   '''helm-deploy/chart/templates/.*''',
   '''\.pre-commit-config\.yaml''',
   '''sealed-.*\.yaml''',
+  '''.*-sealed\.yaml''',
   '''redhat/rhoai/v3\.5/base/10-agenthive/secrets/.*\.yaml''',
+  '''redhat/rhoai/v3\.5/base/03-workloads/agents/ocp-virt-agent/sandbox/.*\.yaml''',
+  '''redhat/rhoai/v3\.5/base/03-workloads/agents/ocp-virt-agent/sealed-secrets/.*\.yaml''',
+  '''redhat/rhoai/v3\.5/setup/.*-sealed\.yaml''',
+  '''\.claude/.*''',
 ]
 
 [[rules]]

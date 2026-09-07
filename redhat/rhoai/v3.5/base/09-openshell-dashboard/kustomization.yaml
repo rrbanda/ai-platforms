@@ -9,7 +9,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - route.yaml
-  - networkpolicy.yaml
+  # networkpolicy.yaml removed — the overly restrictive egress rules block
+  # DNS and Keycloak access. Re-add after testing with correct rules.
 
 labels:
   - pairs:

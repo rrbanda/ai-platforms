@@ -28,8 +28,13 @@ spec:
         - /spec/host
     - group: bitnami.com
       kind: SealedSecret
-      jsonPointers:
-        - /status
+      jqPathExpressions:
+        - .status
+        - .metadata.annotations
+        - .metadata.resourceVersion
+        - .metadata.uid
+        - .metadata.creationTimestamp
+        - .metadata.generation
   syncPolicy:
     retry:
       limit: 10

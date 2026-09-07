@@ -11,7 +11,8 @@ data:
     set -e
 
     OWUI_URL="${OWUI_URL:?OWUI_URL is required}"
-    OWUI_KEY="${OWUI_KEY:?OWUI_KEY is required}"
+    ADMIN_EMAIL="${ADMIN_EMAIL:?ADMIN_EMAIL is required}"
+    ADMIN_PASSWORD="${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}"
 
     echo "Waiting for Open WebUI at $OWUI_URL..."
     retries=0
@@ -27,6 +28,18 @@ data:
         echo "ERROR: Open WebUI did not become ready" >&2
         exit 1
     fi
+
+    # Sign in to get a JWT token (like functions-import Job)
+    echo "Signing in as $ADMIN_EMAIL..."
+    OWUI_KEY=$(curl -s -X POST "$OWUI_URL/api/v1/auths/signin" \
+        -H "Content-Type: application/json" \
+        -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
+        | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+    if [ -z "$OWUI_KEY" ]; then
+        echo "ERROR: Failed to sign in" >&2
+        exit 1
+    fi
+    echo "Authenticated"
 
     create_model() {
         local name="$1" base_model_id="$2" description="$3" agent_mode="$4" stream="$5"

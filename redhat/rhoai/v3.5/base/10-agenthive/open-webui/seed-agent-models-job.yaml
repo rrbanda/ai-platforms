@@ -26,11 +26,13 @@ spec:
           env:
             - name: OWUI_URL
               value: http://open-webui.open-webui.svc:8080
-            - name: OWUI_KEY
+            - name: ADMIN_EMAIL
+              value: admin@test.com
+            - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: open-webui-providers
-                  key: WEBUI_SECRET_KEY
+                  name: open-webui-admin
+                  key: password
           volumeMounts:
             - name: scripts
               mountPath: /scripts

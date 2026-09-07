@@ -25,6 +25,7 @@ spec:
           image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0
           args:
             - --config=/etc/oauth2-proxy/oauth2-proxy.cfg
+            - --ssl-insecure-skip-verify=true
           ports:
             - name: proxy
               containerPort: 4180

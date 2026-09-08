@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: ghcr.io/nvidia/openshell
       chart: helm-chart
-      targetRevision: 0.0.111
+      targetRevision: 0.0.116
       helm:
         releaseName: openshell
         skipCrds: true

@@ -299,7 +299,7 @@ spec:
         - /openshell-sandbox
         - copy-self
         - /opt/openshell/bin/openshell-sandbox
-        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.116
         imagePullPolicy: IfNotPresent
         name: openshell-supervisor-install
         securityContext:

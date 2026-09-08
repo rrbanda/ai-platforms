@@ -11,8 +11,7 @@ server:
   auth:
     allowUnauthenticatedUsers: true
   # Operator mode: each workspace maps 1:1 to a pre-existing namespace.
-  # The gateway discovers sandboxes across namespaces via cluster-wide watch.
-  # Ref: https://github.com/NVIDIA/OpenShell/blob/main/rfc/0011-multi-player-design/README.md
+  # Requires chart v0.0.116+ for full workspace auto-creation from namespaces.
   drivers:
     kubernetes:
       workspaceMode: operator

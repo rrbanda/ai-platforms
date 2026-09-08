@@ -169,7 +169,7 @@ spec:
           name: agent-config
       initContainers:
       - name: openshell-supervisor-install
-        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.116
         imagePullPolicy: IfNotPresent
         command:
         - /openshell-sandbox

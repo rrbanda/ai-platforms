@@ -157,8 +157,8 @@ spec:
         - mountPath: /opt/openshell/bin
           name: openshell-supervisor-bin
       - name: install-mlflow-plugin
-        image: ghcr.io/anomalyco/opencode:latest
-        imagePullPolicy: Always
+        image: node:22-alpine
+        imagePullPolicy: IfNotPresent
         command: ["sh", "-c"]
         args:
         - |

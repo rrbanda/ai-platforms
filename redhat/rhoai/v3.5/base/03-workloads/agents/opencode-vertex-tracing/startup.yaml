@@ -6,8 +6,8 @@ metadata:
     app.kubernetes.io/part-of: opencode-vertex-tracing
 data:
   startup.sh: |
-    #!/usr/bin/env bash
-    set -euo pipefail
+    #!/bin/sh
+    set -eu
 
     cd /sandbox
     mkdir -p /sandbox/data

@@ -79,6 +79,10 @@ spec:
           value: loan-agent-loan-agent.apps.ocp.qn6c5.sandbox1388.opentlc.com
         - name: AGENT_VERSION
           value: 1.0.0
+        - name: MLFLOW_TRACKING_URI
+          value: http://mlflow.amortized.svc.cluster.local:5000
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: small-business-loan-agent
         ports:
         - containerPort: 8080
           name: api

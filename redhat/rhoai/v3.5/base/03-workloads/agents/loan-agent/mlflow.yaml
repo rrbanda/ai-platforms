@@ -1,0 +1,152 @@
+# Standalone MLflow server for the loan-agent namespace.
+# Uses file-based artifact storage (no S3/MinIO credentials needed).
+# Clients receive mlflow-artifacts:// URIs that are proxied through the server,
+# so no artifact credentials are required in the agent pod.
+# Access is internal-only (ClusterIP); no auth configured.
+# NOTE: Labels use app=mlflow (not app=loan-agent) so the existing NetworkPolicies
+# that select app=loan-agent do not isolate this pod's ingress.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loan-agent-mlflow
+  namespace: loan-agent
+---
+# anyuid SCC — ghcr.io/mlflow/mlflow runs as root
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: loan-agent-mlflow-anyuid
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+- kind: ServiceAccount
+  name: loan-agent-mlflow
+  namespace: loan-agent
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loan-agent-mlflow-data
+  namespace: loan-agent
+  labels:
+    app: mlflow
+    app.kubernetes.io/part-of: loan-agent
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: loan-agent
+  labels:
+    app: mlflow
+    app.kubernetes.io/part-of: loan-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mlflow
+        app.kubernetes.io/part-of: loan-agent
+    spec:
+      serviceAccountName: loan-agent-mlflow
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:latest
+        imagePullPolicy: Always
+        command:
+        - mlflow
+        - server
+        - --backend-store-uri
+        - sqlite:///mlflow/mlflow.db
+        - --default-artifact-root
+        - mlflow-artifacts:/
+        - --artifacts-destination
+        - /mlflow/artifacts
+        - --host
+        - 0.0.0.0
+        - --port
+        - "5000"
+        - --workers
+        - "1"
+        - --allowed-hosts
+        - "*"
+        ports:
+        - name: http
+          containerPort: 5000
+        env:
+        - name: MLFLOW_SERVER_DISABLE_SECURITY_MIDDLEWARE
+          value: "true"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+        volumeMounts:
+        - name: data
+          mountPath: /mlflow
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 30
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: loan-agent-mlflow-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: loan-agent
+  labels:
+    app: mlflow
+    app.kubernetes.io/part-of: loan-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: mlflow
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mlflow
+  namespace: loan-agent
+  labels:
+    app: mlflow
+    app.kubernetes.io/part-of: loan-agent
+spec:
+  to:
+    kind: Service
+    name: mlflow
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

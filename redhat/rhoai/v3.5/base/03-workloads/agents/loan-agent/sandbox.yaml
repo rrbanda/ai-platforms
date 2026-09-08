@@ -79,8 +79,10 @@ spec:
           value: loan-agent-loan-agent.apps.ocp.qn6c5.sandbox1388.opentlc.com
         - name: AGENT_VERSION
           value: 1.0.0
-        # MLFLOW_TRACKING_URI: set to the RHOAI MLflow URL with a MLFLOW_TRACKING_TOKEN
-        # to enable tracing. Tracing is disabled until the token secret is provisioned.
+        - name: MLFLOW_TRACKING_URI
+          value: http://mlflow.loan-agent.svc.cluster.local:5000
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: loan-agent-demo
         ports:
         - containerPort: 8080
           name: api

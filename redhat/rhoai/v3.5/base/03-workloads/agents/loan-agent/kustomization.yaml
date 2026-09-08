@@ -6,6 +6,7 @@ namespace: loan-agent
 resources:
   - namespace.yaml
   - serviceaccount.yaml
+  - mlflow.yaml
   - sandbox.yaml
   - startup.yaml
   - service.yaml

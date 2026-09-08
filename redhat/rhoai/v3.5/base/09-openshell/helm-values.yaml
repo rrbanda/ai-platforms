@@ -1,6 +1,6 @@
 # OpenShell Helm values -- OpenShift base defaults.
 # mTLS is the default; access via port-forward or ingress.
-# Ref: OpenShell on OpenShift quick reference.
+# Ref: OpenShell on OpenShell quick reference.
 podSecurityContext:
   fsGroup: null
 
@@ -10,9 +10,12 @@ securityContext:
 server:
   auth:
     allowUnauthenticatedUsers: true
-  # Operator mode: each workspace maps 1:1 to a pre-existing namespace.
-  # Requires chart v0.0.116+ for full workspace auto-creation from namespaces.
-  drivers:
-    kubernetes:
-      workspaceMode: operator
-      operatorNamespaceLabel: "openshell.dev/managed-by=gateway"
+  # NOTE: Operator workspace mode (auto-creating workspaces from labeled
+  # namespaces) is not yet implemented in the gateway — even in v0.0.116.
+  # RFC 0011 describes it as planned. Using shared mode for now.
+  # When a future version supports it, change to:
+  #   drivers:
+  #     kubernetes:
+  #       workspaceMode: operator
+  #       operatorNamespaceLabel: "openshell.dev/managed-by=gateway"
+  # The namespace labels and sandbox labels are already in place.

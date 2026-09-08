@@ -54,17 +54,6 @@ network_policies:
     binaries:
       - path: /opt/openshell/bin/openshell-sandbox
 
-  mlflow_tracking:
-    name: MLflow tracking server (amortized namespace)
-    endpoints:
-      - host: mlflow.amortized.svc.cluster.local
-        port: 5000
-        protocol: rest
-        enforcement: enforce
-        access: full
-    binaries:
-      - path: /opt/app-root/bin/python3.12
-
   cluster_dns:
     name: Cluster DNS
     endpoints:

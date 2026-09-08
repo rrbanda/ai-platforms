@@ -35,7 +35,7 @@ spec:
             - "--backend-store-uri"
             - "sqlite:///mlflow/mlflow.db"
             - "--default-artifact-root"
-            - "mlflow-artifacts:/"
+            - "s3://amortized/mlflow/"
             - "--artifacts-destination"
             - "s3://amortized/mlflow/"
             - "--host"

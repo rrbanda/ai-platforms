@@ -1,0 +1,41 @@
+# Reencrypt Route for MLflow Tracking Server in redhat-ods-applications.
+#
+# Why reencrypt? The MLflow service uses TLS internally (port 8443 with a
+# service-serving certificate). A passthrough route preserves the service's
+# self-signed TLS certificate, which the OpenShell proxy cannot validate
+# during its CONNECT tunnel. An edge route strips TLS but cannot re-encrypt
+# to the backend's 8443 port. A reencrypt route handles both sides: the
+# router presents a trusted certificate to clients and re-encrypts to the
+# backend using the service CA.
+#
+# The destinationCACertificate is populated from the cluster's
+# openshift-service-ca signing-cabundle ConfigMap at apply time.
+# To retrieve it:
+#   oc get configmap -n openshift-service-ca signing-cabundle \
+#     -o jsonpath='{.data.ca-bundle\.crt}'
+#
+# NOTE: This Route is created in the opencode-vertex-tracing namespace
+# but targets the MLflow service in redhat-ods-applications. Because
+# cross-namespace service references are not supported, this route must
+# be applied directly to the redhat-ods-applications namespace. It is
+# included here for documentation; ArgoCD will apply it to the correct
+# namespace via the kustomization overlay or the operator may already
+# expose this route.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mlflow
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/part-of: opencode-vertex-tracing
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  to:
+    kind: Service
+    name: mlflow
+  port:
+    targetPort: 8443
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect

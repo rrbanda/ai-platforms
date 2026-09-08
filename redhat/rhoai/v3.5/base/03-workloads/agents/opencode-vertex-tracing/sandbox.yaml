@@ -1,0 +1,220 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: opencode-vertex-tracing
+  labels:
+    app: opencode-vertex-tracing
+    app.kubernetes.io/name: opencode-vertex-tracing
+    app.kubernetes.io/part-of: opencode-vertex-tracing
+    openshell.dev/managed-by: gateway
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+spec:
+  operatingMode: Running
+  podTemplate:
+    metadata:
+      labels:
+        app: opencode-vertex-tracing
+    spec:
+      containers:
+      - name: agent
+        image: ghcr.io/anomalyco/opencode:latest
+        imagePullPolicy: Always
+        command:
+        - bash
+        - /mnt/startup/startup.sh
+        workingDir: /sandbox
+        env:
+        - name: OPENSHELL_SANDBOX
+          value: opencode-vertex-tracing
+        - name: OPENSHELL_ENDPOINT
+          value: https://openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA
+          value: /etc/openshell-tls/ca.crt
+        - name: OPENSHELL_TLS_CERT
+          value: /etc/openshell-tls/tls.crt
+        - name: OPENSHELL_TLS_KEY
+          value: /etc/openshell-tls/tls.key
+        - name: OPENSHELL_POLICY_RULES
+          value: /etc/openshell/sandbox-policy.rego
+        - name: OPENSHELL_POLICY_DATA
+          value: /etc/openshell/policy.yaml
+        - name: OPENSHELL_TELEMETRY_ENABLED
+          value: 'true'
+        - name: RUST_LOG
+          value: debug
+        - name: OPENSHELL_SSH_SOCKET_PATH
+          value: /run/openshell/ssh.sock
+        - name: OPENSHELL_SANDBOX_UID
+          value: '1001310000'
+        - name: OPENSHELL_SANDBOX_GID
+          value: '1001310000'
+        - name: HOME
+          value: /sandbox
+        - name: PATH
+          value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: '0'
+        - name: MAAS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: opencode-vertex-auth
+              key: maas-api-key
+        - name: MAAS_SSL_VERIFY
+          value: 'false'
+        - name: JIRA_URL
+          value: https://redhat.atlassian.net
+        - name: JIRA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: opencode-vertex-auth
+              key: jira-username
+        - name: JIRA_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: opencode-vertex-auth
+              key: jira-api-token
+        - name: MLFLOW_TRACKING_URI
+          value: https://mlflow-redhat-ods-applications.apps.ocp.qn6c5.sandbox1388.opentlc.com
+        - name: MLFLOW_TRACKING_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: opencode-vertex-auth
+              key: mlflow-tracking-token
+        - name: MLFLOW_EXPERIMENT_NAME
+          value: opencode-vertex-demo
+        - name: MLFLOW_WORKSPACE
+          value: default
+        - name: MLFLOW_TRACKING_INSECURE_TLS
+          value: 'true'
+        ports:
+        - containerPort: 4096
+          name: http
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 4096
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 4096
+          initialDelaySeconds: 60
+          periodSeconds: 120
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        securityContext:
+          runAsUser: 0
+          appArmorProfile:
+            type: Unconfined
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - NET_ADMIN
+            - SYS_PTRACE
+            - SYSLOG
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+          readOnly: true
+        - mountPath: /etc/openshell
+          name: openshell-policy
+          readOnly: true
+        - mountPath: /etc/openshell-tls
+          name: openshell-client-tls
+          readOnly: true
+        - mountPath: /mnt/startup
+          name: startup
+        - mountPath: /sandbox/opencode.json
+          name: opencode-config
+          subPath: opencode.json
+          readOnly: true
+        - mountPath: /sandbox/node_modules
+          name: mlflow-plugin
+          subPath: node_modules
+        - mountPath: /sandbox/data
+          name: state-data
+      initContainers:
+      - name: openshell-supervisor-install
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
+        imagePullPolicy: IfNotPresent
+        command:
+        - /openshell-sandbox
+        - copy-self
+        - /opt/openshell/bin/openshell-sandbox
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/openshell/bin
+          name: openshell-supervisor-bin
+      - name: install-mlflow-plugin
+        image: ghcr.io/anomalyco/opencode:latest
+        imagePullPolicy: Always
+        command: ["sh", "-c"]
+        args:
+        - |
+          cd /plugin-workspace
+          npm init -y > /dev/null 2>&1
+          npm install @mlflow/opencode
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /plugin-workspace
+          name: mlflow-plugin
+      securityContext:
+        fsGroup: 1001310000
+      serviceAccountName: openshell-sandbox
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 300
+      - effect: NoSchedule
+        key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - effect: NoSchedule
+        key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      volumes:
+      - name: openshell-supervisor-bin
+        emptyDir: {}
+      - name: openshell-client-tls
+        secret:
+          secretName: openshell-client-tls
+      - name: openshell-policy
+        configMap:
+          name: opencode-vertex-openshell-policy
+      - name: startup
+        configMap:
+          name: opencode-vertex-startup
+          defaultMode: 493
+      - name: opencode-config
+        configMap:
+          name: opencode-vertex-config
+      - name: mlflow-plugin
+        emptyDir: {}
+      - name: state-data
+        persistentVolumeClaim:
+          claimName: opencode-vertex-state
+  volumeClaimTemplates:
+  - metadata:
+      name: state-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi

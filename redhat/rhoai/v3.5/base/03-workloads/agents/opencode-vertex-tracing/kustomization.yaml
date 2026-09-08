@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: opencode-vertex-tracing
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - sandbox.yaml
+  - startup.yaml
+  - opencode-config.yaml
+  - service.yaml
+  - route.yaml
+  - sealed-opencode-vertex-auth.yaml
+  - sealed-openshell-client-tls.yaml
+
+configMapGenerator:
+- name: opencode-vertex-openshell-policy
+  files:
+  - sandbox-policy.rego
+  - policy.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-vertex-config
+  labels:
+    app.kubernetes.io/part-of: opencode-vertex-tracing
+data:
+  opencode.json: |
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "plugin": ["@mlflow/opencode"],
+      "provider": {
+        "maas": {
+          "npm": "@ai-sdk/openai-compatible",
+          "name": "MaaS Gateway",
+          "env": ["MAAS_API_KEY"],
+          "options": {
+            "baseURL": "https://maas.apps.ocp.qn6c5.sandbox1388.opentlc.com/v1",
+            "headers": {
+              "X-MaaS-Subscription": "gemini-external-standard"
+            }
+          },
+          "models": {
+            "gemini-2.5-flash": {
+              "name": "Gemini 2.5 Flash",
+              "limit": { "context": 1048576, "output": 8192 }
+            },
+            "gemini-2.5-pro": {
+              "name": "Gemini 2.5 Pro",
+              "limit": { "context": 1048576, "output": 8192 }
+            },
+            "gemini-3.5-flash": {
+              "name": "Gemini 3.5 Flash",
+              "limit": { "context": 1048576, "output": 8192 }
+            }
+          }
+        }
+      },
+      "model": "maas/gemini-2.5-flash",
+      "mcp": {
+        "jira": {
+          "type": "local",
+          "command": ["uv", "tool", "run", "mcp-atlassian"],
+          "enabled": true
+        }
+      }
+    }

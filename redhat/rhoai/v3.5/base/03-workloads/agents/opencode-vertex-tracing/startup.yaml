@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-vertex-startup
+  labels:
+    app.kubernetes.io/part-of: opencode-vertex-tracing
+data:
+  startup.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd /sandbox
+    mkdir -p /sandbox/data
+
+    exec opencode serve --port 4096 --hostname 0.0.0.0

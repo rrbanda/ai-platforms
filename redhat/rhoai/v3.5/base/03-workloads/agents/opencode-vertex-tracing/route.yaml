@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: opencode-vertex-tracing
+  labels:
+    app: opencode-vertex-tracing
+    app.kubernetes.io/part-of: opencode-vertex-tracing
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+spec:
+  to:
+    kind: Service
+    name: opencode-vertex-tracing-api
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

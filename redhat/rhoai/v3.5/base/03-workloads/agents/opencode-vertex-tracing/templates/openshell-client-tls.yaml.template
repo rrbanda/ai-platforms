@@ -1,0 +1,42 @@
+# Plain-text template — NEVER commit this file with real values.
+# Run the commands below to produce sealed-openshell-client-tls.yaml, then commit that.
+#
+# The OpenShell gateway issues mTLS client certificates. Extract them from
+# the running gateway pod or generate them using openshell CLI:
+#
+# Option A — extract from the running gateway:
+#   oc -n openshell exec deploy/openshell -- cat /etc/openshell/tls/ca.crt > /tmp/ca.crt
+#   oc -n openshell exec deploy/openshell -- cat /etc/openshell/tls/tls.crt > /tmp/tls.crt
+#   oc -n openshell exec deploy/openshell -- cat /etc/openshell/tls/tls.key > /tmp/tls.key
+#
+# Option B — use openshell CLI to generate:
+#   openshell gateway certs --output /tmp/openshell-certs
+#
+# Then seal:
+#   kubeseal --fetch-cert \
+#     --controller-namespace sealed-secrets \
+#     --controller-name sealed-secrets-controller \
+#     > /tmp/ss-cert.pem
+#
+#   kubectl create secret tls openshell-client-tls \
+#     --namespace opencode-vertex-tracing \
+#     --cert=/tmp/tls.crt \
+#     --key=/tmp/tls.key \
+#     --dry-run=client -o yaml \
+#   | kubectl patch -f - --local --type=json \
+#     -p '[{"op":"add","path":"/data/ca.crt","value":"'$(base64 < /tmp/ca.crt | tr -d '\n')'"}]' \
+#     -o yaml \
+#   | kubeseal --cert /tmp/ss-cert.pem --format yaml \
+#     > ../sealed-openshell-client-tls.yaml
+#
+#   rm /tmp/ss-cert.pem /tmp/ca.crt /tmp/tls.crt /tmp/tls.key
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openshell-client-tls
+  namespace: opencode-vertex-tracing
+type: kubernetes.io/tls
+data:
+  ca.crt: REPLACE_WITH_BASE64_CA_CRT
+  tls.crt: REPLACE_WITH_BASE64_TLS_CRT
+  tls.key: REPLACE_WITH_BASE64_TLS_KEY

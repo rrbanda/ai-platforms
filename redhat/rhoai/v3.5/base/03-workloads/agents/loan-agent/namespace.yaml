@@ -3,6 +3,7 @@ kind: Namespace
 metadata:
   name: loan-agent
   labels:
+    openshell.dev/managed-by: gateway
     app.kubernetes.io/part-of: loan-agent
     pod-security.kubernetes.io/audit: privileged
     pod-security.kubernetes.io/audit-version: latest

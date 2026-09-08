@@ -16,3 +16,4 @@ server:
   drivers:
     kubernetes:
       workspaceMode: operator
+      operatorNamespaceLabel: "openshell.dev/managed-by=gateway"

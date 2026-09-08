@@ -3,19 +3,18 @@ kind: Sandbox
 metadata:
   name: pr-review-bot
   labels:
-    openshell.dev/managed-by: gateway
     app: pr-review-bot
     app.kubernetes.io/name: pr-review-bot
     app.kubernetes.io/part-of: pr-review-bot
+    openshell.dev/managed-by: gateway
   annotations:
     argocd.argoproj.io/sync-options: Replace=true
     agenthive.io/github-mcp: sealed
-    agenthive.io/dashboard-password-rev: "2026-08-24-shared"
+    agenthive.io/dashboard-password-rev: 2026-08-24-shared
 spec:
   podTemplate:
     metadata:
       labels:
-    openshell.dev/managed-by: gateway
         app: pr-review-bot
     spec:
       containers:
@@ -41,13 +40,13 @@ spec:
         - name: OPENSHELL_POLICY_DATA
           value: /etc/openshell/policy.yaml
         - name: OPENSHELL_TELEMETRY_ENABLED
-          value: "true"
+          value: 'true'
         - name: OPENSHELL_SSH_SOCKET_PATH
           value: /run/openshell/ssh.sock
         - name: OPENSHELL_SANDBOX_UID
-          value: "1001310000"
+          value: '1001310000'
         - name: OPENSHELL_SANDBOX_GID
-          value: "1001310000"
+          value: '1001310000'
         - name: HOME
           value: /sandbox
         - name: HERMES_HOME
@@ -73,7 +72,7 @@ spec:
         - name: GITOPS_REPO
           value: rrbanda/ai-platforms
         - name: COMPLIANCE_WINDOWS
-          value: "30,60,90"
+          value: 30,60,90
         - name: ESCALATION_WEBHOOK_URL
           valueFrom:
             secretKeyRef:
@@ -90,13 +89,13 @@ spec:
         - name: HERMES_DASHBOARD_HOST
           value: 0.0.0.0
         - name: HERMES_DASHBOARD_PORT
-          value: "9119"
+          value: '9119'
         - name: API_SERVER_ENABLED
-          value: "true"
+          value: 'true'
         - name: API_SERVER_HOST
           value: 0.0.0.0
         - name: API_SERVER_PORT
-          value: "8642"
+          value: '8642'
         - name: API_SERVER_MODEL_NAME
           value: pr-review-bot
         - name: API_SERVER_KEY
@@ -123,7 +122,7 @@ spec:
             cpu: 250m
             memory: 512Mi
           limits:
-            cpu: "2"
+            cpu: '2'
             memory: 2Gi
         securityContext:
           runAsUser: 0
@@ -165,7 +164,7 @@ spec:
           name: skill-release-handover-report
       initContainers:
       - name: openshell-supervisor-install
-        image: ghcr.io/nvidia/openshell/supervisor:0.0.116
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
         imagePullPolicy: IfNotPresent
         command:
         - /openshell-sandbox
@@ -182,11 +181,9 @@ spec:
         command:
         - sh
         - -c
-        - |
-          if [ ! -f /workspace-pvc/.workspace-initialized ]; then
-            [ -d /sandbox ] && tar -C /sandbox -cf - . | tar -C /workspace-pvc -xpf -
-            touch /workspace-pvc/.workspace-initialized
-          fi
+        - "if [ ! -f /workspace-pvc/.workspace-initialized ]; then\n  [ -d /sandbox\
+          \ ] && tar -C /sandbox -cf - . | tar -C /workspace-pvc -xpf -\n  touch /workspace-pvc/.workspace-initialized\n\
+          fi\n"
         securityContext:
           runAsUser: 0
         volumeMounts:

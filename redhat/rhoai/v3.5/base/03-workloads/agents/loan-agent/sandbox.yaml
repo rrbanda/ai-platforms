@@ -3,10 +3,10 @@ kind: Sandbox
 metadata:
   name: loan-agent
   labels:
-    openshell.dev/managed-by: gateway
     app: loan-agent
     app.kubernetes.io/name: loan-agent
     app.kubernetes.io/part-of: loan-agent
+    openshell.dev/managed-by: gateway
   annotations:
     argocd.argoproj.io/sync-options: Replace=true
 spec:
@@ -14,20 +14,16 @@ spec:
   podTemplate:
     metadata:
       labels:
-    openshell.dev/managed-by: gateway
         app: loan-agent
     spec:
       containers:
       - name: agent
-        # Built from mortgage/Containerfile and pushed to the internal registry.
-        # Push: podman push default-route-openshift-image-registry.apps.ocp.qn6c5.sandbox1388.opentlc.com/loan-agent/small-business-loan-agent:latest
         image: image-registry.openshift-image-registry.svc:5000/loan-agent/small-business-loan-agent:latest
         imagePullPolicy: Always
         command:
         - bash
         - /mnt/startup/startup.sh
         env:
-        # ── OpenShell sandbox env (required by supervisor) ──────────────────
         - name: OPENSHELL_SANDBOX
           value: loan-agent
         - name: OPENSHELL_ENDPOINT
@@ -43,20 +39,19 @@ spec:
         - name: OPENSHELL_POLICY_DATA
           value: /etc/openshell/policy.yaml
         - name: OPENSHELL_TELEMETRY_ENABLED
-          value: "true"
+          value: 'true'
         - name: RUST_LOG
           value: debug
         - name: OPENSHELL_SSH_SOCKET_PATH
           value: /run/openshell/ssh.sock
         - name: OPENSHELL_SANDBOX_UID
-          value: "1001310000"
+          value: '1001310000'
         - name: OPENSHELL_SANDBOX_GID
-          value: "1001310000"
+          value: '1001310000'
         - name: HOME
           value: /app
         - name: PATH
           value: /opt/app-root/bin:/usr/local/bin:/usr/bin:/bin
-        # ── MaaS model backend ───────────────────────────────────────────────
         - name: MAAS_BASE_URL
           value: https://maas.apps.ocp.qn6c5.sandbox1388.opentlc.com
         - name: MAAS_API_KEY
@@ -67,16 +62,13 @@ spec:
         - name: MODEL_NAME
           value: gemini-2.5-flash
         - name: MAAS_SSL_VERIFY
-          value: "false"
-        # ── AutoRAG (OGX) vector store for eligibility rules ─────────────────
-        # Internal cluster URL — no external Route needed from within the pod
+          value: 'false'
         - name: AUTORAG_BASE_URL
           value: http://autorag-ogx-service.autorag.svc.cluster.local:8321
         - name: AUTORAG_VECTOR_STORE_ID
-          value: "vs_23c69157-2907-4576-8fe0-dc491de89d14"
+          value: vs_23c69157-2907-4576-8fe0-dc491de89d14
         - name: AUTORAG_SSL_VERIFY
-          value: "false"
-        # ── Agent settings ───────────────────────────────────────────────────
+          value: 'false'
         - name: STATE_DB_PATH
           value: /app/data/state.db
         - name: BANK_NAME
@@ -86,7 +78,7 @@ spec:
         - name: AGENT_HOST
           value: loan-agent-loan-agent.apps.ocp.qn6c5.sandbox1388.opentlc.com
         - name: AGENT_VERSION
-          value: "1.0.0"
+          value: 1.0.0
         ports:
         - containerPort: 8080
           name: api
@@ -110,7 +102,7 @@ spec:
             cpu: 250m
             memory: 512Mi
           limits:
-            cpu: "2"
+            cpu: '2'
             memory: 2Gi
         securityContext:
           runAsUser: 0
@@ -138,7 +130,7 @@ spec:
           name: state-data
       initContainers:
       - name: openshell-supervisor-install
-        image: ghcr.io/nvidia/openshell/supervisor:0.0.116
+        image: ghcr.io/nvidia/openshell/supervisor:0.0.111
         imagePullPolicy: IfNotPresent
         command:
         - /openshell-sandbox

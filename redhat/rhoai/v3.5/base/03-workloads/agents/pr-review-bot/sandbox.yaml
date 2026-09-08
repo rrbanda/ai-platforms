@@ -3,6 +3,7 @@ kind: Sandbox
 metadata:
   name: pr-review-bot
   labels:
+    openshell.dev/managed-by: gateway
     app: pr-review-bot
     app.kubernetes.io/name: pr-review-bot
     app.kubernetes.io/part-of: pr-review-bot
@@ -14,6 +15,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: pr-review-bot
     spec:
       containers:

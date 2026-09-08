@@ -3,6 +3,7 @@ kind: Sandbox
 metadata:
   name: ocp-virt-migration-agent
   labels:
+    openshell.dev/managed-by: gateway
     app: ocp-virt-migration-agent
     app.kubernetes.io/name: ocp-virt-migration-agent
     app.kubernetes.io/part-of: ocp-virt-migration-agent
@@ -12,6 +13,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: ocp-virt-migration-agent
     spec:
       containers:

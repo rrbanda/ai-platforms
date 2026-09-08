@@ -3,6 +3,7 @@ kind: Sandbox
 metadata:
   name: rfp-agent
   labels:
+    openshell.dev/managed-by: gateway
     app: rfp-agent
     app.kubernetes.io/name: rfp-agent
     app.kubernetes.io/part-of: rfp-agent
@@ -13,6 +14,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: rfp-agent
     spec:
       containers:

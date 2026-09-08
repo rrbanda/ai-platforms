@@ -3,6 +3,7 @@ kind: Sandbox
 metadata:
   name: stale-image-finder
   labels:
+    openshell.dev/managed-by: gateway
     app: stale-image-finder
     app.kubernetes.io/name: stale-image-finder
     app.kubernetes.io/part-of: stale-image-finder
@@ -14,6 +15,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: stale-image-finder
     spec:
       containers:

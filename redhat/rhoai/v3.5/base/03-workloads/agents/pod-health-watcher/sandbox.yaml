@@ -3,6 +3,7 @@ kind: Sandbox
 metadata:
   name: pod-health-watcher
   labels:
+    openshell.dev/managed-by: gateway
     app: pod-health-watcher
     app.kubernetes.io/name: pod-health-watcher
     app.kubernetes.io/part-of: pod-health-watcher
@@ -13,6 +14,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: pod-health-watcher
     spec:
       containers:

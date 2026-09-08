@@ -2,6 +2,7 @@ apiVersion: agents.x-k8s.io/v1beta1
 kind: Sandbox
 metadata:
   labels:
+    openshell.dev/managed-by: gateway
     app: rhoai-copilot
     app.kubernetes.io/name: rhoai-copilot
     app.kubernetes.io/part-of: rhoai-copilot
@@ -13,6 +14,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: rhoai-copilot
     spec:
       containers:

@@ -3,6 +3,7 @@ kind: Sandbox
 metadata:
   name: loan-agent
   labels:
+    openshell.dev/managed-by: gateway
     app: loan-agent
     app.kubernetes.io/name: loan-agent
     app.kubernetes.io/part-of: loan-agent
@@ -13,6 +14,7 @@ spec:
   podTemplate:
     metadata:
       labels:
+    openshell.dev/managed-by: gateway
         app: loan-agent
     spec:
       containers:

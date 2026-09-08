@@ -16,7 +16,8 @@ resources:
   - sealed-open-webui-admin.yaml
   - agents-config.yaml
   - seed-script-configmap.yaml
-  - seed-agent-models-job.yaml
+  # seed-agent-models-job.yaml -- disabled: needs working admin auth to create workspace models
+  # - seed-agent-models-job.yaml
 
 configMapGenerator:
 - name: open-webui-functions

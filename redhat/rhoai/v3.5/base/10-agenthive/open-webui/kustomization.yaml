@@ -10,7 +10,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - route.yaml
-  - functions-import-job.yaml
+  # functions-import-job.yaml -- disabled: needs matching admin credentials
+  # - functions-import-job.yaml
   - sealed-open-webui-providers.yaml
   - sealed-open-webui-oidc.yaml
   - sealed-open-webui-admin.yaml

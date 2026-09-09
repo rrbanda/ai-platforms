@@ -71,12 +71,14 @@ data:
     hermes gateway run > /tmp/hermes-gateway.log 2>&1 &
     sleep 5
 
-    CRON_PROMPT='Run pod-health-watcher. Collapse duplicate Jobs. Write /sandbox/output/health/latest.md with the file-write tool. Never execute_code for reports. Do not [SILENT] if degraded.'
-    echo "Registering repeating every-5-min pod health cron"
-    hermes cron remove pod-health-scan 2>/dev/null || true
-    hermes cron create --name "pod-health-scan" --skill pod-health-watcher --continuity \
-      "every 5m" "$CRON_PROMPT" \
-      2>&1 || echo "WARN: cron create failed; agent can register it on first session"
+    # --- Cron disabled to stop token consumption (re-enable when ready) ---
+    # CRON_PROMPT='Run pod-health-watcher. Collapse duplicate Jobs. Write /sandbox/output/health/latest.md with the file-write tool. Never execute_code for reports. Do not [SILENT] if degraded.'
+    # echo "Registering repeating every-5-min pod health cron"
+    # hermes cron remove pod-health-scan 2>/dev/null || true
+    # hermes cron create --name "pod-health-scan" --skill pod-health-watcher --continuity \
+    #   "every 5m" "$CRON_PROMPT" \
+    #   2>&1 || echo "WARN: cron create failed; agent can register it on first session"
+    echo "NOTICE: Cron job registration is disabled. Run 'hermes cron create' manually to re-enable."
 
     echo "=== Starting Hermes dashboard ==="
     exec hermes dashboard \

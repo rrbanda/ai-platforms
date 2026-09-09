@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-agent-config
+  labels:
+    app.kubernetes.io/part-of: demo-agent
+data:
+  config.yaml: |
+    model:
+      default: "gemini-2.5-pro"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+      provider: custom
+      api_key: "${OPENAI_API_KEY}"
+    gateway:
+      enabled: false
+    tools:
+      code_execution:
+        enabled: "on"
+        backend: local
+      file_operations:
+        enabled: "on"
+      web_search:
+        enabled: "off"
+      browser:
+        enabled: "off"
+    toolsets:
+      skills: true
+      memory: true
+      session_search: true
+      delegation: true
+      cronjob: false
+      kanban: false
+    skills:
+      enabled: true
+      directory: /sandbox/.hermes/skills
+    display:
+      skin:
+        branding:
+          agent_name: "Demo Agent"
+          welcome: "General-purpose assistant powered by Gemini 3.7 Flash via MaaS."
+          response_label: "Demo Agent"
+    dashboard:
+      title: "Demo Agent"
+      subtitle: "BYOA Pattern B on RHOAI 3.5"

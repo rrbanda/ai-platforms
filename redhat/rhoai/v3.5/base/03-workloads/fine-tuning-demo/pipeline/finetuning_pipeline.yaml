@@ -12,13 +12,13 @@ spec:
 apiVersion: pipelines.kubeflow.org/v2beta1
 kind: PipelineVersion
 metadata:
-  name: v6
+  name: v10
   namespace: fine-tuning-demo
 spec:
   description: 7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom
     techniques. Includes data quality filter, distributed training, benchmark evaluation
     via EvalHub + MLflow, holdout evaluation, and model registry with full provenance.
-  displayName: v6
+  displayName: v10
   pipelineName: finetuning-pipeline
   pipelineSpec:
     components:
@@ -782,7 +782,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'sdg-hub>=0.7.0,<1.0' 'requests' 'mlflow>=2.0'  &&  python3 -m pip\
-              \ install --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps'\
+              \ install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps'\
               \ 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"\
               $@\"\n"
             - sh
@@ -1060,7 +1060,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'datasets>=2.14.0' 'huggingface-hub>=0.20.0' 's3fs>=2023.1.0'  &&\
-              \  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.17.0'\
+              \  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1'\
               \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'\
               \ && \"$0\" \"$@\"\n"
             - sh
@@ -1341,7 +1341,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'mlflow>=2.12.0'  &&  python3 -m pip install --quiet --no-warn-script-location\
-              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -1434,7 +1434,7 @@ spec:
               \ --index-url https://pypi.org/simple --trusted-host https://pypi.org/simple\
               \ 'requests'  &&  python3 -m pip install --quiet --no-warn-script-location\
               \ --index-url https://pypi.org/simple --trusted-host https://pypi.org/simple\
-              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -1849,7 +1849,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'model-registry>=0.3.6'  &&  python3 -m pip install --quiet --no-warn-script-location\
-              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -2025,7 +2025,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'kubernetes' 'olot' 'matplotlib'  &&  python3 -m pip install --quiet\
-              \ --no-warn-script-location 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+              \ --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
               \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -2252,7 +2252,7 @@ spec:
               \ || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'unitxt' 'transformers' 'mlflow>=2.0'  &&  python3 -m pip install\
-              \ --quiet --no-warn-script-location 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+              \ --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
               \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -2445,7 +2445,7 @@ spec:
               \nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location\
               \ 'lm-eval[vllm]' 'unitxt' 'sacrebleu' 'rouge-score' 'datasets' 'accelerate'\
               \ 'torch' 'transformers'  &&  python3 -m pip install --quiet --no-warn-script-location\
-              \ 'kfp==2.17.0' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+              \ 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
               3.9\"' && \"$0\" \"$@\"\n"
             - sh
             - -ec
@@ -3230,15 +3230,15 @@ spec:
             isOptional: true
             parameterType: STRING
           dataset_subset:
-            defaultValue: 5000.0
+            defaultValue: 10.0
             isOptional: true
             parameterType: NUMBER_INTEGER
           dataset_uri:
-            defaultValue: hf://b-mc2/sql-create-context
+            defaultValue: hf://HuggingFaceH4/no_robots
             isOptional: true
             parameterType: STRING
           effective_batch_size:
-            defaultValue: 128.0
+            defaultValue: 32.0
             isOptional: true
             parameterType: NUMBER_INTEGER
           enable_llm_judge:
@@ -3250,7 +3250,7 @@ spec:
             isOptional: true
             parameterType: STRING
           epochs:
-            defaultValue: 2.0
+            defaultValue: 1.0
             isOptional: true
             parameterType: NUMBER_INTEGER
           eval_cpu:
@@ -3262,7 +3262,7 @@ spec:
             isOptional: true
             parameterType: NUMBER_INTEGER
           eval_memory:
-            defaultValue: 32Gi
+            defaultValue: 16Gi
             isOptional: true
             parameterType: STRING
           eval_timeout:
@@ -3310,7 +3310,7 @@ spec:
             isOptional: true
             parameterType: STRING
           holdout_eval_limit:
-            defaultValue: 100.0
+            defaultValue: 5.0
             isOptional: true
             parameterType: NUMBER_INTEGER
           holdout_eval_tasks:
@@ -3383,15 +3383,15 @@ spec:
             isOptional: true
             parameterType: STRING
           max_seq_len:
-            defaultValue: 8192.0
+            defaultValue: 512.0
             isOptional: true
             parameterType: NUMBER_INTEGER
           max_tokens_per_gpu:
-            defaultValue: 32000.0
+            defaultValue: 8000.0
             isOptional: true
             parameterType: NUMBER_INTEGER
           memory_per_worker:
-            defaultValue: 32Gi
+            defaultValue: 24Gi
             isOptional: true
             parameterType: STRING
           min_eval_score:
@@ -3399,7 +3399,7 @@ spec:
             isOptional: true
             parameterType: NUMBER_DOUBLE
           mlflow_experiment:
-            defaultValue: finetuning-experiments
+            defaultValue: ''
             isOptional: true
             parameterType: STRING
           num_workers:
@@ -3467,7 +3467,7 @@ spec:
             isOptional: true
             parameterType: STRING
           run_name:
-            defaultValue: lora-qwen25-finetuning
+            defaultValue: lora-qwen25-demo
             isOptional: true
             parameterType: STRING
           seed:
@@ -3511,7 +3511,7 @@ spec:
             isOptional: true
             parameterType: BOOLEAN
     schemaVersion: 2.1.0
-    sdkVersion: kfp-2.17.0
+    sdkVersion: kfp-2.16.1
   platformSpec:
     platforms:
       kubernetes:

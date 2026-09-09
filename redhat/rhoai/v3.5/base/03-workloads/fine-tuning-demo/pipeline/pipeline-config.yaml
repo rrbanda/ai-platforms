@@ -1,131 +1,82 @@
-# Pipeline Configuration
-#
-# Authoritative source for compile-time and runtime defaults.
-# The pipeline Python source loads this file at compile time.
-# After editing, run: make pipeline
-#
-# Post-compile patches are applied by build_pipeline.py to fix
-# upstream component issues without forking pipelines-components.
-
-# =============================================================================
-# Container Images
-# =============================================================================
 images:
-  pipeline_base: "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"
-  training_base: "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"
-  quality_filter_base: "quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4"
-  eval_base: "registry.access.redhat.com/ubi9/python-311:latest"
-  # CUDA-capable image for holdout eval (has nvcc for vLLM JIT)
-  eval_cuda: "registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d"
-
-# =============================================================================
-# Package Dependencies
-# =============================================================================
+  pipeline_base: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+  training_base: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+  quality_filter_base: quay.io/opendatahub/odh-th06-cpu-torch291-py312:odh-3.4
+  eval_base: registry.access.redhat.com/ubi9/python-311:latest
+  eval_cuda: registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d
 packages:
   training:
-    - "kubernetes"
-    - "olot"
-    - "matplotlib"
+  - kubernetes
+  - olot
+  - matplotlib
   quality_filter:
-    - "sdg-hub>=0.7.0,<1.0"
-    - "requests"
+  - sdg-hub>=0.7.0,<1.0
+  - requests
   model_download:
-    - "huggingface_hub>=0.20.0"
-
-# =============================================================================
-# Pipeline Identity
-# =============================================================================
+  - huggingface_hub>=0.20.0
 pipeline:
-  name: "finetuning-pipeline"
-  version: "v6"
-  description: >-
-    7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom
-    techniques. Includes data quality filter, distributed training,
-    benchmark evaluation via EvalHub + MLflow, holdout evaluation,
-    and model registry with full provenance.
-
-# =============================================================================
-# Infrastructure
-# =============================================================================
+  name: finetuning-pipeline
+  version: v10
+  description: 7-phase fine-tuning pipeline supporting LoRA, SFT, OSFT, and custom
+    techniques. Includes data quality filter, distributed training, benchmark evaluation
+    via EvalHub + MLflow, holdout evaluation, and model registry with full provenance.
 infrastructure:
-  pvc_size: "50Gi"
-  pvc_storage_class: "nfs-csi"
+  pvc_size: 50Gi
+  pvc_storage_class: nfs-csi
   pvc_access_modes:
-    - "ReadWriteMany"
-  namespace: "fine-tuning-demo"
-
-# =============================================================================
-# Service Endpoints
-# =============================================================================
+  - ReadWriteMany
+  namespace: fine-tuning-demo
 services:
-  evalhub_url: "https://evalhub.redhat-ods-applications.svc.cluster.local:8443"
-  mlflow_experiment: "finetuning-experiments"
-  registry_address: "fine-tuning-demo.rhoai-model-registries.svc.cluster.local"
+  evalhub_url: https://evalhub.redhat-ods-applications.svc.cluster.local:8443
+  mlflow_experiment: ''
+  registry_address: fine-tuning-demo.rhoai-model-registries.svc.cluster.local
   registry_port: 8443
-
-# =============================================================================
-# Default Run Parameters
-# =============================================================================
 defaults:
-  technique: "lora"
-  base_model: "Qwen/Qwen2.5-1.5B-Instruct"
-  dataset_uri: "hf://b-mc2/sql-create-context"
-  dataset_subset: 5000
+  technique: lora
+  base_model: Qwen/Qwen2.5-1.5B-Instruct
+  dataset_uri: hf://HuggingFaceH4/no_robots
+  dataset_subset: 10
   train_split_ratio: 0.9
-  epochs: 2
+  epochs: 1
   learning_rate: 0.0002
-  effective_batch_size: 128
-  max_seq_len: 8192
-  max_tokens_per_gpu: 32000
+  effective_batch_size: 32
+  max_seq_len: 512
+  max_tokens_per_gpu: 8000
   gpu_per_worker: 1
   num_workers: 1
-  cpu_per_worker: "4"
-  memory_per_worker: "32Gi"
-  training_runtime: "training-hub"
+  cpu_per_worker: '4'
+  memory_per_worker: 24Gi
+  training_runtime: training-hub
   seed: 42
-  run_name: "lora-qwen25-finetuning"
-  registry_stage: "dev"
-
-# =============================================================================
-# Evaluation Defaults
-# =============================================================================
+  run_name: lora-qwen25-demo
+  registry_stage: dev
 evaluation:
   benchmarks:
-    - id: "leaderboard_ifeval"
-      provider_id: "lm_evaluation_harness"
-    - id: "leaderboard_bbh"
-      provider_id: "lm_evaluation_harness"
-    - id: "leaderboard_mmlu_pro"
-      provider_id: "lm_evaluation_harness"
-    - id: "leaderboard_musr"
-      provider_id: "lm_evaluation_harness"
-    - id: "leaderboard_math_hard"
-      provider_id: "lm_evaluation_harness"
-    - id: "truthfulqa_mc1"
-      provider_id: "lm_evaluation_harness"
-    - id: "toxigen"
-      provider_id: "lm_evaluation_harness"
-    - id: "ethics_cm"
-      provider_id: "lm_evaluation_harness"
+  - id: leaderboard_ifeval
+    provider_id: lm_evaluation_harness
+  - id: leaderboard_bbh
+    provider_id: lm_evaluation_harness
+  - id: leaderboard_mmlu_pro
+    provider_id: lm_evaluation_harness
+  - id: leaderboard_musr
+    provider_id: lm_evaluation_harness
+  - id: leaderboard_math_hard
+    provider_id: lm_evaluation_harness
+  - id: truthfulqa_mc1
+    provider_id: lm_evaluation_harness
+  - id: toxigen
+    provider_id: lm_evaluation_harness
+  - id: ethics_cm
+    provider_id: lm_evaluation_harness
   holdout_tasks:
-    - "arc_easy"
-  holdout_limit: 100
+  - arc_easy
+  holdout_limit: 5
   min_eval_score: 0.0
   timeout: 7200
   gpu_count: 1
-  cpu: "2"
-  memory: "32Gi"
-
-# =============================================================================
-# Post-Compile Patches
-#
-# Applied by build_pipeline.py after KFP compilation to fix upstream
-# component issues in pipelines-components without forking the repo.
-# =============================================================================
+  cpu: '2'
+  memory: 16Gi
 post_compile_patches:
-  # The pipelines-components eval component uses ubi9/python-311 which
-  # has no CUDA toolkit. Override with CUDA image for holdout eval.
-  eval_image_override: "registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d"
-  # Package version overrides for stale pins in upstream components
+  eval_image_override: registry.redhat.io/rhoai/odh-th-torch-cuda-py312-rhel9@sha256:884aeeb039f9592252fe0c518acf31803a208757d4fa6500fe79884a022ea52d
   package_overrides:
-    "model-registry==0.3.4": "model-registry>=0.3.6"
+    model-registry==0.3.4: model-registry>=0.3.6

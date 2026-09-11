@@ -19,6 +19,7 @@ spec:
     minio:
       deploy: true
       image: "quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z"
+      pvcSize: "200Gi"
   database:
     mariaDB:
       deploy: true

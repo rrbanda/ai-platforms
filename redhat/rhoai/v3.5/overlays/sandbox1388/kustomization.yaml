@@ -8,3 +8,4 @@ resources:
   - fine-tuning-demo/argocd-app.yaml
   - workloads/argocd-app.yaml
   - dashboard/argocd-app.yaml
+  - llm-d-demo/argocd-app.yaml

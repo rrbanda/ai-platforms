@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spark-data-ingestion
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: rhoai-workloads
+  source:
+    repoURL: https://github.com/rrbanda/ai-platforms.git
+    targetRevision: main
+    path: redhat/rhoai/v3.5/overlays/sandbox1388/spark-data-ingestion
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redhat-ods-applications
+  ignoreDifferences:
+    - group: sparkoperator.k8s.io
+      kind: SparkApplication
+      jsonPointers:
+        - /status
+        - /metadata/labels/kueue.x-k8s.io~1queue-name
+    - group: sparkoperator.k8s.io
+      kind: ScheduledSparkApplication
+      jsonPointers:
+        - /status
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /spec/selector
+        - /spec/template/metadata/labels
+  syncPolicy:
+    automated:
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true

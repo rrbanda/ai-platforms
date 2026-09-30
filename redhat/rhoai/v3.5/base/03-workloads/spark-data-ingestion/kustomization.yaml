@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Infrastructure
+  - input-pvc.yaml
+  - output-pvc.yaml
+  - event-logs-pvc.yaml
+  - schema-configmap.yaml
+  - app-configmap.yaml
+  - sample-data-configmap.yaml
+  # Data loading (runs once)
+  - data-loader-job.yaml
+  # Spark job variants (apply one at a time, or let ScheduledSparkApplication manage)
+  # - spark-data-ingestion.yaml            # Uncomment for single run
+  # - spark-data-ingestion-kueue.yaml      # Uncomment for Kueue-managed run
+  - scheduled-data-ingestion.yaml
+  # Observability
+  - spark-history-server.yaml

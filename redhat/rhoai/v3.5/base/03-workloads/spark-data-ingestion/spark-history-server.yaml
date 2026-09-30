@@ -1,0 +1,96 @@
+# Spark History Server — reads event logs from PVC for post-mortem analysis.
+#
+# Provides a web UI (port 18080) to inspect completed Spark job execution:
+# - Stage timeline, task distribution, shuffle metrics
+# - Executor utilization, GC time, memory usage
+# - SQL query plans and data scan statistics
+#
+# Exposed via an OpenShift Route with TLS edge termination.
+# The event-logs PVC is shared with SparkApplication jobs that write to it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-history-server
+  labels:
+    app: spark-history-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-history-server
+  template:
+    metadata:
+      labels:
+        app: spark-history-server
+    spec:
+      serviceAccountName: spark-operator-spark
+      securityContext: {}
+      containers:
+        - name: spark-history-server
+          image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+          command:
+            - /opt/spark/sbin/start-history-server.sh
+          env:
+            - name: SPARK_HISTORY_OPTS
+              value: >-
+                -Dspark.history.fs.logDirectory=file:///mnt/event-logs
+                -Dspark.history.ui.port=18080
+            - name: SPARK_NO_DAEMONIZE
+              value: "true"
+          ports:
+            - containerPort: 18080
+              name: http
+          securityContext: {}
+          volumeMounts:
+            - name: event-logs
+              mountPath: /mnt/event-logs
+              readOnly: true
+            - name: work-dir
+              mountPath: /opt/spark/work-dir
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: event-logs
+          persistentVolumeClaim:
+            claimName: spark-event-logs
+        - name: work-dir
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-history-server
+  labels:
+    app: spark-history-server
+spec:
+  selector:
+    app: spark-history-server
+  ports:
+    - port: 18080
+      targetPort: 18080
+      protocol: TCP
+      name: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: spark-history-server
+  labels:
+    app: spark-history-server
+spec:
+  to:
+    kind: Service
+    name: spark-history-server
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

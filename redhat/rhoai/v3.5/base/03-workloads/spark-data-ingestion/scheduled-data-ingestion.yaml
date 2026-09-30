@@ -1,0 +1,92 @@
+# ScheduledSparkApplication: Recurring Data Ingestion
+#
+# Kubernetes-native replacement for legacy job schedulers (e.g. AutoSys, Control-M).
+# The Spark Operator's ScheduledSparkApplication CRD provides:
+# - Cron-based scheduling via spec.schedule (standard cron syntax or @every)
+# - Concurrency control (Forbid = skip if previous run still active)
+# - Run history management (successfulRunHistoryLimit / failedRunHistoryLimit)
+# - Each run creates a child SparkApplication with a unique timestamped name
+#
+# This schedule runs the ingestion job every 5 minutes for demo purposes.
+# In production, adjust to match the batch landing frequency (e.g. @daily, 0 2 * * *).
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: ScheduledSparkApplication
+metadata:
+  name: scheduled-data-ingestion
+  labels:
+    app: spark-data-ingestion
+spec:
+  schedule: "@every 5m"
+  concurrencyPolicy: Forbid
+  successfulRunHistoryLimit: 3
+  failedRunHistoryLimit: 3
+  template:
+    type: Python
+    pythonVersion: "3"
+    mode: cluster
+    image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+    imagePullPolicy: IfNotPresent
+    mainApplicationFile: local:///mnt/app/data_ingestion.py
+    sparkVersion: "4.0.1"
+    timeToLiveSeconds: 300
+    sparkConf:
+      spark.eventLog.enabled: "true"
+      spark.eventLog.dir: "file:///mnt/event-logs"
+    restartPolicy:
+      type: Never
+    volumes:
+      - name: nas-input
+        persistentVolumeClaim:
+          claimName: nas-raw-data
+      - name: output
+        persistentVolumeClaim:
+          claimName: ingestion-output
+      - name: event-logs
+        persistentVolumeClaim:
+          claimName: spark-event-logs
+      - name: schema
+        configMap:
+          name: ingestion-schema
+      - name: app-code
+        configMap:
+          name: ingestion-app-code
+      - name: work-dir
+        emptyDir: {}
+    driver:
+      cores: 1
+      memory: "1024m"
+      serviceAccount: spark-operator-spark
+      securityContext: {}
+      env:
+        - name: INPUT_DIR
+          value: /mnt/nas-input
+        - name: OUTPUT_DIR
+          value: /mnt/output
+        - name: SCHEMA_PATH
+          value: /mnt/schema/schema.json
+      volumeMounts:
+        - name: nas-input
+          mountPath: /mnt/nas-input
+        - name: output
+          mountPath: /mnt/output
+        - name: event-logs
+          mountPath: /mnt/event-logs
+        - name: schema
+          mountPath: /mnt/schema
+        - name: app-code
+          mountPath: /mnt/app
+        - name: work-dir
+          mountPath: /opt/spark/work-dir
+    executor:
+      cores: 1
+      instances: 1
+      memory: "1024m"
+      securityContext: {}
+      volumeMounts:
+        - name: nas-input
+          mountPath: /mnt/nas-input
+          readOnly: true
+        - name: output
+          mountPath: /mnt/output
+        - name: work-dir
+          mountPath: /opt/spark/work-dir

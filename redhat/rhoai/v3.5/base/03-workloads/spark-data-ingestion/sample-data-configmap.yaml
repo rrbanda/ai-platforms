@@ -1,0 +1,102 @@
+# Sample data embedded as a ConfigMap for GitOps-compatible deployment.
+# A Kubernetes Job (data-loader-job.yaml) copies these files into the NAS PVC.
+# In production, this PVC would be a direct NAS mount — no data loading needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingestion-sample-data
+  labels:
+    app: spark-data-ingestion
+data:
+  generate_data.py: |
+    #!/usr/bin/env python3
+    """Generate synthetic data files inside the NAS PVC.
+    Runs as a one-shot Kubernetes Job during initial deployment."""
+    import csv, os, random
+    from datetime import datetime, timedelta
+
+    OUTPUT = os.environ.get("OUTPUT_DIR", "/mnt/nas-input")
+
+    def random_ssn():
+        return f"{random.randint(100,999)}-{random.randint(10,99)}-{random.randint(1000,9999)}"
+
+    def random_name():
+        first = random.choice(["James","Mary","John","Patricia","Robert","Jennifer",
+                               "Michael","Linda","David","Elizabeth","William","Barbara"])
+        last = random.choice(["Smith","Johnson","Williams","Brown","Jones","Garcia",
+                              "Miller","Davis","Rodriguez","Martinez","Wilson","Taylor"])
+        return f"{first} {last}"
+
+    def random_date(start_year=2024):
+        start = datetime(start_year, 1, 1)
+        return (start + timedelta(days=random.randint(0, 365))).strftime("%Y-%m-%d")
+
+    def gen_transactions(path, n=200):
+        hdr = ["transaction_id","account_id","transaction_date","amount","currency",
+               "transaction_type","merchant","status"]
+        with open(path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(hdr)
+            for i in range(1, n+1):
+                w.writerow([f"TXN-{i:06d}", f"ACCT-{random.randint(100000,999999)}",
+                    random_date(), round(random.uniform(10,50000),2),
+                    random.choice(["USD","EUR","GBP"]),
+                    random.choice(["DEBIT","CREDIT","TRANSFER","PAYMENT"]),
+                    random.choice(["Amazon","Walmart","Target","Starbucks","Shell Gas",
+                                   "United Airlines","Netflix","Uber"]),
+                    random.choice(["COMPLETED","PENDING","FAILED"])])
+        print(f"  Created {path} ({n} records)")
+
+    def gen_customers(path, n=100):
+        hdr = ["customer_id","full_name","ssn","date_of_birth","email","phone",
+               "address","city","state","zip_code","risk_rating","account_type"]
+        with open(path, "w") as f:
+            f.write("|".join(hdr) + "\n")
+            for i in range(1, n+1):
+                name = random_name()
+                f.write("|".join([
+                    f"CUST-{i:05d}", name, random_ssn(),
+                    f"{random.randint(1950,2000)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+                    f"{name.split()[0].lower()}.{name.split()[1].lower()}@example.com",
+                    f"+1-{random.randint(200,999)}-{random.randint(100,999)}-{random.randint(1000,9999)}",
+                    f"{random.randint(100,9999)} {random.choice(['Main','Oak','Elm','Park','Broadway'])} St",
+                    random.choice(["New York","Chicago","Houston","Phoenix","Dallas"]),
+                    random.choice(["NY","IL","TX","AZ","TX"]),
+                    f"{random.randint(10000,99999)}",
+                    random.choice(["LOW","MEDIUM","HIGH"]),
+                    random.choice(["CHECKING","SAVINGS","INVESTMENT","CREDIT"])
+                ]) + "\n")
+        print(f"  Created {path} ({n} records, contains PII)")
+
+    def gen_accounts(path, n=80):
+        hdr = ["account_id","customer_id","account_type","balance","currency",
+               "opened_date","status","branch_code"]
+        with open(path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(hdr)
+            for i in range(1, n+1):
+                if i % 20 == 0:
+                    w.writerow([f"ACCT-{random.randint(100000,999999)}",
+                        f"CUST-{random.randint(1,100):05d}", "CHECKING", "", "USD"])
+                elif i % 15 == 0:
+                    w.writerow([f"ACCT-{random.randint(100000,999999)}",
+                        f"CUST-{random.randint(1,100):05d}", "SAVINGS", "NOT_A_NUMBER",
+                        "USD", random_date(2020), "ACTIVE", f"BR-{random.randint(100,999)}"])
+                else:
+                    w.writerow([f"ACCT-{random.randint(100000,999999)}",
+                        f"CUST-{random.randint(1,100):05d}",
+                        random.choice(["CHECKING","SAVINGS","INVESTMENT","CREDIT"]),
+                        round(random.uniform(100,500000),2),
+                        random.choice(["USD","EUR","GBP"]),
+                        random_date(2020),
+                        random.choice(["ACTIVE","CLOSED","FROZEN"]),
+                        f"BR-{random.randint(100,999)}"])
+        print(f"  Created {path} ({n} records, some with schema violations)")
+
+    if __name__ == "__main__":
+        os.makedirs(OUTPUT, exist_ok=True)
+        print("Generating sample data...")
+        gen_transactions(os.path.join(OUTPUT, "transactions_batch_001.csv"))
+        gen_customers(os.path.join(OUTPUT, "customers_batch_001.dat"))
+        gen_accounts(os.path.join(OUTPUT, "accounts_batch_001.csv"))
+        print("Done!")

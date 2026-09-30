@@ -1,0 +1,48 @@
+# One-shot Job that generates sample data files inside the NAS PVC.
+# Uses the Python generator from the sample-data ConfigMap.
+# In production, this Job is unnecessary — the NAS PVC has real data.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ingestion-data-loader
+  labels:
+    app: spark-data-ingestion
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: spark-data-ingestion
+    spec:
+      restartPolicy: OnFailure
+      securityContext: {}
+      containers:
+        - name: generator
+          image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+          command: ["python3", "/mnt/scripts/generate_data.py"]
+          env:
+            - name: OUTPUT_DIR
+              value: /mnt/nas-input
+          securityContext: {}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: nas-input
+              mountPath: /mnt/nas-input
+            - name: scripts
+              mountPath: /mnt/scripts
+      volumes:
+        - name: nas-input
+          persistentVolumeClaim:
+            claimName: nas-raw-data
+        - name: scripts
+          configMap:
+            name: ingestion-sample-data

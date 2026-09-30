@@ -1,0 +1,94 @@
+# SparkApplication: Data Ingestion Batch Job (single run)
+#
+# Reads raw data from NAS (PVC), validates schema against catalogue metadata,
+# classifies columns, removes PII (restricted fields), writes cleansed Parquet.
+#
+# Technical details:
+# - Image: quay.io/opendatahub/data-processing:Spark-v4.0.1 (RHOAI stock image)
+# - App code: mounted via ConfigMap ingestion-app-code (no custom image build)
+# - Schema: mounted via ConfigMap ingestion-schema (simulates data catalogue API)
+# - Spark version: 4.0.1 (required by RHOAI 3.5 / Spark Operator v2.4.0)
+# - Mode: cluster (driver runs as a pod; required by Spark Operator)
+# - SecurityContext: empty {} (OpenShift restricted-v2 SCC assigns arbitrary UID)
+# - ServiceAccount: spark-operator-spark (created by RHOAI, has RBAC for executors)
+# - Event logs: written to PVC for Spark History Server post-mortem analysis
+#
+# Prerequisites:
+# - Spark Operator webhook namespaceSelector must include the target namespace
+# - PVCs and ConfigMaps must exist (created by earlier resources in kustomization)
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: data-ingestion-batch
+  labels:
+    app: spark-data-ingestion
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///mnt/app/data_ingestion.py
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 600
+  sparkConf:
+    spark.eventLog.enabled: "true"
+    spark.eventLog.dir: "file:///mnt/event-logs"
+  restartPolicy:
+    type: Never
+  volumes:
+    - name: nas-input
+      persistentVolumeClaim:
+        claimName: nas-raw-data
+    - name: output
+      persistentVolumeClaim:
+        claimName: ingestion-output
+    - name: event-logs
+      persistentVolumeClaim:
+        claimName: spark-event-logs
+    - name: schema
+      configMap:
+        name: ingestion-schema
+    - name: app-code
+      configMap:
+        name: ingestion-app-code
+    - name: work-dir
+      emptyDir: {}
+  driver:
+    cores: 1
+    memory: "1024m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+    env:
+      - name: INPUT_DIR
+        value: /mnt/nas-input
+      - name: OUTPUT_DIR
+        value: /mnt/output
+      - name: SCHEMA_PATH
+        value: /mnt/schema/schema.json
+    volumeMounts:
+      - name: nas-input
+        mountPath: /mnt/nas-input
+      - name: output
+        mountPath: /mnt/output
+      - name: event-logs
+        mountPath: /mnt/event-logs
+      - name: schema
+        mountPath: /mnt/schema
+      - name: app-code
+        mountPath: /mnt/app
+      - name: work-dir
+        mountPath: /opt/spark/work-dir
+  executor:
+    cores: 1
+    instances: 1
+    memory: "1024m"
+    securityContext: {}
+    volumeMounts:
+      - name: nas-input
+        mountPath: /mnt/nas-input
+        readOnly: true
+      - name: output
+        mountPath: /mnt/output
+      - name: work-dir
+        mountPath: /opt/spark/work-dir

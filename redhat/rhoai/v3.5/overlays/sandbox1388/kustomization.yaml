@@ -9,3 +9,4 @@ resources:
   - workloads/argocd-app.yaml
   - dashboard/argocd-app.yaml
   - llm-d-demo/argocd-app.yaml
+  - spark-data-ingestion/argocd-app.yaml

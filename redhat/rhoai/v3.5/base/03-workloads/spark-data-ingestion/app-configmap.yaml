@@ -1,0 +1,237 @@
+# Application code mounted as a ConfigMap — no custom image build needed.
+# The SparkApplication uses the stock RHOAI Spark image and mounts this code.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingestion-app-code
+  labels:
+    app: spark-data-ingestion
+data:
+  data_ingestion.py: |
+    """
+    Data Ingestion Batch Job — Spark on OpenShift (RHOAI)
+
+    Demonstrates a typical enterprise data ingestion batch pattern:
+      1. Read raw files from NAS mount (PVC)
+      2. Load schema metadata (ConfigMap — simulates a data catalogue)
+      3. Validate schema (column names, required fields, data types)
+      4. Classify and remove restricted data (PII: SSN, full name, etc.)
+      5. Write cleansed data as Parquet to output (PVC — simulates cloud storage)
+      6. Produce audit summary
+    """
+
+    import json
+    import os
+    import sys
+    import glob
+    from datetime import datetime
+
+    from pyspark.sql import SparkSession
+    from pyspark.sql.functions import col
+
+
+    def create_spark():
+        spark = SparkSession.builder \
+            .appName("DataIngestionBatch") \
+            .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+            .getOrCreate()
+        spark.sparkContext.setLogLevel("WARN")
+        return spark
+
+
+    def load_schema(schema_path):
+        with open(schema_path, "r") as f:
+            return json.load(f)
+
+
+    def discover_files(input_dir, file_pattern):
+        pattern = os.path.join(input_dir, file_pattern)
+        return sorted(glob.glob(pattern))
+
+
+    def read_dataset(spark, files, fmt, delimiter, header):
+        reader = spark.read.option("header", str(header).lower()) \
+                           .option("delimiter", delimiter) \
+                           .option("inferSchema", "false")
+        if fmt == "csv":
+            return reader.csv(files)
+        raise ValueError(f"Unsupported format: {fmt}")
+
+
+    def validate_schema(df, dataset_name, expected_columns):
+        actual_cols = set(df.columns)
+        expected_cols = set(expected_columns.keys())
+        required_cols = {c for c, meta in expected_columns.items() if meta.get("required")}
+
+        report = {
+            "dataset": dataset_name,
+            "total_rows": df.count(),
+            "actual_columns": sorted(actual_cols),
+            "expected_columns": sorted(expected_cols),
+            "missing_required": sorted(required_cols - actual_cols),
+            "extra_columns": sorted(actual_cols - expected_cols),
+            "missing_optional": sorted((expected_cols - required_cols) - actual_cols),
+            "schema_valid": required_cols.issubset(actual_cols),
+        }
+
+        null_counts = {}
+        for c in required_cols & actual_cols:
+            nc = df.filter(col(c).isNull() | (col(c) == "")).count()
+            if nc > 0:
+                null_counts[c] = nc
+        report["null_required_fields"] = null_counts
+        return report
+
+
+    def classify_and_filter(df, columns_meta, policy):
+        columns_to_drop = []
+        for col_name, meta in columns_meta.items():
+            classification = meta.get("classification", "public")
+            action = policy.get(classification, "KEEP")
+            if action == "DROP_COLUMN" and col_name in df.columns:
+                columns_to_drop.append(col_name)
+        filtered_df = df.drop(*columns_to_drop)
+        return filtered_df, columns_to_drop
+
+
+    def write_output(df, output_dir, dataset_name):
+        output_path = os.path.join(output_dir, dataset_name)
+        df.coalesce(1).write.mode("overwrite").parquet(output_path)
+        return output_path
+
+
+    def write_audit(audit_records, output_dir):
+        audit_path = os.path.join(output_dir, "audit_report.json")
+        with open(audit_path, "w") as f:
+            json.dump({
+                "ingestion_run": datetime.utcnow().isoformat() + "Z",
+                "datasets": audit_records,
+            }, f, indent=2, default=str)
+        return audit_path
+
+
+    def process_dataset(spark, dataset_name, dataset_config, schema_config,
+                        input_dir, output_dir):
+        print(f"\n{'='*60}")
+        print(f"  Processing: {dataset_name}")
+        print(f"{'='*60}")
+
+        file_pattern = dataset_config["file_pattern"]
+        fmt = dataset_config["format"]
+        delimiter = dataset_config["delimiter"]
+        header = dataset_config["header"]
+        columns_meta = dataset_config["columns"]
+        policy = schema_config["classification_policy"]
+
+        files = discover_files(input_dir, file_pattern)
+        if not files:
+            msg = f"No files found for pattern '{file_pattern}' in {input_dir}"
+            print(f"  SKIP: {msg}")
+            return {"dataset": dataset_name, "status": "SKIPPED", "reason": msg}
+        print(f"  Found {len(files)} file(s): {[os.path.basename(f) for f in files]}")
+
+        df = read_dataset(spark, files, fmt, delimiter, header)
+        raw_count = df.count()
+        print(f"  Raw records: {raw_count}")
+        print(f"  Columns: {df.columns}")
+
+        validation = validate_schema(df, dataset_name, columns_meta)
+        print(f"  Schema valid: {validation['schema_valid']}")
+        if validation["missing_required"]:
+            print(f"  WARNING — Missing required columns: {validation['missing_required']}")
+        if validation["null_required_fields"]:
+            print(f"  WARNING — Null values in required fields: {validation['null_required_fields']}")
+
+        filtered_df, dropped_cols = classify_and_filter(df, columns_meta, policy)
+        if dropped_cols:
+            print(f"  CLASSIFIED — Dropped restricted columns: {dropped_cols}")
+        else:
+            print(f"  No restricted columns to drop")
+        print(f"  Columns after filtering: {filtered_df.columns}")
+
+        output_path = write_output(filtered_df, output_dir, dataset_name)
+        output_count = filtered_df.count()
+        print(f"  Written {output_count} records to: {output_path}")
+
+        return {
+            "dataset": dataset_name,
+            "status": "SUCCESS",
+            "files_processed": [os.path.basename(f) for f in files],
+            "raw_records": raw_count,
+            "output_records": output_count,
+            "schema_validation": validation,
+            "dropped_restricted_columns": dropped_cols,
+            "output_path": output_path,
+        }
+
+
+    def main():
+        input_dir = os.environ.get("INPUT_DIR", "/mnt/nas-input")
+        output_dir = os.environ.get("OUTPUT_DIR", "/mnt/output")
+        schema_path = os.environ.get("SCHEMA_PATH", "/mnt/schema/schema.json")
+
+        print("\n" + "=" * 60)
+        print("  DATA INGESTION BATCH JOB")
+        print("  NAS -> Schema Validate -> Classify/PII Removal -> Output")
+        print("=" * 60)
+        print(f"  Input dir:   {input_dir}")
+        print(f"  Output dir:  {output_dir}")
+        print(f"  Schema path: {schema_path}")
+
+        spark = create_spark()
+
+        try:
+            schema_config = load_schema(schema_path)
+            datasets = schema_config["datasets"]
+            print(f"  Datasets in schema: {list(datasets.keys())}")
+        except Exception as e:
+            print(f"  FATAL: Cannot load schema from {schema_path}: {e}")
+            sys.exit(1)
+
+        if os.path.exists(input_dir):
+            print(f"  Files in input dir: {os.listdir(input_dir)}")
+        else:
+            print(f"  FATAL: Input directory {input_dir} does not exist")
+            sys.exit(1)
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        audit_records = []
+        for ds_name, ds_config in datasets.items():
+            try:
+                record = process_dataset(
+                    spark, ds_name, ds_config, schema_config, input_dir, output_dir
+                )
+                audit_records.append(record)
+            except Exception as e:
+                import traceback
+                print(f"  ERROR processing {ds_name}: {e}")
+                traceback.print_exc()
+                audit_records.append({
+                    "dataset": ds_name, "status": "FAILED", "error": str(e)
+                })
+
+        audit_path = write_audit(audit_records, output_dir)
+
+        print("\n" + "=" * 60)
+        print("  INGESTION SUMMARY")
+        print("=" * 60)
+        for rec in audit_records:
+            status = rec["status"]
+            ds = rec["dataset"]
+            if status == "SUCCESS":
+                raw = rec["raw_records"]
+                out = rec["output_records"]
+                dropped = rec.get("dropped_restricted_columns", [])
+                print(f"  {ds}: {raw} -> {out} records"
+                      f" (dropped columns: {dropped or 'none'})")
+            else:
+                print(f"  {ds}: {status} — {rec.get('reason', rec.get('error', ''))}")
+
+        print(f"\n  Audit report: {audit_path}")
+        print("  DONE!")
+        spark.stop()
+
+
+    if __name__ == "__main__":
+        main()

@@ -1,0 +1,73 @@
+# Schema definitions and data classification rules.
+# In production, this metadata comes from a data catalogue (e.g. Collibra) via API.
+# For the demo, we embed it as a ConfigMap mounted into the Spark driver.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingestion-schema
+  labels:
+    app: spark-data-ingestion
+data:
+  schema.json: |
+    {
+      "datasets": {
+        "transactions": {
+          "file_pattern": "transactions_*.csv",
+          "format": "csv",
+          "delimiter": ",",
+          "header": true,
+          "columns": {
+            "transaction_id": {"type": "string", "required": true, "classification": "public"},
+            "account_id": {"type": "string", "required": true, "classification": "internal"},
+            "transaction_date": {"type": "date", "required": true, "classification": "public"},
+            "amount": {"type": "decimal", "required": true, "classification": "confidential"},
+            "currency": {"type": "string", "required": true, "classification": "public"},
+            "transaction_type": {"type": "string", "required": true, "classification": "public"},
+            "merchant": {"type": "string", "required": false, "classification": "public"},
+            "status": {"type": "string", "required": true, "classification": "public"}
+          }
+        },
+        "customers": {
+          "file_pattern": "customers_*.dat",
+          "format": "csv",
+          "delimiter": "|",
+          "header": true,
+          "columns": {
+            "customer_id": {"type": "string", "required": true, "classification": "internal"},
+            "full_name": {"type": "string", "required": true, "classification": "restricted"},
+            "ssn": {"type": "string", "required": false, "classification": "restricted"},
+            "date_of_birth": {"type": "date", "required": false, "classification": "restricted"},
+            "email": {"type": "string", "required": false, "classification": "confidential"},
+            "phone": {"type": "string", "required": false, "classification": "confidential"},
+            "address": {"type": "string", "required": false, "classification": "restricted"},
+            "city": {"type": "string", "required": false, "classification": "public"},
+            "state": {"type": "string", "required": false, "classification": "public"},
+            "zip_code": {"type": "string", "required": false, "classification": "public"},
+            "risk_rating": {"type": "string", "required": true, "classification": "internal"},
+            "account_type": {"type": "string", "required": true, "classification": "public"}
+          }
+        },
+        "accounts": {
+          "file_pattern": "accounts_*.csv",
+          "format": "csv",
+          "delimiter": ",",
+          "header": true,
+          "columns": {
+            "account_id": {"type": "string", "required": true, "classification": "internal"},
+            "customer_id": {"type": "string", "required": true, "classification": "internal"},
+            "account_type": {"type": "string", "required": true, "classification": "public"},
+            "balance": {"type": "decimal", "required": true, "classification": "confidential"},
+            "currency": {"type": "string", "required": true, "classification": "public"},
+            "opened_date": {"type": "date", "required": true, "classification": "public"},
+            "status": {"type": "string", "required": true, "classification": "public"},
+            "branch_code": {"type": "string", "required": true, "classification": "internal"}
+          }
+        }
+      },
+      "classification_policy": {
+        "restricted": "DROP_COLUMN",
+        "confidential": "KEEP",
+        "internal": "KEEP",
+        "public": "KEEP"
+      }
+    }

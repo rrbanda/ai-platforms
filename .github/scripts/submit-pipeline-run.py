@@ -248,7 +248,7 @@ def main():
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_file:
         with open(summary_file, "a") as f:
-            f.write(f"### Pipeline Run Submitted\n")
+            f.write("### Pipeline Run Submitted\n")
             f.write(f"- **Run name:** `{run_name}`\n")
             f.write(f"- **Run ID:** `{run_id}`\n")
             f.write(f"- **Version:** `{version_name}`\n")

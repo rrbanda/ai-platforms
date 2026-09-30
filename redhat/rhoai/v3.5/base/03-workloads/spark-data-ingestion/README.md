@@ -243,13 +243,22 @@ names, no addresses. This is the data governance enforcement step.
 
 ## Three Ways to Run
 
-| Mode | Resource | Use Case |
-|---|---|---|
-| **Single run** | `SparkApplication` | Ad-hoc ingestion, testing, backfill |
-| **Scheduled** | `ScheduledSparkApplication` | Production cron (replaces AutoSys) |
-| **Kueue-managed** | `SparkApplication` + queue label | Multi-tenant with quota enforcement |
+| Mode | Resource | RHOAI 3.5 Support | Use Case |
+|---|---|---|---|
+| **Single run** | `SparkApplication` | ✅ GA | Ad-hoc ingestion, testing, backfill |
+| **Kueue-managed** | `SparkApplication` + queue label | ✅ GA | Multi-tenant with quota enforcement |
+| **Scheduled** | `ScheduledSparkApplication` | ⚠️ See note | Production cron (replaces AutoSys) |
 
 All three modes were verified on the demo cluster and produced identical results.
+
+> **⚠️ ScheduledSparkApplication support note:** The `ScheduledSparkApplication` CRD ships
+> with the Kubeflow Spark Operator and is functional on RHOAI 3.5 (verified on this cluster).
+> However, it is **not explicitly documented or listed as a supported feature** in the
+> [RHOAI 3.5 release notes](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html-single/release_notes/index)
+> or the [Spark Operator user guide](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/creating_distributed_data_processing_applications_with_the_kubeflow_spark_operator/using-the-ks-operator_data-processing).
+> The release notes only list `SparkApplication` CRs. For a fully supported scheduling
+> approach, consider using an OpenShift `CronJob` that creates `SparkApplication` CRs,
+> or ArgoCD `ApplicationSet` with a cron trigger.
 
 ---
 

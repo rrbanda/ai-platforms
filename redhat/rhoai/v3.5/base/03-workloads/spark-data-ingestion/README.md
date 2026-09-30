@@ -25,6 +25,112 @@ Today this runs on aging Hadoop clusters with edge nodes, manual Spark installs,
 and AutoSys agents on VMs. The infrastructure is expensive, hard to scale,
 and difficult to govern.
 
+### Legacy Architecture (Before)
+
+```mermaid
+flowchart LR
+    subgraph SOURCES["Data Sources"]
+        direction TB
+        OLTP["OLTP"]
+        ERP["ERP"]
+        CRM["CRM"]
+        LOB["LOBs"]
+        RDBMS["RDBMS"]
+        NOSQL["NoSQL"]
+        EDW["EDW"]
+        SAS["SAS"]
+    end
+
+    subgraph LEGACY["Legacy Infrastructure"]
+        direction TB
+        NAS["NAS Mount\n(NDM)"]
+        subgraph VMS["CAS VMs"]
+            AUTOSYS["AutoSys Agent\n(scheduler)"]
+        end
+        subgraph HADOOP["Hadoop Cluster"]
+            EDGE["Edge Nodes"]
+        end
+    end
+
+    subgraph OCP["OpenShift"]
+        SPARK["Spark\nS3 Data Loading\nFramework"]
+    end
+
+    COLLIBRA["Data Catalogue\n(Collibra)"]
+
+    subgraph AWS["AWS"]
+        S3["S3 RAW Bucket"]
+    end
+
+    SOURCES -->|"① Push files\n.dat .sas .csv EBCDIC\nvia NDM"| NAS
+    AUTOSYS -->|"② Spark submit\non schedule"| SPARK
+    NAS -->|"③ Read raw files"| SPARK
+    COLLIBRA -->|"④ Validate schema\nclassify data\nremove restricted"| SPARK
+    SPARK -->|"⑤ Write cleansed\nfiles"| S3
+
+    NAS ~~~ EDGE
+    AUTOSYS ~~~ EDGE
+
+    style LEGACY fill:#fff3e0,stroke:#e65100
+    style HADOOP fill:#ffebee,stroke:#c62828
+    style VMS fill:#ffebee,stroke:#c62828
+    style OCP fill:#e8f5e9,stroke:#2e7d32
+    style AWS fill:#e3f2fd,stroke:#1565c0
+```
+
+### RHOAI Architecture (After)
+
+```mermaid
+flowchart LR
+    subgraph SOURCES["Data Sources"]
+        direction TB
+        OLTP["OLTP"]
+        ERP["ERP"]
+        CRM["CRM"]
+        LOB["LOBs"]
+        RDBMS["RDBMS"]
+        NOSQL["NoSQL"]
+        EDW["EDW"]
+        SAS["SAS"]
+    end
+
+    subgraph OCP["OpenShift + RHOAI 3.5"]
+        direction TB
+        NAS_PVC["PVC: NAS Mount\n(CSI / NFS)"]
+        SSA["ScheduledSpark-\nApplication\n(replaces AutoSys)"]
+        SPARK_OP["Spark Operator\nv2.4.0"]
+        subgraph RUNTIME["Spark 4.0.1 on OpenShift"]
+            DRIVER["Driver Pod"]
+            EXEC["Executor Pod"]
+        end
+        SCHEMA_CM["ConfigMap:\nSchema + Classification\n(replaces Collibra API)"]
+        KUEUE["Kueue\n(quota mgmt)"]
+        HISTORY["History Server\n(web UI via Route)"]
+    end
+
+    subgraph AWS["AWS"]
+        S3["S3 RAW Bucket"]
+    end
+
+    SOURCES -->|"① Push files\nvia NDM"| NAS_PVC
+    SSA -->|"② Cron trigger\n(no VMs)"| SPARK_OP
+    SPARK_OP --> RUNTIME
+    NAS_PVC -->|"③ Read"| DRIVER
+    SCHEMA_CM -->|"④ Validate\nclassify\nDROP PII"| DRIVER
+    DRIVER -->|"⑤ Write Parquet"| S3
+    DRIVER <--> EXEC
+    KUEUE -.->|"quota"| RUNTIME
+    DRIVER -.->|"event logs"| HISTORY
+
+    style OCP fill:#e8f5e9,stroke:#2e7d32
+    style RUNTIME fill:#fff3e0,stroke:#ef6c00
+    style AWS fill:#e3f2fd,stroke:#1565c0
+```
+
+**What changed:** The Hadoop cluster, edge nodes, and AutoSys VMs are eliminated entirely.
+The same 5-step flow runs on OpenShift as Kubernetes-native CRDs — declarative,
+GitOps-managed, and observable through the Spark History Server.
+
 ## What This Demo Replaces
 
 | Legacy Component | RHOAI Replacement | Benefit |

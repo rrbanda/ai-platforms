@@ -1,0 +1,48 @@
+# TC-4b: Queued Job — Waits for Quota Release
+#
+# Purpose: Second half of the quota release & re-admission test.
+# Apply AFTER tc4a-large-job is admitted and running.
+# This job also needs 3 CPU (driver 1 + 2 executors × 1) but quota is exhausted.
+# Kueue holds it Suspended. Once tc4a completes and quota is freed, tc4b auto-admits.
+#
+# Measure: Time between tc4a completion → tc4b unsuspension (the "queue wait time").
+#
+# Expected behavior:
+#   - Stays Suspended while tc4a is running
+#   - Workload shows ADMITTED=False, pending in contention-lq
+#   - When tc4a completes → tc4b auto-admitted within seconds
+#   - No manual intervention required
+#
+# Verification:
+#   oc get sparkapplication tc4b-queued-job -w
+#   oc get workload -w   # Watch for ADMITTED transition
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc4b-queued-job
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc4-quota-release
+    kueue.x-k8s.io/queue-name: contention-lq
+spec:
+  type: Scala
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  arguments: ["5000"]
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 300
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    memory: "512m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    cores: 1
+    instances: 2
+    memory: "512m"
+    securityContext: {}

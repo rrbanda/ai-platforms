@@ -1,0 +1,15 @@
+# LocalQueue: contention-lq
+#
+# Namespace-scoped queue that routes workloads to the contention-cq ClusterQueue.
+# SparkApplications in this namespace use label:
+#   kueue.x-k8s.io/queue-name: contention-lq
+#
+# NOTE: The namespace must be labeled with kueue.openshift.io/managed=true
+# for Kueue to intercept workloads. Apply manually:
+#   oc label namespace <ns> kueue.openshift.io/managed=true --overwrite
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: contention-lq
+spec:
+  clusterQueue: contention-cq

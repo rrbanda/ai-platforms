@@ -1,0 +1,52 @@
+# TC-3: Gang Scheduling (All-or-Nothing Admission)
+#
+# Purpose: Prove Kueue does NOT partially admit a SparkApplication.
+# This job requests driver (1 CPU) + 3 executors (1 CPU each) = 4 CPU total.
+# The ClusterQueue has exactly 4 CPU quota — so it FITS and should be admitted.
+#
+# The gang scheduling test:
+# 1. First, apply tc3-gang-scheduling.yaml — it should be admitted (4 CPU fits in 4 CPU quota)
+# 2. Then apply tc3-gang-scheduling-overflow.yaml — this second job needs 4 CPU too,
+#    but quota is now exhausted. It stays Suspended (not half-admitted).
+#
+# Key validation: Kueue reserves quota for ALL pod sets (driver + all executors) atomically.
+# It will NOT schedule the driver alone while executors wait.
+#
+# Expected behavior:
+#   - Job is admitted (quota fits exactly)
+#   - Driver + all 3 executors run together
+#   - Job completes; quota is released
+#
+# Verification:
+#   oc get sparkapplication tc3-gang-scheduling -w
+#   oc get pods -l sparkoperator.k8s.io/app-name=tc3-gang-scheduling
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc3-gang-scheduling
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc3-gang-scheduling
+    kueue.x-k8s.io/queue-name: contention-lq
+spec:
+  type: Scala
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  arguments: ["10000"]
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 300
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    memory: "512m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    cores: 1
+    instances: 3
+    memory: "512m"
+    securityContext: {}

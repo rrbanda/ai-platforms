@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Kueue infrastructure (cluster-scoped — apply once)
+  - kueue-resource-flavor.yaml
+  - kueue-cluster-queue.yaml
+  - kueue-local-queue.yaml
+  # Namespace prerequisites
+  - networkpolicy.yaml
+  # Test cases — uncomment ONE at a time to run each test
+  # TC-1: Baseline — no Kueue, reproduces the "half-admitted" problem
+  # - tc1-baseline-no-kueue.yaml
+  # TC-2: Kueue admission blocking — job stays Suspended until quota available
+  # - tc2-kueue-admission-blocking.yaml
+  # TC-3: Gang scheduling — proves all-or-nothing (no partial admission)
+  # - tc3-gang-scheduling.yaml
+  # TC-4: Quota release & re-admission — apply both, Job B waits for Job A
+  # - tc4a-large-job.yaml
+  # - tc4b-queued-job.yaml
+  # TC-5: Dynamic allocation rejection — Kueue rejects this at webhook
+  # - tc5-dynamic-allocation.yaml
+  # TC-6: Retry behavior with Kueue vs without
+  # - tc6-retry-with-kueue.yaml
+  # - tc6-retry-without-kueue.yaml

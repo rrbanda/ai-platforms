@@ -1,0 +1,44 @@
+# TC-1: Baseline Reproduction — SparkApplication WITHOUT Kueue
+#
+# Purpose: Reproduce the "half-admitted" failure mode.
+# This job requests 10 CPU total (driver 2 + 4 executors × 2) but the cluster/namespace
+# has only 4 CPU available. WITHOUT Kueue, the Spark Operator creates all pods immediately.
+# The kube-scheduler places what fits; remaining executors stay Pending indefinitely.
+#
+# Expected behavior:
+#   - Driver pod schedules and starts Running
+#   - 0–1 executor pods schedule (depending on available capacity)
+#   - Remaining executor pods stay Pending
+#   - Job hangs — partially running, partially stuck
+#   - Resources held until manual deletion or timeout
+#
+# NOTE: No kueue.x-k8s.io/queue-name label — Kueue does not manage this job.
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc1-baseline-no-kueue
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc1-baseline
+spec:
+  type: Scala
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  arguments: ["10000"]
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 600
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 2
+    memory: "1024m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    cores: 2
+    instances: 4
+    memory: "1024m"
+    securityContext: {}

@@ -1,0 +1,51 @@
+# TC-5: Dynamic Allocation — Kueue Webhook Rejection
+#
+# Purpose: Document and verify that dynamicAllocation is NOT compatible with Kueue.
+# The Kueue webhook validates that Kueue-managed SparkApplications do not use
+# dynamicAllocation.enabled=true. This job will be REJECTED at creation time.
+#
+# Expected behavior:
+#   oc apply returns an error:
+#   "a kueue managed job can use dynamicAllocation only when the
+#    ElasticJobsViaWorkloadSlices feature gate is on and the job is an elastic job"
+#
+# This confirms the known limitation: executor count MUST be fixed for Kueue-managed jobs.
+#
+# Verification:
+#   oc apply -f tc5-dynamic-allocation.yaml
+#   # Expect: admission webhook error
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc5-dynamic-allocation
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc5-dynamic-allocation
+    kueue.x-k8s.io/queue-name: contention-lq
+spec:
+  type: Scala
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  arguments: ["1000"]
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 300
+  dynamicAllocation:
+    enabled: true
+    initialExecutors: 2
+    minExecutors: 1
+    maxExecutors: 6
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    memory: "512m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    cores: 1
+    instances: 2
+    memory: "512m"
+    securityContext: {}

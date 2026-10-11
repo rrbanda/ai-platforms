@@ -1,0 +1,52 @@
+# TC-6a: Retry Behavior WITH Kueue — Under Resource Contention
+#
+# Purpose: Show that Kueue eliminates pod creation/teardown churn.
+# This job requests 10 CPU (exceeds 4 CPU quota) WITH restartPolicy OnFailure.
+# Because Kueue holds the job Suspended, the Spark Operator never creates pods.
+# No retry loop occurs — the job simply waits for quota.
+#
+# Compare with tc6-retry-without-kueue.yaml to see the difference.
+#
+# Expected behavior:
+#   - SparkApplication stays Suspended indefinitely
+#   - Zero pods created, zero retries
+#   - oc get events shows NO pod creation/deletion events
+#
+# Verification:
+#   oc get sparkapplication tc6-retry-with-kueue -w
+#   oc get pods -l sparkoperator.k8s.io/app-name=tc6-retry-with-kueue
+#   oc get events --field-selector involvedObject.name=tc6-retry-with-kueue
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc6-retry-with-kueue
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc6-retry-comparison
+    kueue.x-k8s.io/queue-name: contention-lq
+spec:
+  type: Scala
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  arguments: ["10000"]
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 600
+  restartPolicy:
+    type: OnFailure
+    onFailureRetries: 3
+    onFailureRetryInterval: 30
+    onSubmissionFailureRetries: 3
+    onSubmissionFailureRetryInterval: 30
+  driver:
+    cores: 2
+    memory: "1024m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    cores: 2
+    instances: 4
+    memory: "1024m"
+    securityContext: {}

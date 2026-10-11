@@ -1,0 +1,24 @@
+# NetworkPolicy: allow Spark Driver <-> Executor communication.
+#
+# Required in namespaces with default-deny ingress (e.g. redhat-ods-applications).
+# Spark uses ports 7078 (block manager), 7079 (driver RPC), 4040 (Spark UI).
+# Ref: RHOAIENG-53206
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: spark-contention-poc-allow-internal
+spec:
+  podSelector:
+    matchLabels:
+      sparkoperator.k8s.io/launched-by-spark-operator: "true"
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - { port: 7078, protocol: TCP }
+        - { port: 7079, protocol: TCP }
+        - { port: 4040, protocol: TCP }
+      from:
+        - podSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress

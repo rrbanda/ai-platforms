@@ -1,0 +1,44 @@
+# TC-4a: Large Job — Consumes All Quota
+#
+# Purpose: First half of the quota release & re-admission test.
+# This job requests 4 CPU (driver 1 + 3 executors × 1), consuming the entire
+# ClusterQueue quota. Apply tc4b-queued-job.yaml AFTER this is admitted.
+#
+# Expected behavior:
+#   - Job is admitted immediately (fits within 4 CPU quota)
+#   - SparkPi runs with 10000 iterations (takes ~60 seconds)
+#   - On completion, quota is released → tc4b is auto-admitted
+#
+# Verification:
+#   oc get sparkapplication tc4a-large-job -w
+#   oc get clusterqueue contention-cq   # Watch usedQuota
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc4a-large-job
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc4-quota-release
+    kueue.x-k8s.io/queue-name: contention-lq
+spec:
+  type: Scala
+  mode: cluster
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  arguments: ["10000"]
+  sparkVersion: "4.0.1"
+  timeToLiveSeconds: 300
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    memory: "512m"
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    cores: 1
+    instances: 3
+    memory: "512m"
+    securityContext: {}

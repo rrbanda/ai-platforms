@@ -1,0 +1,7 @@
+# ResourceFlavor: default-flavor
+# Represents the default node pool. No taints/tolerations or node labels.
+# Used by the ClusterQueue to define quota on standard compute.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: default-flavor

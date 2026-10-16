@@ -1,0 +1,81 @@
+# TC-7: Individual Executor Failure — Runtime Recovery
+#
+# Purpose: Validate that Spark's built-in executor fault tolerance works
+# under the Kubernetes Spark Operator, matching Hadoop/YARN resilience.
+# If an individual executor pod dies mid-job, the Spark driver should
+# detect the loss, request a replacement from Kubernetes, and retry
+# affected tasks — completing the job without a full restart.
+#
+# Tested: 2026-10-16 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# exec-2 killed at 13:57:40Z → exec-4 replacement registered at 13:58:05Z
+# (~25 second recovery). Job COMPLETED at 14:01:31Z. No full-job retry.
+#
+# How to run:
+#   1. Apply the manifest and wait for all pods to be Running:
+#      oc apply -f tc7-executor-failure.yaml
+#      oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+#
+#   2. Once driver + all 3 executors show Running, kill one executor:
+#      EXEC_POD=$(oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure \
+#        --no-headers | grep exec-2 | awk '{print $1}')
+#      oc delete pod $EXEC_POD --grace-period=0 --force
+#
+#   3. Watch for the replacement executor to appear:
+#      oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+#      # Expect: exec-2 disappears, exec-4 appears within ~30 seconds
+#
+#   4. Verify recovery in driver logs:
+#      oc logs <driver-pod> | grep -E 'Lost executor|request.*executor|Registered executor'
+#      # Expect:
+#      #   "Lost executor 2" → "Going to request 1 executors" → "Registered executor ... ID 4"
+#
+#   5. Wait for job completion:
+#      oc get sparkapplication tc7-executor-failure -w
+#      # Expect: COMPLETED with executionAttempts: 1
+#
+#   6. Check final executor states:
+#      oc get sparkapplication tc7-executor-failure -o jsonpath='{.status.executorState}' | python3 -m json.tool
+#      # Expect: exec-2 FAILED, exec-1/exec-3/exec-4 COMPLETED
+#
+#   7. Cleanup:
+#      oc delete sparkapplication tc7-executor-failure
+#
+# Key Spark configs for executor fault tolerance:
+#   spark.task.maxFailures (default 4) — tasks retry on surviving executors
+#   spark.kubernetes.executor.missingPodDetectDelta (default 30s) — detection delay
+#   spark.kubernetes.executor.checkAllContainers (default false) — monitor sidecars
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: tc7-executor-failure
+  labels:
+    app: spark-contention-poc
+    poc/test-case: tc7-executor-failure
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  sparkVersion: "4.0.1"
+  image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  arguments:
+    - "5000"
+  sparkConf:
+    spark.executor.instances: "3"
+    spark.task.maxFailures: "4"
+    spark.kubernetes.executor.checkAllContainers: "true"
+  driver:
+    cores: 1
+    coreRequest: "1"
+    memory: 512m
+    serviceAccount: spark-operator-spark
+    securityContext: {}
+  executor:
+    instances: 3
+    cores: 1
+    coreRequest: "1"
+    memory: 512m
+    securityContext: {}
+  restartPolicy:
+    type: Never

@@ -69,6 +69,7 @@ spark-kueue-contention-poc/
 ├── tc5-dynamic-allocation.yaml            # TC-5: Rejected by Kueue webhook
 ├── tc6-retry-with-kueue.yaml             # TC-6: OnFailure + Kueue (zero churn)
 ├── tc6-retry-without-kueue.yaml          # TC-6: OnFailure, no Kueue (retry storm)
+├── tc7-executor-failure.yaml             # TC-7: Kill an executor, watch Spark recover
 └── docs/
     ├── poc-kueue-spark-resource-contention.md  # Full POC plan & research
     ├── poc-kueue-spark-final.md                # Final POC plan
@@ -172,6 +173,42 @@ oc get events --field-selector involvedObject.name=tc6-retry-no-kueue -w
 oc delete sparkapplication tc6-retry-with-kueue tc6-retry-no-kueue
 ```
 
+### TC-7: Individual Executor Failure
+
+```bash
+# Step 1: Submit a long-running job (SparkPi with 5000 partitions, ~4 minutes)
+oc apply -f tc7-executor-failure.yaml
+oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+# Wait until driver + all 3 executors show Running
+
+# Step 2: Kill one executor mid-job
+EXEC_POD=$(oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure \
+  --no-headers | grep exec-2 | awk '{print $1}')
+oc delete pod $EXEC_POD --grace-period=0 --force
+
+# Step 3: Watch for replacement executor
+oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+# Expect: exec-2 disappears, exec-4 appears within ~30 seconds
+
+# Step 4: Verify recovery in driver logs
+DRIVER_POD=$(oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure \
+  --no-headers | grep driver | awk '{print $1}')
+oc logs $DRIVER_POD | grep -E 'Lost executor|request.*executor|Registered executor'
+# Expect: "Lost executor 2" → "request 1 executors" → "Registered executor ... ID 4"
+
+# Step 5: Wait for job completion
+oc get sparkapplication tc7-executor-failure -w
+# Expect: COMPLETED with executionAttempts: 1
+
+# Step 6: Check final executor states
+oc get sparkapplication tc7-executor-failure \
+  -o jsonpath='{.status.executorState}' | python3 -m json.tool
+# Expect: exec-2 FAILED, exec-1/exec-3/exec-4 COMPLETED
+
+# Cleanup:
+oc delete sparkapplication tc7-executor-failure
+```
+
 ## Test Case Summary
 
 | Test Case | Total CPU | Kueue? | CQ Quota | Expected Outcome |
@@ -182,6 +219,7 @@ oc delete sparkapplication tc6-retry-with-kueue tc6-retry-no-kueue
 | TC-4 | 5+5 (1+2×2) | ✅ Yes | 6 | Job B auto-admits when Job A finishes |
 | TC-5 | Dynamic alloc | ✅ Yes | Any | Webhook rejects at creation |
 | TC-6 | 9 (1+4×2) | Both | < 9 | Kueue: 0 pods; No Kueue: retry storm |
+| TC-7 | 4 (1+3×1) | N/A | N/A | Kill executor → replaced in ~25s → job completes |
 
 ## Kueue Resource Computation for Spark
 

@@ -277,6 +277,94 @@ With Kueue, the `restartPolicy` is irrelevant under contention because the job n
 
 ---
 
+## Test Case 7: Individual Executor Failure — Runtime Recovery
+
+**Objective:** Validate that Spark's built-in executor fault tolerance works under the Kubernetes Spark Operator — i.e., if an individual executor pod dies mid-job, does the driver detect the loss, request a replacement, and complete the job without a full restart?
+
+**Why this matters:** In Hadoop/YARN environments, the ResourceManager automatically replaces failed executors and Spark retries affected tasks on surviving/replacement executors. This test confirms the same resilience exists under the Kubernetes Spark Operator, which is critical for production batch workloads where node evictions, OOM kills, or spot-instance preemptions can terminate individual executor pods.
+
+**Setup:**
+- SparkApplication: 1 CPU driver + 3 executors × 1 CPU = 4 CPU total
+- `spark.task.maxFailures: "4"` (allows task retries on surviving executors)
+- Long-running workload: SparkPi with 5000 partitions (~4 minutes runtime)
+- Mid-job intervention: force-delete one executor pod while tasks are running
+
+**Submission:**
+```
+Timestamp: 2026-10-16T13:56:47Z
+sparkapplication.sparkoperator.k8s.io/tc7-executor-failure created
+```
+
+**All executors registered:**
+```
+13:57:02 ExecutorPodsAllocator: Going to request 3 executors from Kubernetes
+13:57:05 Registered executor ... with ID 1 (10.129.24.89)
+13:57:05 Registered executor ... with ID 2 (10.129.24.91)
+13:57:05 Registered executor ... with ID 3 (10.129.24.93)
+```
+
+**Pods before kill:**
+
+| Pod | Status | Node |
+|---|---|---|
+| `tc7-executor-failure-driver` | ✅ Running | ip-10-0-25-91 |
+| `pythonpi-...-exec-1` | ✅ Running | ip-10-0-25-91 |
+| `pythonpi-...-exec-2` | ✅ Running | ip-10-0-25-91 |
+| `pythonpi-...-exec-3` | ✅ Running | ip-10-0-25-91 |
+
+**Executor kill:**
+```
+13:57:40Z  oc delete pod pythonpi-95ca32a145007b16-exec-2 --grace-period=0 --force
+           pod "pythonpi-95ca32a145007b16-exec-2" force deleted
+```
+
+**Driver log — loss detection and replacement:**
+```
+13:57:40 BlockManagerMaster: Removed 2 successfully in removeExecutor
+13:58:03 ExecutorPodsAllocator: Going to request 1 executors from Kubernetes
+         for ResourceProfile Id: 0, target: 3, known: 2
+13:58:03 ERROR TaskSchedulerImpl: Lost executor 2 on 10.129.24.91:
+         The executor with ID 2 was not found in the cluster at the polling time
+         which is after the accepted detect delta time (30000 ms) configured by
+         `spark.kubernetes.executor.missingPodDetectDelta`. Marking as failed.
+13:58:05 Registered executor ... with ID 4 (10.129.24.94)
+```
+
+**Recovery timeline:**
+
+| Time (UTC) | Event |
+|---|---|
+| `13:57:05` | All 3 executors registered and processing tasks |
+| `13:57:40` | exec-2 force-deleted |
+| `13:58:03` | Driver detects loss, requests 1 replacement executor |
+| `13:58:05` | **exec-4 registered** — replacement up in **~25 seconds** |
+| `14:01:31` | Job completed successfully — `Pi is roughly 3.147440` |
+
+**Final executor state from Spark Operator:**
+```json
+{
+  "pythonpi-95ca32a145007b16-exec-1": "COMPLETED",
+  "pythonpi-95ca32a145007b16-exec-2": "FAILED",
+  "pythonpi-95ca32a145007b16-exec-3": "COMPLETED",
+  "pythonpi-95ca32a145007b16-exec-4": "COMPLETED"
+}
+```
+
+**Job status:** `COMPLETED` with `executionAttempts: 1` — no full-job retry was needed.
+
+**How recovery works under the Spark Operator:**
+
+1. **Detection:** The Spark driver's `ExecutorPodsAllocator` polls Kubernetes for executor pods. When a pod disappears, it's detected after `spark.kubernetes.executor.missingPodDetectDelta` (default 30s).
+2. **Replacement:** The `KubernetesClusterSchedulerBackend` compares `target` executor count vs `known` running executors and requests replacements directly from the Kubernetes API.
+3. **Task retry:** Tasks that were running on the dead executor are automatically retried on surviving executors (governed by `spark.task.maxFailures`, default 4).
+4. **Completion:** The job finishes normally with the surviving + replacement executors.
+
+**Key insight:** The Spark Operator does NOT handle executor recovery — the **Spark driver itself** does, via its built-in `KubernetesClusterSchedulerBackend`. This is the same self-healing behavior as Hadoop/YARN, just using Kubernetes pod creation instead of YARN container allocation. The Spark Operator only records the executor states (`FAILED`, `COMPLETED`) for observability.
+
+**Conclusion:** Individual executor failure is fully recoverable under the Kubernetes Spark Operator. The driver automatically replaces the dead executor and retries affected tasks. No manual intervention or full-job restart is required. This matches the resilience behavior expected from Hadoop/YARN environments.
+
+---
+
 ## Summary of Findings
 
 | Test Case | Verdict | Key Evidence |
@@ -287,6 +375,7 @@ With Kueue, the `restartPolicy` is irrelevant under contention because the job n
 | **TC-4**: Quota release & re-admission | ✅ Validated | Job B auto-admitted <1s after Job A freed quota |
 | **TC-5**: Dynamic allocation limitation | ✅ Documented | Webhook rejected: "dynamicAllocation only when ElasticJobsViaWorkloadSlices is on" |
 | **TC-6**: Retry churn comparison | ✅ Validated | Without Kueue: 5 pods created; With Kueue: 0 pods, 0 CPU, 0 churn |
+| **TC-7**: Individual executor failure | ✅ Validated | exec-2 killed → exec-4 replaced in ~25s → job COMPLETED, no restart needed |
 
 ### Additional Finding: Operator Controller Stale Process Issue
 
@@ -296,11 +385,12 @@ During testing, a known issue was encountered: the Spark Operator controller can
 
 ## Recommendation
 
-Kueue with the Kubeflow Spark Operator on RHOAI 3.5 **successfully prevents the resource-contention failure mode** identified in the problem statement. All six test cases passed:
+Kueue with the Kubeflow Spark Operator on RHOAI 3.5 **successfully prevents the resource-contention failure mode** identified in the problem statement. All seven test cases passed:
 
 - The "half-admitted, resource-wasting" state is **completely eliminated** by Kueue's admission control
 - Gang scheduling ensures **all-or-nothing** pod admission — no partial states
 - Quota reclamation is **automatic** with sub-second re-admission latency
 - Retry churn under contention is reduced to **zero** because jobs never start without sufficient quota
+- Individual executor failure is **fully recoverable** — the Spark driver auto-replaces dead executors, matching Hadoop/YARN resilience
 
-For a production rollout with ~1000 cores of batch Spark workloads, Kueue provides the necessary guardrails to safely run multiple concurrent jobs on a shared resource pool.
+For a production rollout with ~1000 cores of batch Spark workloads, the Spark Operator provides Hadoop-equivalent fault tolerance while Kueue provides the necessary guardrails to safely run multiple concurrent jobs on a shared resource pool.

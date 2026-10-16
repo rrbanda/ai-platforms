@@ -25,3 +25,5 @@ resources:
   # TC-6: Retry behavior with Kueue vs without
   # - tc6-retry-with-kueue.yaml
   # - tc6-retry-without-kueue.yaml
+  # TC-7: Individual executor failure — kill an executor, watch Spark recover
+  # - tc7-executor-failure.yaml

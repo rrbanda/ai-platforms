@@ -1,18 +1,17 @@
-# TC-3 Overflow: Second job that CANNOT fit while tc3-gang-scheduling is running.
+# TC-3 Overflow: Second job to apply AFTER tc3-gang-scheduling is running
+# (if you raised CQ quota to let tc3-gang-scheduling through).
 #
-# Apply AFTER tc3-gang-scheduling is admitted.
-# This job also requests 4 CPU (driver 1 + 3 executors × 1) but quota is now full.
-# Kueue holds this job Suspended — it does NOT partially admit the driver alone.
+# Alternative TC-3 variant: If you increase spark-cq quota to 33+ CPU so
+# tc3-gang-scheduling runs, apply this overflow job to prove Kueue blocks
+# the second job rather than partially admitting it.
+#
+# With the default 25 CPU quota, tc3-gang-scheduling itself already stays
+# Suspended (proving gang scheduling), so this overflow file is optional.
 #
 # Expected behavior:
 #   - SparkApplication stays Suspended
 #   - Zero pods created
-#   - Workload object shows ADMITTED=False
 #   - Once tc3-gang-scheduling completes and quota is released, this job is admitted
-#
-# Verification:
-#   oc get sparkapplication tc3-gang-overflow -w
-#   oc get workload
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
@@ -20,26 +19,28 @@ metadata:
   labels:
     app: spark-contention-poc
     poc/test-case: tc3-gang-overflow
-    kueue.x-k8s.io/queue-name: contention-lq
+    kueue.x-k8s.io/queue-name: spark-lq
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["10000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 300
-  restartPolicy:
-    type: Never
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkConf:
+    spark.executor.instances: "4"
   driver:
     cores: 1
-    memory: "512m"
+    coreRequest: "1"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 1
-    instances: 3
-    memory: "512m"
+    instances: 4
+    cores: 8
+    coreRequest: "8"
+    memory: 1g
     securityContext: {}
+  restartPolicy:
+    type: Never

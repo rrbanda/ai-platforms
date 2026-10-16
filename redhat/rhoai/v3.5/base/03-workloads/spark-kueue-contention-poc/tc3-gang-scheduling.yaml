@@ -1,25 +1,30 @@
 # TC-3: Gang Scheduling (All-or-Nothing Admission)
 #
 # Purpose: Prove Kueue does NOT partially admit a SparkApplication.
-# This job requests driver (1 CPU) + 3 executors (1 CPU each) = 4 CPU total.
-# The ClusterQueue has exactly 4 CPU quota — so it FITS and should be admitted.
+# Same resource request as TC-1/TC-2 (33 CPU: 1 CPU driver + 4×8 CPU executors).
+# With ClusterQueue quota at 25 CPU, Kueue cannot reserve ALL pod sets
+# (driver + all executors) atomically — so it admits NONE.
 #
-# The gang scheduling test:
-# 1. First, apply tc3-gang-scheduling.yaml — it should be admitted (4 CPU fits in 4 CPU quota)
-# 2. Then apply tc3-gang-scheduling-overflow.yaml — this second job needs 4 CPU too,
-#    but quota is now exhausted. It stays Suspended (not half-admitted).
+# The key validation vs TC-1: without Kueue, the driver runs alone while
+# executors stay Pending (half-admitted). With Kueue, NOTHING runs.
 #
-# Key validation: Kueue reserves quota for ALL pod sets (driver + all executors) atomically.
-# It will NOT schedule the driver alone while executors wait.
+# Tested: 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# Job stayed Suspended with zero pods. Kueue Workload message:
+#   "Inadmissible by ClusterQueue spark-cq: insufficient unused quota for
+#    cpu in flavor default-flavor, 8 more needed"
+# Proves gang scheduling: Kueue won't admit driver (1 CPU) alone even
+# though 25 CPU is available — it requires the full 33 CPU.
 #
 # Expected behavior:
-#   - Job is admitted (quota fits exactly)
-#   - Driver + all 3 executors run together
-#   - Job completes; quota is released
+#   - SparkApplication stays in Suspended state
+#   - Kueue will NOT schedule the driver alone while executors wait
+#   - Zero pods created — no partial scheduling, no resource waste
 #
 # Verification:
+#   oc apply -f tc3-gang-scheduling.yaml
 #   oc get sparkapplication tc3-gang-scheduling -w
 #   oc get pods -l sparkoperator.k8s.io/app-name=tc3-gang-scheduling
+#   oc delete sparkapplication tc3-gang-scheduling
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
@@ -27,26 +32,28 @@ metadata:
   labels:
     app: spark-contention-poc
     poc/test-case: tc3-gang-scheduling
-    kueue.x-k8s.io/queue-name: contention-lq
+    kueue.x-k8s.io/queue-name: spark-lq
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["10000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 300
-  restartPolicy:
-    type: Never
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkConf:
+    spark.executor.instances: "4"
   driver:
     cores: 1
-    memory: "512m"
+    coreRequest: "1"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 1
-    instances: 3
-    memory: "512m"
+    instances: 4
+    cores: 8
+    coreRequest: "8"
+    memory: 1g
     securityContext: {}
+  restartPolicy:
+    type: Never

@@ -1,44 +1,56 @@
-# TC-4a: Large Job — Consumes All Quota
+# TC-4a: First Job — Consumes Quota
 #
 # Purpose: First half of the quota release & re-admission test.
-# This job requests 4 CPU (driver 1 + 3 executors × 1), consuming the entire
-# ClusterQueue quota. Apply tc4b-queued-job.yaml AFTER this is admitted.
+# This job requests 5 CPU (1 CPU driver + 2 executors × 2 CPU).
+# With ClusterQueue quota patched to 6 CPU, it fits and runs immediately.
+# Apply tc4b-queued-job.yaml AFTER this is admitted.
+#
+# PREREQUISITE: Patch spark-cq quota to 6 CPU before running TC-4:
+#   oc patch clusterqueue spark-cq --type merge \
+#     -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"6"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+#
+# Tested: 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# Job A admitted immediately (5 CPU < 6 CPU quota). Job B stayed Suspended
+# until Job A completed, then auto-admitted within seconds.
 #
 # Expected behavior:
-#   - Job is admitted immediately (fits within 4 CPU quota)
-#   - SparkPi runs with 10000 iterations (takes ~60 seconds)
+#   - Job is admitted immediately (5 CPU fits within 6 CPU quota)
+#   - SparkPi runs with 1000 iterations (takes ~45-60 seconds)
 #   - On completion, quota is released → tc4b is auto-admitted
 #
 # Verification:
-#   oc get sparkapplication tc4a-large-job -w
-#   oc get clusterqueue contention-cq   # Watch usedQuota
+#   oc apply -f tc4a-large-job.yaml
+#   oc get sparkapplication tc4-job-a -w
+#   oc get clusterqueue spark-cq   # Watch usedQuota
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: tc4a-large-job
+  name: tc4-job-a
   labels:
     app: spark-contention-poc
     poc/test-case: tc4-quota-release
-    kueue.x-k8s.io/queue-name: contention-lq
+    kueue.x-k8s.io/queue-name: spark-lq
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["10000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 300
-  restartPolicy:
-    type: Never
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkConf:
+    spark.executor.instances: "2"
+  arguments:
+    - "1000"
   driver:
     cores: 1
-    memory: "512m"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 1
-    instances: 3
-    memory: "512m"
+    instances: 2
+    cores: 2
+    memory: 512m
     securityContext: {}
+  restartPolicy:
+    type: Never

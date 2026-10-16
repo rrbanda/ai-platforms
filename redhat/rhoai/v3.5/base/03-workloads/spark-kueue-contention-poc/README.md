@@ -2,9 +2,10 @@
 
 ## What This Is
 
-A set of **test-case YAMLs** for validating Kueue-based admission control and gang
+A set of **tested, validated YAML manifests** for Kueue-based admission control and gang
 scheduling for batch Spark workloads on RHOAI 3.5. Each YAML maps to a specific test
-case from the [POC document](docs/poc-kueue-spark-resource-contention.md).
+case from the [POC document](docs/poc-kueue-spark-final.md). All manifests were
+executed and validated on 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3.
 
 ## The Problem
 
@@ -56,20 +57,22 @@ spark-kueue-contention-poc/
 ├── kustomization.yaml                     # Kustomize entry point (uncomment test cases)
 ├── README.md                              # This file
 ├── kueue-resource-flavor.yaml             # ResourceFlavor (default node pool)
-├── kueue-cluster-queue.yaml               # ClusterQueue — deliberately constrained (4 CPU)
-├── kueue-local-queue.yaml                 # LocalQueue in target namespace
+├── kueue-cluster-queue.yaml               # ClusterQueue — 25 CPU default (patch to 6 for TC-4)
+├── kueue-local-queue.yaml                 # LocalQueue (spark-lq → spark-cq)
 ├── networkpolicy.yaml                     # Spark pod communication (RHOAIENG-53206)
-├── tc1-baseline-no-kueue.yaml             # TC-1: Baseline — 10 CPU, no Kueue
+├── tc1-baseline-no-kueue.yaml             # TC-1: Baseline — 33 CPU, no Kueue
 ├── tc2-kueue-admission-blocking.yaml      # TC-2: Same job, WITH Kueue label
-├── tc3-gang-scheduling.yaml               # TC-3: Gang scheduling (fits in quota)
-├── tc3-gang-scheduling-overflow.yaml       # TC-3: Second job (proves no partial admit)
-├── tc4a-large-job.yaml                    # TC-4: First job (consumes all quota)
-├── tc4b-queued-job.yaml                   # TC-4: Second job (auto-admits after first)
+├── tc3-gang-scheduling.yaml               # TC-3: Gang scheduling — 33 CPU exceeds 25 CPU quota
+├── tc3-gang-scheduling-overflow.yaml       # TC-3: Optional overflow job
+├── tc4a-large-job.yaml                    # TC-4: First job — 5 CPU (requires CQ patched to 6)
+├── tc4b-queued-job.yaml                   # TC-4: Second job — auto-admits after first
 ├── tc5-dynamic-allocation.yaml            # TC-5: Rejected by Kueue webhook
 ├── tc6-retry-with-kueue.yaml             # TC-6: OnFailure + Kueue (zero churn)
 ├── tc6-retry-without-kueue.yaml          # TC-6: OnFailure, no Kueue (retry storm)
 └── docs/
-    └── poc-kueue-spark-resource-contention.md  # Full POC document
+    ├── poc-kueue-spark-resource-contention.md  # Full POC plan & research
+    ├── poc-kueue-spark-final.md                # Final POC plan
+    └── poc-kueue-spark-contention-evidence.md  # Test execution evidence
 ```
 
 ## How to Run Each Test Case
@@ -81,14 +84,17 @@ spark-kueue-contention-poc/
 oc apply -k .
 ```
 
-This creates the `ResourceFlavor`, `ClusterQueue` (4 CPU quota), `LocalQueue`, and `NetworkPolicy`.
+This creates the `ResourceFlavor`, `ClusterQueue` (25 CPU quota), `LocalQueue` (`spark-lq`), and `NetworkPolicy`.
+
+> **IMPORTANT:** Use `default-flavor` ResourceFlavor. Custom-named flavors (e.g. `spark-rf`)
+> were observed to cause spark-submit hangs during testing.
 
 ### TC-1: Baseline Reproduction (the problem)
 
 ```bash
 oc apply -f tc1-baseline-no-kueue.yaml
 oc get pods -l sparkoperator.k8s.io/app-name=tc1-baseline-no-kueue -w
-# Observe: driver runs, most executors Pending, job hangs
+# Observe: driver Running, executors Pending (half-admitted state)
 # Cleanup:
 oc delete sparkapplication tc1-baseline-no-kueue
 ```
@@ -97,49 +103,56 @@ oc delete sparkapplication tc1-baseline-no-kueue
 
 ```bash
 oc apply -f tc2-kueue-admission-blocking.yaml
-oc get sparkapplication tc2-kueue-admission-blocking -w
+oc get sparkapplication tc2-kueue-admission-block -w
 # Observe: stays Suspended, zero pods, Workload ADMITTED=False
 oc get workload
 # Cleanup:
-oc delete sparkapplication tc2-kueue-admission-blocking
+oc delete sparkapplication tc2-kueue-admission-block
 ```
 
 ### TC-3: Gang Scheduling
 
 ```bash
-# Job 1 — fits in quota, runs immediately
 oc apply -f tc3-gang-scheduling.yaml
 oc get sparkapplication tc3-gang-scheduling -w
-# Wait until Running, then apply the overflow:
-oc apply -f tc3-gang-scheduling-overflow.yaml
-oc get sparkapplication tc3-gang-overflow -w
-# Observe: overflow stays Suspended (not half-admitted)
-# When tc3-gang-scheduling completes → tc3-gang-overflow auto-admits
+# Observe: stays Suspended — Kueue won't admit driver alone
+# even though 25 CPU is available; it requires all 33 CPU
+oc get pods -l sparkoperator.k8s.io/app-name=tc3-gang-scheduling
+# Expect: zero pods — proves all-or-nothing admission
 # Cleanup:
-oc delete sparkapplication tc3-gang-scheduling tc3-gang-overflow
+oc delete sparkapplication tc3-gang-scheduling
 ```
 
 ### TC-4: Quota Release & Re-Admission
 
 ```bash
-# Apply both — tc4a runs, tc4b waits
+# Step 1: Patch CQ quota to 6 CPU for this test
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"6"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+
+# Step 2: Apply both jobs — tc4a runs (5 CPU < 6), tc4b waits (5+5=10 > 6)
 oc apply -f tc4a-large-job.yaml
 sleep 5
 oc apply -f tc4b-queued-job.yaml
+
 # Watch in two terminals:
 oc get sparkapplication -w                    # terminal 1
-oc get clusterqueue contention-cq -w          # terminal 2 (watch usedQuota)
+oc get clusterqueue spark-cq -w              # terminal 2 (watch usedQuota)
 # Measure: time from tc4a Completed → tc4b unsuspended
-# Cleanup:
-oc delete sparkapplication tc4a-large-job tc4b-queued-job
+
+# Step 3: Cleanup + restore quota
+oc delete sparkapplication tc4-job-a tc4-job-b
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"25"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
 ```
 
 ### TC-5: Dynamic Allocation Rejection
 
 ```bash
 oc apply -f tc5-dynamic-allocation.yaml
-# Expect: admission webhook error on apply
-# Capture the error message for the report
+# Expect: admission webhook error on apply:
+#   "a kueue managed job can use dynamicAllocation only when the
+#    ElasticJobsViaWorkloadSlices feature gate is on and the job is an elastic job"
 ```
 
 ### TC-6: Retry Behavior Comparison
@@ -148,38 +161,53 @@ oc apply -f tc5-dynamic-allocation.yaml
 # Side A — WITH Kueue (zero churn)
 oc apply -f tc6-retry-with-kueue.yaml
 oc get pods -l sparkoperator.k8s.io/app-name=tc6-retry-with-kueue
-# Expect: zero pods
+# Expect: zero pods (job suspended by Kueue)
 
 # Side B — WITHOUT Kueue (retry storm)
 oc apply -f tc6-retry-without-kueue.yaml
-oc get events --field-selector involvedObject.name=tc6-retry-without-kueue -w
+oc get events --field-selector involvedObject.name=tc6-retry-no-kueue -w
 # Expect: repeated pod creation/deletion events
 
 # Cleanup:
-oc delete sparkapplication tc6-retry-with-kueue tc6-retry-without-kueue
+oc delete sparkapplication tc6-retry-with-kueue tc6-retry-no-kueue
 ```
 
 ## Test Case Summary
 
-| Test Case | Resources | Kueue? | Expected Outcome |
-|---|---|---|---|
-| TC-1 | 10 CPU (2+4×2) | ❌ No | Half-admitted: driver runs, executors Pending |
-| TC-2 | 10 CPU (2+4×2) | ✅ Yes | Stays Suspended, zero pods |
-| TC-3 | 4 CPU (1+3×1) | ✅ Yes | First job admitted; overflow blocked entirely |
-| TC-4 | 4 CPU + 3 CPU | ✅ Yes | Job B auto-admits when Job A finishes |
-| TC-5 | Dynamic alloc | ✅ Yes | Webhook rejects at creation |
-| TC-6 | 10 CPU + retries | Both | Kueue: 0 pods; No Kueue: retry storm |
+| Test Case | Total CPU | Kueue? | CQ Quota | Expected Outcome |
+|---|---|---|---|---|
+| TC-1 | 33 (1+4×8) | ❌ No | N/A | Half-admitted: driver runs, executors Pending |
+| TC-2 | 33 (1+4×8) | ✅ Yes | 25 | Stays Suspended, zero pods |
+| TC-3 | 33 (1+4×8) | ✅ Yes | 25 | All-or-nothing: entire job blocked |
+| TC-4 | 5+5 (1+2×2) | ✅ Yes | 6 | Job B auto-admits when Job A finishes |
+| TC-5 | Dynamic alloc | ✅ Yes | Any | Webhook rejects at creation |
+| TC-6 | 9 (1+4×2) | Both | < 9 | Kueue: 0 pods; No Kueue: retry storm |
 
-## Component Versions
+## Kueue Resource Computation for Spark
+
+Kueue computes CPU demand using this precedence:
+1. `coreRequest` if set (recommended — explicit)
+2. `cores` if `coreRequest` is not set
+3. `1` if neither is set
+
+Memory overhead for Python: `max(0.4 × memory, 384Mi)` added automatically.
+
+> **Tip:** Always set `coreRequest` explicitly to ensure Kueue's resource computation
+> matches what `kube-scheduler` will request.
+
+## Component Versions (Tested)
 
 | Component | Version | RHOAI 3.5 Status |
 |---|---|---|
 | Kubeflow Spark Operator | 2.4.0 | GA |
 | Apache Spark | 4.0.1 | GA |
-| Red Hat build of Kueue Operator | — | GA |
+| Red Hat build of Kueue Operator | 1.4.3 | GA |
 | Kueue + SparkApplication integration | — | Technology Preview |
 
-## Full POC Document
+## Documentation
 
-See [docs/poc-kueue-spark-resource-contention.md](docs/poc-kueue-spark-resource-contention.md) for the
-complete feasibility analysis, research findings, and implementation task breakdown.
+| Document | Description |
+|---|---|
+| [POC Plan (Full)](docs/poc-kueue-spark-resource-contention.md) | Complete feasibility analysis, research findings, and implementation task breakdown |
+| [POC Plan (Final)](docs/poc-kueue-spark-final.md) | Cleaned-up POC plan with problem statement, test cases, component matrix, and engineering questions |
+| [Execution Evidence](docs/poc-kueue-spark-contention-evidence.md) | Live test execution results for all 6 test cases with timestamps, pod statuses, and Kueue messages |

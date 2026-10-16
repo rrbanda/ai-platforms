@@ -1,9 +1,15 @@
 # TC-2: Kueue Admission Blocking
 #
 # Purpose: Demonstrate Kueue prevents the "half-admitted" state.
-# Same resource request as TC-1 (10 CPU total) but WITH the Kueue queue label.
-# Kueue calculates the total resource demand and compares against ClusterQueue quota (4 CPU).
-# Since 10 > 4, the job stays Suspended — zero pods are created.
+# Same resource request as TC-1 (33 CPU: 1 CPU driver + 4×8 CPU executors)
+# but WITH the Kueue queue label. Kueue calculates the total resource demand
+# and compares against ClusterQueue quota (25 CPU). Since 33 > 25, the job
+# stays Suspended — zero pods are created.
+#
+# Tested: 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# Job stayed Suspended with zero pods. Kueue Workload showed:
+#   "Inadmissible by ClusterQueue spark-cq: insufficient unused quota for
+#    cpu in flavor default-flavor, 8 more needed"
 #
 # Expected behavior:
 #   - SparkApplication stays in Suspended state
@@ -12,36 +18,40 @@
 #   - No resource waste — nothing is scheduled until quota is available
 #
 # Verification:
-#   oc get sparkapplication tc2-kueue-admission-blocking -w
-#   oc get workload -l kueue.x-k8s.io/queue-name=contention-lq
-#   oc get pods -l sparkoperator.k8s.io/app-name=tc2-kueue-admission-blocking
+#   oc apply -f tc2-kueue-admission-blocking.yaml
+#   oc get sparkapplication tc2-kueue-admission-block -w
+#   oc get workload -l kueue.x-k8s.io/queue-name=spark-lq
+#   oc get pods -l sparkoperator.k8s.io/app-name=tc2-kueue-admission-block
+#   oc delete sparkapplication tc2-kueue-admission-block
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: tc2-kueue-admission-blocking
+  name: tc2-kueue-admission-block
   labels:
     app: spark-contention-poc
     poc/test-case: tc2-admission-blocking
-    kueue.x-k8s.io/queue-name: contention-lq
+    kueue.x-k8s.io/queue-name: spark-lq
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["10000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 600
-  restartPolicy:
-    type: Never
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkConf:
+    spark.executor.instances: "4"
   driver:
-    cores: 2
-    memory: "1024m"
+    cores: 1
+    coreRequest: "1"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 2
     instances: 4
-    memory: "1024m"
+    cores: 8
+    coreRequest: "8"
+    memory: 1g
     securityContext: {}
+  restartPolicy:
+    type: Never

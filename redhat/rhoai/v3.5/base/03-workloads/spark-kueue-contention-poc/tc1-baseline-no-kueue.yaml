@@ -1,18 +1,29 @@
 # TC-1: Baseline Reproduction — SparkApplication WITHOUT Kueue
 #
 # Purpose: Reproduce the "half-admitted" failure mode.
-# This job requests 10 CPU total (driver 2 + 4 executors × 2) but the cluster/namespace
-# has only 4 CPU available. WITHOUT Kueue, the Spark Operator creates all pods immediately.
-# The kube-scheduler places what fits; remaining executors stay Pending indefinitely.
+# This job requests 33 CPU total (1 CPU driver + 4 executors × 8 CPU) but the
+# cluster has fewer free CPUs available. WITHOUT Kueue, the Spark Operator creates
+# all pods immediately. The kube-scheduler places what fits; remaining executors
+# stay Pending indefinitely.
+#
+# Tested: 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# Cluster had ~23 CPU free across 4 nodes — driver ran, 2 of 4 executors
+# started, 2 stayed Pending. Job entered the "half-admitted" state.
 #
 # Expected behavior:
 #   - Driver pod schedules and starts Running
-#   - 0–1 executor pods schedule (depending on available capacity)
+#   - 0–2 executor pods schedule (depending on available capacity)
 #   - Remaining executor pods stay Pending
 #   - Job hangs — partially running, partially stuck
 #   - Resources held until manual deletion or timeout
 #
 # NOTE: No kueue.x-k8s.io/queue-name label — Kueue does not manage this job.
+#
+# Verification:
+#   oc apply -f tc1-baseline-no-kueue.yaml
+#   oc get pods -l sparkoperator.k8s.io/app-name=tc1-baseline-no-kueue -w
+#   # Observe: driver Running, some executors Pending
+#   oc delete sparkapplication tc1-baseline-no-kueue
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
@@ -21,24 +32,26 @@ metadata:
     app: spark-contention-poc
     poc/test-case: tc1-baseline
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["10000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 600
-  restartPolicy:
-    type: Never
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkConf:
+    spark.executor.instances: "4"
   driver:
-    cores: 2
-    memory: "1024m"
+    cores: 1
+    coreRequest: "1"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 2
     instances: 4
-    memory: "1024m"
+    cores: 8
+    coreRequest: "8"
+    memory: 1g
     securityContext: {}
+  restartPolicy:
+    type: Never

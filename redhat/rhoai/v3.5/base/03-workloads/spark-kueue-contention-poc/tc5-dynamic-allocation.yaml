@@ -1,51 +1,54 @@
 # TC-5: Dynamic Allocation — Kueue Webhook Rejection
 #
 # Purpose: Document and verify that dynamicAllocation is NOT compatible with Kueue.
-# The Kueue webhook validates that Kueue-managed SparkApplications do not use
-# dynamicAllocation.enabled=true. This job will be REJECTED at creation time.
+# The Kueue validating webhook (vsparkapplication.kb.io) validates that
+# Kueue-managed SparkApplications do not use dynamicAllocation.enabled=true.
+# This job will be REJECTED at creation time (oc apply fails).
 #
-# Expected behavior:
-#   oc apply returns an error:
-#   "a kueue managed job can use dynamicAllocation only when the
+# Tested: 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# Webhook returned:
+#   "admission webhook 'vsparkapplication.kb.io' denied the request:
+#    a kueue managed job can use dynamicAllocation only when the
 #    ElasticJobsViaWorkloadSlices feature gate is on and the job is an elastic job"
 #
-# This confirms the known limitation: executor count MUST be fixed for Kueue-managed jobs.
+# This confirms the known limitation: executor count MUST be fixed
+# (set executor.instances explicitly) for Kueue-managed SparkApplications.
 #
 # Verification:
 #   oc apply -f tc5-dynamic-allocation.yaml
-#   # Expect: admission webhook error
+#   # Expect: admission webhook error on apply — capture the error message
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: tc5-dynamic-allocation
+  name: tc5-dynamic-alloc-reject
   labels:
     app: spark-contention-poc
     poc/test-case: tc5-dynamic-allocation
-    kueue.x-k8s.io/queue-name: contention-lq
+    kueue.x-k8s.io/queue-name: spark-lq
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["1000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 300
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
   dynamicAllocation:
     enabled: true
-    initialExecutors: 2
+    initialExecutors: 1
     minExecutors: 1
-    maxExecutors: 6
-  restartPolicy:
-    type: Never
+    maxExecutors: 4
   driver:
     cores: 1
-    memory: "512m"
+    coreRequest: "1"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 1
     instances: 2
-    memory: "512m"
+    cores: 1
+    coreRequest: "1"
+    memory: 512m
     securityContext: {}
+  restartPolicy:
+    type: Never

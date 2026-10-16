@@ -1,21 +1,28 @@
-# ClusterQueue: contention-cq
+# ClusterQueue: spark-cq
 #
-# DELIBERATELY CONSTRAINED to 4 CPU / 8Gi memory.
-# This is NOT a production configuration — it exists to reproduce the
-# resource-contention scenario described in the POC.
+# DELIBERATELY CONSTRAINED quota for POC contention testing.
+# Default: 25 CPU / 32Gi memory — this blocks TC-1/TC-2/TC-3/TC-6
+# (which request 33 CPU total: 1 CPU driver + 4×8 CPU executors).
 #
-# A SparkApplication requesting 10 CPU (driver 2 + 4 executors × 2) will
-# exceed this quota, forcing Kueue to hold the job in Suspended state
-# until quota becomes available.
+# For TC-4 (quota release & re-admission), patch quota down to 6 CPU:
+#   oc patch clusterqueue spark-cq --type merge \
+#     -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"6"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+#
+# After TC-4, restore to 25 CPU:
+#   oc patch clusterqueue spark-cq --type merge \
+#     -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"25"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
 #
 # NOTE: This ClusterQueue handles quota-level all-or-nothing (Kueue only
 # unsuspends when quota for ALL pod sets can be reserved at once).
 # For full gang scheduling (evict + retry if pods don't become Ready),
 # you must ALSO configure gangScheduling in the Kueue CR — see README.
+#
+# IMPORTANT: Use "default-flavor" ResourceFlavor. Custom-named flavors
+# (e.g. "spark-rf") were observed to cause spark-submit hangs in testing.
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
-  name: contention-cq
+  name: spark-cq
 spec:
   namespaceSelector: {}
   resourceGroups:
@@ -24,6 +31,6 @@ spec:
     - name: default-flavor
       resources:
       - name: "cpu"
-        nominalQuota: 4
+        nominalQuota: 25
       - name: "memory"
-        nominalQuota: 8Gi
+        nominalQuota: 32Gi

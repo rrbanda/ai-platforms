@@ -1,21 +1,33 @@
 # TC-6a: Retry Behavior WITH Kueue — Under Resource Contention
 #
 # Purpose: Show that Kueue eliminates pod creation/teardown churn.
-# This job requests 10 CPU (exceeds 4 CPU quota) WITH restartPolicy OnFailure.
-# Because Kueue holds the job Suspended, the Spark Operator never creates pods.
-# No retry loop occurs — the job simply waits for quota.
+# This job requests 9 CPU (1 CPU driver + 4×2 CPU executors) WITH restartPolicy
+# OnFailure and retries configured. Because Kueue holds the job Suspended
+# (9 CPU < 25 CPU quota, so this job would be admitted — see note below),
+# the Spark Operator never creates pods in a retry loop.
 #
-# Compare with tc6-retry-without-kueue.yaml to see the difference.
+# NOTE: With 25 CPU quota, this 9 CPU job WILL be admitted. To test retry
+# suppression, either:
+#   a) Patch spark-cq quota to 6 CPU (insufficient for 9 CPU), OR
+#   b) Submit alongside other jobs that consume most of the 25 CPU quota
 #
-# Expected behavior:
+# Tested: 2026-10-15 on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3
+# With quota set below job demand: job stayed Suspended, zero pods created,
+# zero retry cycles — despite OnFailure restartPolicy with 3 retries.
+#
+# Expected behavior (when quota insufficient):
 #   - SparkApplication stays Suspended indefinitely
 #   - Zero pods created, zero retries
 #   - oc get events shows NO pod creation/deletion events
 #
+# Compare with tc6-retry-without-kueue.yaml to see the difference.
+#
 # Verification:
+#   oc apply -f tc6-retry-with-kueue.yaml
 #   oc get sparkapplication tc6-retry-with-kueue -w
 #   oc get pods -l sparkoperator.k8s.io/app-name=tc6-retry-with-kueue
 #   oc get events --field-selector involvedObject.name=tc6-retry-with-kueue
+#   oc delete sparkapplication tc6-retry-with-kueue
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
@@ -23,30 +35,32 @@ metadata:
   labels:
     app: spark-contention-poc
     poc/test-case: tc6-retry-comparison
-    kueue.x-k8s.io/queue-name: contention-lq
+    kueue.x-k8s.io/queue-name: spark-lq
 spec:
-  type: Scala
+  type: Python
+  pythonVersion: "3"
   mode: cluster
+  sparkVersion: "4.0.1"
   image: quay.io/opendatahub/data-processing:Spark-v4.0.1
   imagePullPolicy: IfNotPresent
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  arguments: ["10000"]
-  sparkVersion: "4.0.1"
-  timeToLiveSeconds: 600
-  restartPolicy:
-    type: OnFailure
-    onFailureRetries: 3
-    onFailureRetryInterval: 30
-    onSubmissionFailureRetries: 3
-    onSubmissionFailureRetryInterval: 30
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkConf:
+    spark.executor.instances: "4"
   driver:
-    cores: 2
-    memory: "1024m"
+    cores: 1
+    coreRequest: "1"
+    memory: 512m
     serviceAccount: spark-operator-spark
     securityContext: {}
   executor:
-    cores: 2
     instances: 4
-    memory: "1024m"
+    cores: 2
+    coreRequest: "2"
+    memory: 512m
     securityContext: {}
+  restartPolicy:
+    type: OnFailure
+    onFailureRetries: 3
+    onFailureRetryInterval: 10
+    onSubmissionFailureRetries: 3
+    onSubmissionFailureRetryInterval: 10

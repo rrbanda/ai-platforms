@@ -15,7 +15,9 @@ resources:
   # - tc2-kueue-admission-blocking.yaml
   # TC-3: Gang scheduling — proves all-or-nothing (no partial admission)
   # - tc3-gang-scheduling.yaml
-  # TC-4: Quota release & re-admission — apply both, Job B waits for Job A
+  # TC-3 overflow: Optional second job (apply after tc3 if quota was raised)
+  # - tc3-gang-scheduling-overflow.yaml
+  # TC-4: Quota release & re-admission — FIRST patch spark-cq to 6 CPU (see tc4a comments)
   # - tc4a-large-job.yaml
   # - tc4b-queued-job.yaml
   # TC-5: Dynamic allocation rejection — Kueue rejects this at webhook

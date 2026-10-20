@@ -16,15 +16,19 @@ in Suspended state until the full resource set (driver + all executors) can be r
 
 ## Prerequisites — 3 Operators Required
 
-| Operator | Version | Purpose |
-|---|---|---|
-| **Red Hat OpenShift AI** | 3.5+ | Manages the Spark Operator as a component |
-| **Red Hat build of Kueue** | 1.4+ | Admission control, quota, gang scheduling |
-| **cert-manager Operator for Red Hat OpenShift** | 1.20+ | TLS certificates for Kueue webhooks |
+| Operator | Version | Min OCP | Purpose |
+|---|---|---|---|
+| **Red Hat OpenShift AI** | 3.5+ | 4.19.9+ | Manages Spark Operator 2.4.0 (GA) as a component |
+| **Red Hat build of Kueue** | 1.4+ (upstream 0.18) | 4.18+ | Admission control, quota, gang scheduling |
+| **cert-manager Operator for Red Hat OpenShift** | 1.20+ | 4.12+ | TLS certificates for Kueue webhooks |
+
+> **Effective minimum: OpenShift 4.19.9** — constrained by RHOAI 3.5. Also supports 4.20, 4.21, 4.22.
+> The Spark Operator was Technology Preview in RHOAI 3.4; it became **GA in RHOAI 3.5**.
+> Source: [Red Hat Supported Configurations](https://access.redhat.com/articles/rhoai-supported-configs)
 
 > **Not required:** LeaderWorkerSet (llm-d only), Red Hat Connectivity Link (MaaS only), JobSet (Trainer v2 only), Service Mesh (OGX only). See [RHOAI 3.5 component requirements](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-and-deploying-openshift-ai_install).
 
-1. **OpenShift 4.19+** with **RHOAI 3.5** installed
+1. **OpenShift 4.19.9+** (also supports 4.20, 4.21, 4.22) with **RHOAI 3.5** installed
 2. **cert-manager Operator** installed (required for all Kueue-based workloads per [RHOAI docs](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-the-distributed-workloads-components_install))
 3. **Spark Operator** enabled (`sparkoperator: Managed` in DataScienceCluster)
 4. **Red Hat build of Kueue Operator (v1.4+)** installed with SparkApplication framework and gang scheduling:

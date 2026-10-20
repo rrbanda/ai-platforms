@@ -102,7 +102,7 @@ footer a{color:var(--rh-teal)}
   <div class="stack">
     <span class="chip red">Kubeflow Spark Operator 2.4.0</span>
     <span class="chip teal">Red Hat build of Kueue 1.4.3</span>
-    <span class="chip green">RHOAI 3.5.1 — OpenShift 4.19</span>
+    <span class="chip green">RHOAI 3.5.1 — OpenShift 4.19.9+</span>
   </div>
 </div>
 
@@ -209,14 +209,15 @@ footer a{color:var(--rh-teal)}
   <h2><span class="num">4</span> Required Operators (3 Total)</h2>
   <table>
     <thead>
-      <tr><th>Operator</th><th>Version</th><th>Purpose</th></tr>
+      <tr><th>Operator</th><th>Version</th><th>Min OCP</th><th>Purpose</th></tr>
     </thead>
     <tbody>
-      <tr><td><strong>Red Hat OpenShift AI</strong></td><td>3.5+</td><td>Manages Spark Operator as a component (<code>sparkoperator: Managed</code>)</td></tr>
-      <tr><td><strong>Red Hat build of Kueue</strong></td><td>1.4+</td><td>Admission control, quota management, gang scheduling</td></tr>
-      <tr><td><strong>cert-manager Operator</strong></td><td>1.20+</td><td>TLS certificates for Kueue webhooks (required per <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-and-deploying-openshift-ai_install" style="color:var(--rh-teal)">RHOAI 3.5 docs</a>)</td></tr>
+      <tr><td><strong>Red Hat OpenShift AI</strong></td><td>3.5+</td><td>4.19.9+</td><td>Manages Spark Operator 2.4.0 (GA) as a component (<code>sparkoperator: Managed</code>)</td></tr>
+      <tr><td><strong>Red Hat build of Kueue</strong></td><td>1.4+ (upstream 0.18)</td><td>4.18+</td><td>Admission control, quota management, gang scheduling</td></tr>
+      <tr><td><strong>cert-manager Operator</strong></td><td>1.20+</td><td>4.12+</td><td>TLS certificates for Kueue webhooks (required per <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-and-deploying-openshift-ai_install" style="color:var(--rh-teal)">RHOAI 3.5 docs</a>)</td></tr>
     </tbody>
   </table>
+  <div style="background:var(--bg2);border-radius:8px;padding:14px 18px;margin:12px 0;border-left:4px solid var(--rh-teal);font-size:14px"><strong style="color:var(--rh-teal)">Effective minimum:</strong> OpenShift <strong>4.19.9</strong> — constrained by RHOAI 3.5 (Spark Operator GA). Supported on 4.19.9+, 4.20, 4.21, 4.22. Source: <a href="https://access.redhat.com/articles/rhoai-supported-configs" style="color:var(--rh-teal)">Red Hat Supported Configurations</a></div>
   <div style="background:var(--bg2);border-radius:8px;padding:14px 18px;margin:12px 0;border-left:4px solid var(--rh-gold);font-size:14px"><strong style="color:var(--rh-gold)">Not required for this POC:</strong> LeaderWorkerSet (llm-d only), Red Hat Connectivity Link (MaaS only), JobSet (Trainer v2 only), Service Mesh (OGX only).</div>
 
   <h2><span class="num">5</span> Component Versions</h2>

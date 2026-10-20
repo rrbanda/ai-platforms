@@ -52,16 +52,17 @@ footer{background:#000;border-top:1px solid var(--border);padding:20px 40px;text
 
 <h2>Prerequisites — 3 Operators Required</h2>
 <table>
-  <thead><tr><th>Operator</th><th>Version</th><th>Purpose</th></tr></thead>
+  <thead><tr><th>Operator</th><th>Version</th><th>Min OCP</th><th>Purpose</th></tr></thead>
   <tbody>
-    <tr><td><strong>Red Hat OpenShift AI</strong></td><td>3.5+</td><td>Manages the Spark Operator as a component (<code>sparkoperator: Managed</code>)</td></tr>
-    <tr><td><strong>Red Hat build of Kueue</strong></td><td>1.4+</td><td>Admission control, quota management, gang scheduling</td></tr>
-    <tr><td><strong>cert-manager Operator for Red Hat OpenShift</strong></td><td>1.20+</td><td>TLS certificates for Kueue webhooks (required for all Kueue-based workloads)</td></tr>
+    <tr><td><strong>Red Hat OpenShift AI</strong></td><td>3.5+ (Spark Operator GA)</td><td>4.19.9+</td><td>Manages the Spark Operator 2.4.0 as a component (<code>sparkoperator: Managed</code>)</td></tr>
+    <tr><td><strong>Red Hat build of Kueue</strong></td><td>1.4+ (upstream Kueue 0.18)</td><td>4.18+</td><td>Admission control, quota management, gang scheduling</td></tr>
+    <tr><td><strong>cert-manager Operator for Red Hat OpenShift</strong></td><td>1.20+</td><td>4.12+</td><td>TLS certificates for Kueue webhooks (required for all Kueue-based workloads)</td></tr>
   </tbody>
 </table>
+<div class="note"><strong>Effective minimum: OpenShift 4.19.9</strong> — constrained by RHOAI 3.5. Also supports 4.20, 4.21, 4.22. The Spark Operator was Technology Preview in RHOAI 3.4; it became <strong>GA in RHOAI 3.5</strong>. Source: <a href="https://access.redhat.com/articles/rhoai-supported-configs">Red Hat Supported Configurations</a></div>
 <div class="note"><strong>Not required:</strong> LeaderWorkerSet (llm-d only), Red Hat Connectivity Link (MaaS only), JobSet (Trainer v2 only), Service Mesh (OGX only).</div>
 <ol>
-  <li><strong>OpenShift 4.19+</strong> with <strong>RHOAI 3.5</strong> installed</li>
+  <li><strong>OpenShift 4.19.9+</strong> (also supports 4.20, 4.21, 4.22) with <strong>RHOAI 3.5</strong> installed</li>
   <li><strong>cert-manager Operator</strong> installed (<a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-and-deploying-openshift-ai_install">RHOAI docs</a>: required for all Kueue-based workloads)</li>
   <li><strong>Spark Operator</strong> enabled (<code>sparkoperator: Managed</code> in DataScienceCluster)</li>
   <li><strong>Red Hat build of Kueue v1.4+</strong> with SparkApplication integration and gang scheduling:</li>

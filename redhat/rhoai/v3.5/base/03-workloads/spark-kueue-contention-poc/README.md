@@ -14,11 +14,20 @@ Without Kueue, a Spark job that requests more resources than available becomes
 and retry loops compound the problem. Kueue prevents this by holding the entire job
 in Suspended state until the full resource set (driver + all executors) can be reserved.
 
-## Prerequisites
+## Prerequisites — 3 Operators Required
+
+| Operator | Version | Purpose |
+|---|---|---|
+| **Red Hat OpenShift AI** | 3.5+ | Manages the Spark Operator as a component |
+| **Red Hat build of Kueue** | 1.4+ | Admission control, quota, gang scheduling |
+| **cert-manager Operator for Red Hat OpenShift** | 1.20+ | TLS certificates for Kueue webhooks |
+
+> **Not required:** LeaderWorkerSet (llm-d only), Red Hat Connectivity Link (MaaS only), JobSet (Trainer v2 only), Service Mesh (OGX only). See [RHOAI 3.5 component requirements](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-and-deploying-openshift-ai_install).
 
 1. **OpenShift 4.19+** with **RHOAI 3.5** installed
-2. **Spark Operator** enabled (`sparkoperator: Managed` in DataScienceCluster)
-3. **Red Hat build of Kueue Operator (v1.4+)** installed with SparkApplication framework and gang scheduling:
+2. **cert-manager Operator** installed (required for all Kueue-based workloads per [RHOAI docs](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-the-distributed-workloads-components_install))
+3. **Spark Operator** enabled (`sparkoperator: Managed` in DataScienceCluster)
+4. **Red Hat build of Kueue Operator (v1.4+)** installed with SparkApplication framework and gang scheduling:
    ```yaml
    # oc edit kueue cluster -n openshift-kueue-operator
    # API: kueue.openshift.io/v1
@@ -43,12 +52,12 @@ in Suspended state until the full resource set (driver + all executors) can be r
    > **Requires RHBoK 1.4+** (Kueue 0.18). RHBoK 1.3 (Kueue 0.16) does not include
    > the SparkApplication reconciler. If the cluster also uses Kubeflow Trainer v2,
    > note that RHBoK 1.4 breaks Trainer v2 integration (RHOAI known issue RHOAIENG-87625).
-4. **Namespace labeled** for Kueue management:
+5. **Namespace labeled** for Kueue management:
    ```bash
    oc label namespace <ns> kueue.openshift.io/managed=true --overwrite
    ```
-5. **Webhook patched** to include target namespace (see [spark-data-ingestion README](../spark-data-ingestion/README.md#1-webhook-namespace-selector))
-6. **Kueue RBAC** for SparkApplication finalizers (see [verification guide](../spark-data-ingestion/docs/kueue-spark-verification.md#8-kueue-rbac-for-sparkapplication-finalizers))
+6. **Webhook patched** to include target namespace (see [spark-data-ingestion README](../spark-data-ingestion/README.md#1-webhook-namespace-selector))
+7. **Kueue RBAC** for SparkApplication finalizers (see [verification guide](../spark-data-ingestion/docs/kueue-spark-verification.md#8-kueue-rbac-for-sparkapplication-finalizers))
 
 ## File Inventory
 

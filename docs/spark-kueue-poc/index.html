@@ -206,7 +206,20 @@ footer a{color:var(--rh-teal)}
 
 <!-- COMPONENT VERSIONS -->
 <div class="section">
-  <h2><span class="num">4</span> Component Versions</h2>
+  <h2><span class="num">4</span> Required Operators (3 Total)</h2>
+  <table>
+    <thead>
+      <tr><th>Operator</th><th>Version</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Red Hat OpenShift AI</strong></td><td>3.5+</td><td>Manages Spark Operator as a component (<code>sparkoperator: Managed</code>)</td></tr>
+      <tr><td><strong>Red Hat build of Kueue</strong></td><td>1.4+</td><td>Admission control, quota management, gang scheduling</td></tr>
+      <tr><td><strong>cert-manager Operator</strong></td><td>1.20+</td><td>TLS certificates for Kueue webhooks (required per <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/installing_and_uninstalling_openshift_ai_self-managed/installing-and-deploying-openshift-ai_install" style="color:var(--rh-teal)">RHOAI 3.5 docs</a>)</td></tr>
+    </tbody>
+  </table>
+  <div style="background:var(--bg2);border-radius:8px;padding:14px 18px;margin:12px 0;border-left:4px solid var(--rh-gold);font-size:14px"><strong style="color:var(--rh-gold)">Not required for this POC:</strong> LeaderWorkerSet (llm-d only), Red Hat Connectivity Link (MaaS only), JobSet (Trainer v2 only), Service Mesh (OGX only).</div>
+
+  <h2><span class="num">5</span> Component Versions</h2>
   <table>
     <thead>
       <tr><th>Component</th><th>Version</th><th>RHOAI 3.5 Status</th><th>Role in POC</th></tr>
@@ -223,7 +236,7 @@ footer a{color:var(--rh-teal)}
 
 <!-- KUEUE RESOURCE COMPUTATION -->
 <div class="section">
-  <h2><span class="num">5</span> How Kueue Computes Spark Resource Demand</h2>
+  <h2><span class="num">6</span> How Kueue Computes Spark Resource Demand</h2>
   <div style="background:var(--bg2);border-radius:10px;padding:24px;border-left:4px solid var(--rh-teal)">
     <p style="margin-bottom:12px"><strong style="color:#fff">CPU Precedence:</strong></p>
     <p style="margin-bottom:4px"><code>coreRequest</code> (preferred) &rarr; <code>cores</code> &rarr; default <code>1</code></p>

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kueue + Spark Operator POC — Live Demo Narrative</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800&family=Red+Hat+Text:wght@400;500;600;700&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --rh-red: #EE0000;
+  --rh-dark: #151515;
+  --rh-white: #FFFFFF;
+  --rh-gray: #F5F5F5;
+  --rh-gray-mid: #E0E0E0;
+  --rh-blue: #0066CC;
+  --rh-teal: #009596;
+  --rh-green: #3E8635;
+  --rh-gold: #F0AB00;
+  --rh-purple: #6753AC;
+  --font-display: 'Red Hat Display', 'Segoe UI', Arial, sans-serif;
+  --font-text: 'Red Hat Text', 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'Red Hat Mono', 'Consolas', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: var(--font-text); color: var(--rh-dark); line-height:1.6; background:#fff; }
+
+/* Header bar */
+.top-bar { background: var(--rh-dark); color:#fff; padding:12px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
+.top-bar .logo { font-family: var(--font-display); font-weight:800; color:var(--rh-red); font-size:18px; }
+.top-bar .title { font-family: var(--font-display); font-weight:500; font-size:14px; color:#ccc; }
+
+/* Main layout */
+.container { max-width:960px; margin:0 auto; padding:30px 40px 80px; }
+
+/* Phase headers */
+.phase { margin:50px 0 20px; border-left:4px solid var(--rh-red); padding-left:16px; }
+.phase-label { font-family:var(--font-display); font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--rh-red); }
+.phase h2 { font-family:var(--font-display); font-weight:700; font-size:26px; margin-top:2px; }
+.phase .subtitle { color:#666; font-size:14px; margin-top:2px; }
+
+/* Cards */
+.card { background:var(--rh-gray); border-radius:8px; padding:20px 24px; margin:16px 0; }
+.card.say { border-left:4px solid var(--rh-blue); background:#F0F7FF; }
+.card.do { border-left:4px solid var(--rh-teal); background:#F0FAFA; }
+.card.expect { border-left:4px solid var(--rh-green); background:#F0FAF0; }
+.card.warn { border-left:4px solid var(--rh-gold); background:#FFFBF0; }
+.card.qa { border-left:4px solid var(--rh-purple); background:#F8F5FF; }
+.card-label { font-family:var(--font-display); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+.card.say .card-label { color:var(--rh-blue); }
+.card.do .card-label { color:var(--rh-teal); }
+.card.expect .card-label { color:var(--rh-green); }
+.card.warn .card-label { color:var(--rh-gold); }
+.card.qa .card-label { color:var(--rh-purple); }
+
+/* Code blocks */
+pre { font-family:var(--font-mono); font-size:13px; background:#1a1a2e; color:#e0e0e0; padding:14px 18px; border-radius:6px; overflow-x:auto; margin:8px 0; line-height:1.5; }
+pre .comment { color:#6a9955; }
+pre .highlight { color:#4ec9b0; font-weight:600; }
+pre .result { color:#dcdcaa; }
+
+/* Inline code */
+code { font-family:var(--font-mono); background:#eee; padding:2px 6px; border-radius:3px; font-size:13px; }
+
+/* Tables */
+table { width:100%; border-collapse:collapse; margin:12px 0; font-size:14px; }
+th { background:var(--rh-dark); color:#fff; padding:8px 12px; text-align:left; font-weight:600; font-family:var(--font-display); }
+td { padding:7px 12px; border-bottom:1px solid var(--rh-gray-mid); }
+tr:nth-child(even) td { background:var(--rh-gray); }
+
+/* Timing badges */
+.timing { display:inline-block; background:var(--rh-red); color:#fff; font-family:var(--font-display); font-weight:700; font-size:11px; padding:3px 10px; border-radius:12px; margin-left:8px; }
+
+/* Section dividers */
+hr.scene { border:none; border-top:2px dashed var(--rh-gray-mid); margin:40px 0; }
+
+/* Key points */
+.key-point { display:flex; gap:10px; align-items:flex-start; margin:8px 0; }
+.key-point .bullet { flex-shrink:0; width:22px; height:22px; background:var(--rh-red); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:var(--font-display); margin-top:2px; }
+
+/* Intro section */
+.intro { background: linear-gradient(135deg, #1a1a2e, #16213e); color:#fff; padding:40px; border-radius:12px; margin:20px 0 40px; }
+.intro h1 { font-family:var(--font-display); font-size:32px; font-weight:800; margin-bottom:8px; }
+.intro .meta { color:#aaa; font-size:14px; }
+.intro .overview { margin-top:20px; font-size:15px; line-height:1.7; color:#ddd; }
+
+/* Flow diagram */
+.flow { display:flex; gap:0; align-items:center; justify-content:center; margin:20px 0; flex-wrap:wrap; }
+.flow-step { background:var(--rh-gray); border:2px solid var(--rh-gray-mid); border-radius:8px; padding:10px 16px; font-size:13px; text-align:center; font-family:var(--font-display); font-weight:600; min-width:140px; }
+.flow-step.problem { border-color:#cc0000; background:#fff0f0; }
+.flow-step.solution { border-color:var(--rh-green); background:#f0fff0; }
+.flow-step.bonus { border-color:var(--rh-teal); background:#f0fafa; }
+.flow-arrow { font-size:20px; color:var(--rh-gray-mid); padding:0 6px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">Red Hat</div>
+  <div class="title">Kueue + Spark Operator POC — Live Demo Speaker Guide</div>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- INTRO -->
+<!-- ============================================================ -->
+
+<div class="intro">
+  <h1>Data Ingestion Batch Pattern — Resource Contention POC</h1>
+  <div class="meta">
+    RHOAI 3.5.1 &nbsp;|&nbsp; Spark Operator 2.4.0 &nbsp;|&nbsp; Red Hat build of Kueue 1.4.3<br>
+    Live on OpenShift 4.x &nbsp;|&nbsp; ~12 minutes &nbsp;|&nbsp; Tell → Show → Tell
+  </div>
+  <div class="overview">
+    This demo validates that Kueue prevents the "half-admitted" resource-contention failure mode
+    for batch Spark workloads on a shared OpenShift cluster. Five live test cases, run in real-time,
+    with the audience watching <code>oc get</code> output.
+  </div>
+</div>
+
+<div class="flow">
+  <div class="flow-step problem">TC-1<br><small>The Problem</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step solution">TC-2<br><small>Kueue Blocks It</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step solution">TC-4<br><small>Auto Queue</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">TC-5<br><small>Constraint</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step bonus">TC-7<br><small>Resilience</small></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PRE-DEMO CHECKLIST -->
+<!-- ============================================================ -->
+
+<div class="phase">
+  <div class="phase-label">Before You Start</div>
+  <h2>Pre-Demo Checklist</h2>
+</div>
+
+<div class="card warn">
+  <div class="card-label">⚠ Setup — Run 5 Minutes Before the Demo</div>
+  <p>Make sure the cluster is clean and manifests are ready:</p>
+<pre>
+<span class="comment"># Verify you're logged in</span>
+oc whoami
+oc project redhat-ods-applications
+
+<span class="comment"># Clean up any leftover SparkApps</span>
+oc delete sparkapplication --all --ignore-not-found
+
+<span class="comment"># Set ClusterQueue quota to 8 CPU</span>
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"8"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+
+<span class="comment"># Verify Kueue is ready</span>
+oc get clusterqueue spark-cq
+oc get localqueue spark-lq
+
+<span class="comment"># Verify Spark Operator is running</span>
+oc get pods -l app.kubernetes.io/name=spark-operator
+</pre>
+  <p style="margin-top:10px;">Have <strong>two terminal tabs open</strong> — one for commands, one for <code>oc get -w</code> watches.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- OPENING TELL -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Opening — Tell</div>
+  <h2>Set the Scene</h2>
+  <div class="subtitle">~90 seconds. No terminal yet. Just talk.</div>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Say This</div>
+  <p><em>"We've identified a specific failure mode that will become a real problem as we consolidate more batch Spark workloads onto a shared OpenShift cluster.</em></p>
+  <p><em>Here's the scenario: a Spark job is submitted that needs 33 CPUs total — one driver pod and four executor pods. But the cluster only has about 22 CPUs free across four worker nodes. What happens today, without any admission control?"</em></p>
+  <p style="margin-top:12px;"><strong>Pause. Let them answer or guess.</strong></p>
+  <p style="margin-top:12px;"><em>"The Spark Operator creates all five pods immediately. The kube-scheduler places what it can — the driver and maybe one executor — but the other three executors sit in Pending. The job is now <strong>half-admitted</strong>: partially running, partially stuck, holding resources for something that can never complete. If there's a retry policy, it gets worse — the operator tears everything down and tries again, creating the same stuck situation in a loop.</em></p>
+  <p><em>This is the exact pattern we saw with the deposits batch jobs. Let me reproduce it live, and then show you how Kueue eliminates it."</em></p>
+</div>
+
+<!-- ============================================================ -->
+<!-- DEMO 1: THE PROBLEM -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Demo 1 — Show</div>
+  <h2>TC-1: The Problem <span class="timing">~2 min</span></h2>
+  <div class="subtitle">Reproduce the half-admitted state WITHOUT Kueue</div>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Say This</div>
+  <p><em>"This is a standard SparkApplication — Python SparkPi, 1 CPU driver, four executors at 8 CPU each. 33 CPU total. No Kueue label. Let's submit it and watch what happens."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Run This</div>
+<pre>
+oc apply -f /tmp/poc-contention/tc1-baseline-no-kueue.yaml
+</pre>
+  <p>Wait ~15 seconds, then:</p>
+<pre>
+oc get pods -l sparkoperator.k8s.io/app-name=tc1-baseline-no-kueue -o wide
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 You'll See</div>
+<pre>
+NAME                               READY   STATUS    NODE
+tc1-baseline-no-kueue-driver       1/1     <span class="highlight">Running</span>   ip-10-0-25-91
+pythonpi-...-exec-1                1/1     <span class="highlight">Running</span>   ip-10-0-25-91
+pythonpi-...-exec-2                0/1     <span class="result">Pending</span>   &lt;none&gt;
+pythonpi-...-exec-3                0/1     <span class="result">Pending</span>   &lt;none&gt;
+pythonpi-...-exec-4                0/1     <span class="result">Pending</span>   &lt;none&gt;
+</pre>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Narrate the Output</div>
+  <p><em>"Look at this — the driver is Running, one executor got placed, but three are Pending. Let me show you why."</em></p>
+<pre>
+oc get events --field-selector reason=FailedScheduling | tail -3
+</pre>
+  <p><em>"Insufficient cpu. Every node is too full. The driver plus one executor are consuming 9 CPUs right now — held indefinitely for a job that will <strong>never</strong> complete with only 25% of its executors. This is the half-admitted state."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Cleanup</div>
+<pre>
+oc delete sparkapplication tc1-baseline-no-kueue
+</pre>
+</div>
+
+<!-- ============================================================ -->
+<!-- TRANSITION TELL -->
+<!-- ============================================================ -->
+
+<div class="card say" style="margin-top:30px;">
+  <div class="card-label">🎤 Transition</div>
+  <p><em>"So that's the problem. Now — same job, but we add one label: <code>kueue.x-k8s.io/queue-name: spark-lq</code>. This tells Kueue to manage it. Watch what's different."</em></p>
+</div>
+
+<!-- ============================================================ -->
+<!-- DEMO 2: THE SOLUTION -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Demo 2 — Show</div>
+  <h2>TC-2: Kueue Blocks It <span class="timing">~1 min</span></h2>
+  <div class="subtitle">Same job, Kueue-managed — SUSPENDED, zero pods</div>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Run This</div>
+<pre>
+oc apply -f /tmp/poc-contention/tc2-kueue-admission-block.yaml
+<span class="comment"># Wait 5 seconds</span>
+oc get sparkapplication tc2-kueue-admission-block
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 You'll See</div>
+<pre>
+NAME                        SUSPEND   STATUS      ATTEMPTS   START        FINISH
+tc2-kueue-admission-block   <span class="highlight">true</span>      <span class="highlight">SUSPENDED</span>              &lt;no value&gt;   &lt;no value&gt;
+</pre>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Prove Zero Pods</div>
+<pre>
+oc get pods -l sparkoperator.k8s.io/app-name=tc2-kueue-admission-block
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 You'll See</div>
+<pre>
+<span class="result">No resources found in redhat-ods-applications namespace.</span>
+</pre>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Narrate</div>
+  <p><em>"Suspended. Zero pods. Zero CPU consumed. Here's what happened under the hood: Kueue's mutating webhook intercepted the SparkApplication at creation. It computed the <strong>total</strong> resource demand — 1 CPU driver plus 4 times 8 CPU executors equals 33 CPU. It compared that against the ClusterQueue quota of 8 CPU. 33 is greater than 8, so the job stays suspended. No pods are created. No resources are wasted. The job sits in the queue until quota is available."</em></p>
+  <p style="margin-top:8px;"><em>"Compare that to what we just saw — same job, same cluster, completely different outcome. That's the core value proposition."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Cleanup</div>
+<pre>
+oc delete sparkapplication tc2-kueue-admission-block
+</pre>
+</div>
+
+<!-- ============================================================ -->
+<!-- DEMO 3: AUTO QUEUE -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Demo 3 — Show</div>
+  <h2>TC-4: Automatic Queuing & Release <span class="timing">~3 min</span></h2>
+  <div class="subtitle">Job B waits for Job A — auto-admits on completion, zero intervention</div>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Set Up</div>
+  <p><em>"So Kueue blocks jobs that don't fit. But what about queuing? If I submit two jobs and only one fits, does the second one automatically run when the first one finishes? Let me show you."</em></p>
+  <p><em>"I'm going to set the ClusterQueue quota to 6 CPU. Each job needs 5 CPU — one driver plus two executors at 2 CPU each. So only one job fits at a time."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Run This</div>
+<pre>
+<span class="comment"># Patch quota to 6 CPU</span>
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"6"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+
+<span class="comment"># Submit Job A — runs immediately (5 < 6)</span>
+oc apply -f /tmp/poc-contention/tc4-job-a.yaml
+
+<span class="comment"># Wait 3 seconds, then submit Job B</span>
+sleep 3
+oc apply -f /tmp/poc-contention/tc4-job-b.yaml
+
+<span class="comment"># Watch both</span>
+oc get sparkapplication -w
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 You'll See — Initial State</div>
+<pre>
+NAME        SUSPEND   STATUS    ATTEMPTS   START                  FINISH
+tc4-job-a   false     <span class="highlight">RUNNING</span>   1          2026-10-20T03:12:01Z   &lt;no value&gt;
+tc4-job-b   true      <span class="result">SUSPENDED</span>            &lt;no value&gt;             &lt;no value&gt;
+</pre>
+  <p style="margin-top:8px;">Then ~60 seconds later:</p>
+<pre>
+tc4-job-a   false     <span class="highlight">COMPLETED</span>  1   2026-10-20T03:12:01Z   2026-10-20T03:13:02Z
+tc4-job-b   false     <span class="highlight">RUNNING</span>    1   2026-10-20T03:13:04Z   &lt;no value&gt;
+</pre>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Narrate As It Happens</div>
+  <p><em>"Job A is running — 5 CPU consumed. Job B is suspended — Kueue knows 5 plus 5 is 10, which exceeds the 6 CPU quota. So it holds Job B."</em></p>
+  <p style="margin-top:8px;"><strong>While waiting (~60s):</strong> <em>"This is where you'd normally be monitoring a dashboard. The job is running SparkPi — it'll finish in about a minute. When it does, watch Job B."</em></p>
+  <p style="margin-top:8px;"><strong>When Job A completes:</strong> <em>"There — Job A completed and look at Job B. It went from Suspended to Running within 2 seconds. Kueue automatically reclaimed the quota and admitted the next job in the queue. No manual intervention. No cron job checking. No operator on-call paging someone to restart the pipeline."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Cleanup</div>
+<pre>
+<span class="comment"># Wait for Job B to complete (~60s), or Ctrl+C the watch and cleanup</span>
+oc delete sparkapplication --all --ignore-not-found
+</pre>
+</div>
+
+<!-- ============================================================ -->
+<!-- DEMO 4: CONSTRAINT -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Demo 4 — Show</div>
+  <h2>TC-5: Known Constraint <span class="timing">~30 sec</span></h2>
+  <div class="subtitle">Dynamic allocation is incompatible with Kueue</div>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Set Up</div>
+  <p><em>"One important constraint to document. In Hadoop, you're used to dynamic allocation — Spark scales executors up and down based on demand. With Kueue, that doesn't work. Kueue needs to know the <strong>exact</strong> resource footprint upfront to do its quota math. Let me show you what happens."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Run This</div>
+<pre>
+oc apply -f /tmp/poc-contention/tc5-dynamic-alloc.yaml
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 You'll See — Immediate Rejection</div>
+<pre>
+Error from server (Forbidden):
+  admission webhook "<span class="highlight">vsparkapplication.kb.io</span>" denied the request:
+  spec.dynamicAllocation.enabled: Invalid value: true:
+  <span class="result">a kueue managed job can use dynamicAllocation only when the
+  ElasticJobsViaWorkloadSlices feature gate is on and the job is
+  an elastic job</span>
+</pre>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Narrate</div>
+  <p><em>"Rejected at the webhook level — it doesn't even create the object. This means for Kueue-managed Spark jobs, you set <code>executor.instances</code> explicitly. You size your jobs upfront. That's the trade-off for getting admission control and gang scheduling — Kueue needs deterministic resource requests."</em></p>
+  <p style="margin-top:8px;"><em>"For your batch ingestion workloads, this is fine — you know the data volume, you size the executors accordingly. Dynamic allocation is more relevant for interactive notebooks, which aren't Kueue-managed anyway."</em></p>
+</div>
+
+<!-- ============================================================ -->
+<!-- DEMO 5: RESILIENCE -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Demo 5 — Show</div>
+  <h2>TC-7: Executor Failure & Recovery <span class="timing">~4 min</span></h2>
+  <div class="subtitle">Kill an executor mid-job — Spark auto-recovers, same as YARN</div>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Set Up</div>
+  <p><em>"One question that comes up when migrating from Hadoop: what happens if an executor dies? In YARN, the ResourceManager replaces it. Does that work under the Spark Operator on Kubernetes?"</em></p>
+  <p><em>"Let me submit a long-running job — SparkPi with 5000 partitions, takes about 4 minutes. Once it's running, I'll kill one of the executors and we'll watch what happens."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Step 1 — Submit and Wait for Running</div>
+<pre>
+<span class="comment"># Restore quota for this test</span>
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"8"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+
+oc apply -f /tmp/poc-contention/tc7-executor-failure.yaml
+
+<span class="comment"># Watch pods until all 4 show Running</span>
+oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+</pre>
+  <p>Wait until you see <strong>1 driver + 3 executors all Running</strong>, then Ctrl+C.</p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Step 2 — Kill an Executor</div>
+<pre>
+<span class="comment"># Identify exec-2</span>
+EXEC_POD=$(oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure \
+  --no-headers | grep exec-2 | awk '{print $1}')
+
+<span class="comment"># Kill it</span>
+oc delete pod $EXEC_POD --grace-period=0 --force
+</pre>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Step 3 — Watch the Recovery</div>
+<pre>
+<span class="comment"># Watch pods — exec-4 should appear within ~30 seconds</span>
+oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 You'll See</div>
+<pre>
+<span class="comment"># exec-2 disappears, then ~10-25 seconds later:</span>
+pythonpi-...-exec-1   1/1   Running   0   32s
+pythonpi-...-exec-3   1/1   Running   0   32s
+pythonpi-...-exec-4   1/1   <span class="highlight">Running</span>   0   2s    <span class="comment">← replacement!</span>
+driver                1/1   Running   0   81s
+</pre>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Narrate</div>
+  <p><em>"exec-2 is gone. And there's exec-4 — the replacement. The Spark driver detected the missing executor through its Kubernetes pod allocator, requested a new one, and Kubernetes scheduled it. Tasks that were running on exec-2 get retried on the surviving executors. The job keeps going."</em></p>
+  <p style="margin-top:8px;"><em>"This is the same fault tolerance model as YARN's ResourceManager, just using Kubernetes pod lifecycle instead of YARN containers. The Spark Operator doesn't handle this — the <strong>Spark driver itself</strong> does, through its built-in KubernetesClusterSchedulerBackend."</em></p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Step 4 — Wait for Completion and Verify</div>
+<pre>
+<span class="comment"># Wait for COMPLETED (~3 min remaining)</span>
+oc get sparkapplication tc7-executor-failure -w
+
+<span class="comment"># Show final executor states</span>
+oc get sparkapplication tc7-executor-failure \
+  -o jsonpath='{.status.executorState}' | python3 -m json.tool
+</pre>
+</div>
+
+<div class="card expect">
+  <div class="card-label">👀 Final State</div>
+<pre>
+{
+    "exec-1": "<span class="highlight">COMPLETED</span>",
+    "exec-2": "<span class="result">FAILED</span>",       <span class="comment">← the one we killed</span>
+    "exec-3": "<span class="highlight">COMPLETED</span>",
+    "exec-4": "<span class="highlight">COMPLETED</span>"    <span class="comment">← the replacement</span>
+}
+</pre>
+  <p>Job status: <code>COMPLETED</code>, <code>executionAttempts: 1</code> — no full-job restart.</p>
+</div>
+
+<div class="card do">
+  <div class="card-label">⌨ Cleanup</div>
+<pre>
+oc delete sparkapplication --all --ignore-not-found
+</pre>
+</div>
+
+<!-- ============================================================ -->
+<!-- CLOSING TELL -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Closing — Tell</div>
+  <h2>What We Just Proved</h2>
+  <div class="subtitle">~2 minutes. Wrap it up with confidence.</div>
+</div>
+
+<div class="card say">
+  <div class="card-label">🎤 Summary — Hit These Points</div>
+  <div class="key-point"><div class="bullet">1</div><div><strong>The problem is real and reproducible.</strong> Without admission control, a Spark job requesting more CPU than available becomes half-admitted. The driver and some executors consume resources for a job that can never complete. This scales linearly — more concurrent jobs, more wasted resources.</div></div>
+  <div class="key-point"><div class="bullet">2</div><div><strong>Kueue eliminates it completely.</strong> Same job, one label. The job stays suspended until the full resource set — driver plus all executors — can be reserved atomically. Zero pods created, zero CPU consumed, zero waste.</div></div>
+  <div class="key-point"><div class="bullet">3</div><div><strong>Queuing is automatic.</strong> When a running job finishes and releases quota, the next queued job is admitted within seconds. No cron, no manual restart, no pipeline orchestrator needed.</div></div>
+  <div class="key-point"><div class="bullet">4</div><div><strong>Executor fault tolerance works like YARN.</strong> If an executor dies mid-job — whether from a node drain, OOM kill, or spot preemption — the Spark driver replaces it automatically. Tasks retry on surviving executors. The job completes without a full restart.</div></div>
+  <div class="key-point"><div class="bullet">5</div><div><strong>The trade-off is fixed executor count.</strong> Dynamic allocation is not compatible with Kueue. You size your jobs upfront. For batch data ingestion where you know the volume, this is the right model.</div></div>
+</div>
+
+<div class="card say" style="margin-top:16px;">
+  <div class="card-label">🎤 The Ask</div>
+  <p><em>"For a production rollout — roughly 1,000 cores of batch Spark workloads — Kueue provides the guardrails to safely run concurrent jobs on a shared resource pool. The Spark Operator gives us the same fault tolerance as the YARN environment you're running today, with the added benefit of declarative, GitOps-friendly job definitions.</em></p>
+  <p><em>The manifests for everything you just saw are in the repo. Each test case is documented with the exact commands and expected output, so anyone on the team can reproduce this."</em></p>
+</div>
+
+<!-- ============================================================ -->
+<!-- Q&A CHEAT SHEET -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Reference</div>
+  <h2>Likely Questions & Answers</h2>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "What happens if the DRIVER dies, not just an executor?"</div>
+  <p>The <code>restartPolicy</code> on the SparkApplication controls this. With <code>type: OnFailure</code>, the Spark Operator recreates the driver and restarts the job from scratch. The executors go down with the driver — it's a full retry, not a partial recovery. With Kueue, the resubmitted job goes back through admission control.</p>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "Is Kueue + SparkApplication GA or Technology Preview?"</div>
+  <p>Technology Preview in RHOAI 3.5. The Spark Operator itself is GA (v2.4.0). The Red Hat build of Kueue Operator is GA. The <em>integration between them</em> — Kueue managing SparkApplication CRDs — is TP. The feature gate is <code>SparkApplicationIntegration: true</code> in the Kueue config.</p>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "How does Kueue know how much CPU a Spark job needs?"</div>
+  <p>Kueue reads <code>coreRequest</code> (preferred), then <code>cores</code>, then defaults to 1. For memory, it adds Python overhead: <code>max(0.4 × memory, 384Mi)</code>. It sums across all pod sets — driver + every executor. Always set <code>coreRequest</code> explicitly so Kueue's computation matches what kube-scheduler will actually request.</p>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "Can we use ScheduledSparkApplication with Kueue?"</div>
+  <p>If the ScheduledSparkApplication template includes the <code>kueue.x-k8s.io/queue-name</code> label, each child SparkApplication it creates will be Kueue-managed. This is functional but not explicitly documented by Red Hat for RHOAI 3.5. We recommend testing it in the eLab before relying on it for production scheduling.</p>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "TC-2 and TC-3 look the same — what's the difference?"</div>
+  <p>Fair point. Both demonstrate Kueue blocking a job that exceeds quota. The distinction: TC-2 uses a 4 CPU quota (way too small), TC-3 uses 25 CPU (close — enough for the driver plus 3 of 4 executors). TC-3 proves Kueue won't partially admit — it evaluates the <em>entire workload</em> atomically, not pod-by-pod. The observable behavior is the same because Kueue's quota evaluation is inherently all-or-nothing for SparkApplications.</p>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "What's the queue wait time in production?"</div>
+  <p>In our testing, the re-admission latency was under 2 seconds after a job released quota. The bottleneck in production won't be Kueue's decision-making — it'll be how long the running job takes to complete. You can monitor queue depth and wait times through the Kueue Workload objects and ClusterQueue status.</p>
+</div>
+
+<div class="card qa">
+  <div class="card-label">💬 "Can we have multiple queues with different priorities?"</div>
+  <p>Yes. Kueue supports multiple ClusterQueues with different quotas, and you can organize them into cohorts for borrowing unused capacity. You can also set priority classes on workloads so higher-priority jobs jump the queue. This is out of scope for this POC but it's a GA feature of the Red Hat build of Kueue.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- COMPONENT TABLE -->
+<!-- ============================================================ -->
+
+<hr class="scene">
+
+<div class="phase">
+  <div class="phase-label">Reference</div>
+  <h2>Component Versions</h2>
+</div>
+
+<table>
+<tr><th>Component</th><th>Version</th><th>RHOAI 3.5 Status</th><th>Role in POC</th></tr>
+<tr><td>Kubeflow Spark Operator</td><td>2.4.0</td><td style="color:var(--rh-green);font-weight:600;">GA</td><td>SparkApplication CRD lifecycle</td></tr>
+<tr><td>Apache Spark</td><td>4.0.1</td><td style="color:var(--rh-green);font-weight:600;">GA</td><td>Runtime engine (bundled with KSO)</td></tr>
+<tr><td>Red Hat build of Kueue</td><td>1.4.3</td><td style="color:var(--rh-green);font-weight:600;">GA</td><td>Admission control, quota management</td></tr>
+<tr><td>Kueue + SparkApplication</td><td>—</td><td style="color:var(--rh-gold);font-weight:600;">Technology Preview</td><td>Feature gate: SparkApplicationIntegration</td></tr>
+<tr><td>Gang Scheduling</td><td>—</td><td style="color:var(--rh-green);font-weight:600;">Supported</td><td>gangScheduling.policy: ByWorkload</td></tr>
+</table>
+
+</div><!-- /container -->
+
+</body>
+</html>

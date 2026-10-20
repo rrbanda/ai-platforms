@@ -56,6 +56,7 @@ in Suspended state until the full resource set (driver + all executors) can be r
 spark-kueue-contention-poc/
 ├── kustomization.yaml                     # Kustomize entry point (uncomment test cases)
 ├── README.md                              # This file
+├── setup-demo-namespace.sh                # One-time admin setup for non-admin users
 ├── kueue-resource-flavor.yaml             # ResourceFlavor (default node pool)
 ├── kueue-cluster-queue.yaml               # ClusterQueue — 25 CPU default (patch to 6 for TC-4)
 ├── kueue-local-queue.yaml                 # LocalQueue (spark-lq → spark-cq)
@@ -71,10 +72,109 @@ spark-kueue-contention-poc/
 ├── tc6-retry-without-kueue.yaml          # TC-6: OnFailure, no Kueue (retry storm)
 ├── tc7-executor-failure.yaml             # TC-7: Kill an executor, watch Spark recover
 └── docs/
+    ├── demo-usecases.html                      # Interactive use case presentation (Mermaid diagrams)
     ├── poc-kueue-spark-resource-contention.md  # Full POC plan & research
     ├── poc-kueue-spark-final.md                # Final POC plan
     └── poc-kueue-spark-contention-evidence.md  # Test execution evidence
 ```
+
+## RBAC — Running Without Cluster-Admin
+
+The POC can be run by a **non-admin user** after a one-time cluster-admin setup.
+
+### What Requires Cluster-Admin (One-Time)
+
+| Resource | Kind | Why |
+|---|---|---|
+| `Namespace` | Cluster-scoped | Create the test namespace |
+| `ResourceFlavor` | Cluster-scoped | Defines node characteristics for Kueue |
+| `ClusterQueue` | Cluster-scoped | Defines CPU/memory quota limits |
+| `ClusterRoleBinding` | Cluster-scoped | Grants user read access to ClusterQueue status |
+| `RoleBinding` | Namespace-scoped | Grants user admin access within the namespace |
+
+### What a Namespace User Can Do (All Test Cases)
+
+| Action | Resource | Scope |
+|---|---|---|
+| Create/delete `LocalQueue` | `kueue.x-k8s.io/v1beta1` | Namespace |
+| Create/delete `SparkApplication` | `sparkoperator.k8s.io/v1beta2` | Namespace |
+| Get/watch/delete pods | `v1/Pod` | Namespace |
+| Get events | `v1/Event` | Namespace |
+| Get workloads | `kueue.x-k8s.io/v1beta1` | Namespace |
+| View ClusterQueue status | `kueue.x-k8s.io/v1beta1` | Cluster (read-only) |
+
+### Automated Setup Script
+
+```bash
+# Run as cluster-admin — creates namespace, queues, and RBAC for the specified user
+./setup-demo-namespace.sh <namespace> <username>
+
+# Example:
+./setup-demo-namespace.sh spark-kueue-demo user1
+```
+
+The script creates:
+- **Namespace** with the specified name
+- **Two ClusterQueues** — `spark-cq` (8 CPU) for TC-1/2/5/7 and `spark-cq-6cpu` (6 CPU) for TC-4
+- **Two LocalQueues** — `spark-lq` → `spark-cq` and `spark-lq-6cpu` → `spark-cq-6cpu`
+- **RoleBinding** — `admin` ClusterRole in the namespace (full control over SparkApplications, pods, events, LocalQueues)
+- **ClusterRoleBinding** — read-only `get/list/watch` on ClusterQueues and ResourceFlavors
+
+After setup, the user logs in and runs all test cases with **zero cluster-admin access**:
+
+```bash
+oc login -u user1
+oc project spark-kueue-demo
+
+# All test cases work — no admin needed
+oc apply -f tc1-baseline-no-kueue.yaml
+oc apply -f tc2-kueue-admission-blocking.yaml
+oc apply -f tc4a-large-job.yaml    # uses spark-lq-6cpu for TC-4
+oc apply -f tc5-dynamic-allocation.yaml
+oc apply -f tc7-executor-failure.yaml
+```
+
+> **Note:** For TC-4 (auto queuing), the user references `spark-lq-6cpu` instead of patching
+> the ClusterQueue quota. This eliminates the need for cluster-admin during the demo.
+
+### Manual RBAC Setup (Alternative)
+
+If you prefer to set up RBAC manually instead of using the script:
+
+```bash
+# 1. Grant namespace admin
+oc create rolebinding spark-demo-admin \
+  --clusterrole=admin \
+  --user=<username> \
+  -n <namespace>
+
+# 2. Grant ClusterQueue read access
+cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kueue-cq-viewer
+rules:
+- apiGroups: ["kueue.x-k8s.io"]
+  resources: ["clusterqueues", "resourceflavors"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spark-demo-cq-viewer-<username>
+subjects:
+- kind: User
+  name: <username>
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: kueue-cq-viewer
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+---
 
 ## How to Run Each Test Case
 
@@ -248,4 +348,6 @@ Memory overhead for Python: `max(0.4 × memory, 384Mi)` added automatically.
 |---|---|
 | [POC Plan (Full)](docs/poc-kueue-spark-resource-contention.md) | Complete feasibility analysis, research findings, and implementation task breakdown |
 | [POC Plan (Final)](docs/poc-kueue-spark-final.md) | Cleaned-up POC plan with problem statement, test cases, component matrix, and engineering questions |
-| [Execution Evidence](docs/poc-kueue-spark-contention-evidence.md) | Live test execution results for all 6 test cases with timestamps, pod statuses, and Kueue messages |
+| [Execution Evidence](docs/poc-kueue-spark-contention-evidence.md) | Live test execution results for all 7 test cases with timestamps, pod statuses, and Kueue messages |
+| [Demo Use Cases](docs/demo-usecases.html) | Interactive slide-based presentation with Mermaid diagrams for each use case |
+| [Namespace Setup](setup-demo-namespace.sh) | One-time admin script to create namespace, queues, and RBAC for non-admin users |

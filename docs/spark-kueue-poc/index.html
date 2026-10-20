@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kueue + Spark Operator POC</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Red+Hat+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--rh-red:#EE0000;--rh-dark:#151515;--rh-teal:#009596;--rh-green:#3E8635;--rh-gold:#F0AB00;--rh-blue:#0066CC;--rh-purple:#6753AC;--bg:#0d1117;--bg2:#161b22;--bg3:#1a2332;--border:#30363d;--text:#e0e0e0;--text2:#888}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Red Hat Text',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--rh-teal);text-decoration:none}a:hover{text-decoration:underline}
+
+/* NAV */
+nav{background:#000;border-bottom:2px solid var(--rh-red);padding:12px 40px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+nav .logo{font-family:'Red Hat Display',sans-serif;font-weight:800;color:var(--rh-red);font-size:16px}
+nav .links{display:flex;gap:24px;font-size:14px;font-weight:500}
+nav .links a{color:#ccc}nav .links a:hover{color:#fff;text-decoration:none}
+nav .links a.active{color:var(--rh-red);border-bottom:2px solid var(--rh-red);padding-bottom:2px}
+
+/* HERO */
+.hero{padding:60px 40px 40px;max-width:1100px;margin:0 auto}
+.hero h1{font-family:'Red Hat Display',sans-serif;font-size:48px;font-weight:900;color:#fff;line-height:1.1;margin-bottom:12px}
+.hero .sub{font-size:18px;color:var(--text2);margin-bottom:8px}
+.hero .stack{display:flex;gap:12px;margin:16px 0 24px;flex-wrap:wrap}
+.chip{display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Red Hat Display',sans-serif;letter-spacing:.05em}
+.chip.red{background:#2d0000;color:#ff6666;border:1px solid #440000}
+.chip.teal{background:#002020;color:#00d4d4;border:1px solid #004040}
+.chip.green{background:#002200;color:#66cc66;border:1px solid #004400}
+
+/* PROBLEM/SOLUTION */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1100px;margin:0 auto 40px;padding:0 40px}
+.duo-card{background:var(--bg2);border-radius:12px;padding:28px;border-top:3px solid var(--rh-red)}
+.duo-card.fix{border-top-color:var(--rh-teal)}
+.duo-card h2{font-family:'Red Hat Display',sans-serif;font-size:20px;font-weight:800;color:#fff;margin-bottom:8px}
+.duo-card p{font-size:15px;color:#bbb;line-height:1.7}
+.duo-card .highlight{color:var(--rh-red);font-weight:700}
+.duo-card.fix .highlight{color:var(--rh-teal)}
+
+/* SECTION */
+.section{max-width:1100px;margin:0 auto;padding:40px 40px}
+.section h2{font-family:'Red Hat Display',sans-serif;font-size:28px;font-weight:800;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.section h2 .num{width:32px;height:32px;border-radius:50%;background:var(--rh-red);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
+
+/* USE CASE CARDS */
+.uc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:32px}
+.uc-card{background:var(--bg2);border-radius:10px;padding:20px 24px;border-left:4px solid var(--rh-red);transition:transform .15s}
+.uc-card:hover{transform:translateY(-2px)}
+.uc-card .tag{font-family:'Red Hat Display',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.uc-card .tag.problem{color:#ff6666}.uc-card .tag.solution{color:var(--rh-teal)}.uc-card .tag.queue{color:var(--rh-blue)}.uc-card .tag.constraint{color:var(--rh-gold)}.uc-card .tag.resilience{color:var(--rh-purple)}
+.uc-card h3{font-family:'Red Hat Display',sans-serif;font-size:17px;font-weight:700;color:#fff;margin-bottom:6px}
+.uc-card p{font-size:14px;color:#aaa;line-height:1.5}
+.uc-card .result{margin-top:10px;padding:8px 12px;background:var(--bg);border-radius:6px;font-size:13px;font-family:'Red Hat Mono',monospace;color:#ccc}
+
+/* RESULTS TABLE */
+table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px}
+th{background:var(--bg3);color:#fff;padding:10px 14px;text-align:left;font-family:'Red Hat Display',sans-serif;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:#ccc}
+tr:hover td{background:rgba(255,255,255,.03)}
+.pass{color:var(--rh-green);font-weight:700}.fail{color:var(--rh-red);font-weight:700}
+
+/* ARCHITECTURE */
+.arch-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.arch-box{flex:1;min-width:200px;background:var(--bg2);border-radius:8px;padding:16px;border-top:3px solid var(--rh-blue)}
+.arch-box.user{border-top-color:var(--rh-purple)}
+.arch-box.kueue{border-top-color:var(--rh-teal)}
+.arch-box.spark{border-top-color:var(--rh-red)}
+.arch-box.k8s{border-top-color:var(--rh-gold)}
+.arch-box h4{font-family:'Red Hat Display',sans-serif;font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.arch-box p{font-size:13px;color:#aaa;line-height:1.5}
+.arch-arrow{text-align:center;color:var(--text2);font-size:20px;padding:4px 0}
+
+/* FOOTER */
+footer{background:#000;border-top:1px solid var(--border);padding:20px 40px;text-align:center;color:var(--text2);font-size:13px;margin-top:60px}
+footer a{color:var(--rh-teal)}
+
+@media(max-width:768px){
+  .duo{grid-template-columns:1fr}
+  .hero h1{font-size:32px}
+  nav{padding:10px 20px}nav .links{gap:12px;font-size:13px}
+  .section{padding:20px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Red Hat — Kueue + Spark Operator POC</div>
+  <div class="links">
+    <a href="index.html" class="active">Home</a>
+    <a href="usecases.html">Use Cases</a>
+    <a href="quickstart.html">Quick Start</a>
+    <a href="evidence.html">Evidence</a>
+    <a href="rbac.html">RBAC</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Resource-Contention Protection<br>for Batch Spark Workloads</h1>
+  <div class="sub">Validated POC — Kueue admission control eliminates the half-admitted failure mode for SparkApplications on RHOAI</div>
+  <div class="stack">
+    <span class="chip red">Kubeflow Spark Operator 2.4.0</span>
+    <span class="chip teal">Red Hat build of Kueue 1.4.3</span>
+    <span class="chip green">RHOAI 3.5.1 — OpenShift 4.19</span>
+  </div>
+</div>
+
+<!-- PROBLEM / SOLUTION -->
+<div class="duo">
+  <div class="duo-card">
+    <h2>The Problem</h2>
+    <p>Without admission control, a Spark job that requests more resources than available becomes <span class="highlight">"half-admitted"</span> — the driver and some executors run, but the remaining executors stay Pending indefinitely. Resources are <span class="highlight">held for a job that can never complete</span>. With a retry policy, this becomes a pod churn loop — tear down, retry, same stuck state, repeat.</p>
+  </div>
+  <div class="duo-card fix">
+    <h2>The Solution</h2>
+    <p>Kueue intercepts every SparkApplication at creation and computes the <span class="highlight">total resource demand</span> across all pod sets (driver + all executors). If the demand exceeds available quota, the job is held in <span class="highlight">Suspended</span> state — zero pods created, zero CPU consumed. The job waits in the queue until the full resource set can be reserved atomically.</p>
+  </div>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="section">
+  <h2><span class="num">1</span> Architecture</h2>
+  <div class="arch-row">
+    <div class="arch-box user">
+      <h4>User / GitOps</h4>
+      <p><code>oc apply -f sparkapplication.yaml</code><br>Submits SparkApplication CR with optional Kueue queue label</p>
+    </div>
+  </div>
+  <div class="arch-arrow">&darr;</div>
+  <div class="arch-row">
+    <div class="arch-box kueue">
+      <h4>Kueue Admission Controller</h4>
+      <p>Mutating webhook intercepts SparkApplication. Computes total CPU/memory across all pod sets. Compares against ClusterQueue quota. Admits or suspends.</p>
+    </div>
+    <div class="arch-box spark">
+      <h4>Spark Operator</h4>
+      <p>Watches SparkApplication CRD. When <code>spec.suspend = false</code>, creates driver pod. Driver creates executor pods. Manages lifecycle.</p>
+    </div>
+  </div>
+  <div class="arch-arrow">&darr;</div>
+  <div class="arch-row">
+    <div class="arch-box k8s">
+      <h4>kube-scheduler</h4>
+      <p>Schedules pods to nodes. With Kueue, only sees pods after admission — no partial scheduling.</p>
+    </div>
+  </div>
+</div>
+
+<!-- USE CASES -->
+<div class="section">
+  <h2><span class="num">2</span> Use Cases Validated</h2>
+  <div class="uc-grid">
+    <div class="uc-card">
+      <div class="tag problem">Use Case 1 — The Problem</div>
+      <h3>Half-Admitted State</h3>
+      <p>33 CPU SparkApplication submitted without Kueue. Driver + 1 executor run, 3 executors stuck Pending. 9 CPU wasted for a job that can never complete.</p>
+      <div class="result">driver: Running | exec-1: Running | exec-2,3,4: Pending</div>
+    </div>
+    <div class="uc-card" style="border-left-color:var(--rh-teal)">
+      <div class="tag solution">Use Case 2 — The Solution</div>
+      <h3>Kueue Admission Control</h3>
+      <p>Identical job + one label. Kueue computes 33 CPU total demand, exceeds 8 CPU quota. Job held Suspended. Zero pods. Zero CPU consumed.</p>
+      <div class="result">status: SUSPENDED | pods: 0 | cpu used: 0</div>
+    </div>
+    <div class="uc-card" style="border-left-color:var(--rh-blue)">
+      <div class="tag queue">Use Case 3 — Automatic Queuing</div>
+      <h3>Quota Release &amp; Re-Admission</h3>
+      <p>Two 5-CPU jobs, 6 CPU quota. Job A runs, Job B waits. When A completes, B auto-admits in under 2 seconds. Zero manual intervention.</p>
+      <div class="result">Job A: COMPLETED | Job B: RUNNING (admitted in ~2s)</div>
+    </div>
+    <div class="uc-card" style="border-left-color:var(--rh-gold)">
+      <div class="tag constraint">Use Case 4 — Known Constraint</div>
+      <h3>Dynamic Allocation Incompatibility</h3>
+      <p>SparkApplication with <code>dynamicAllocation.enabled: true</code> and Kueue label is rejected immediately by the validating webhook.</p>
+      <div class="result">Error from server (Forbidden): admission webhook denied</div>
+    </div>
+    <div class="uc-card" style="border-left-color:var(--rh-purple)">
+      <div class="tag resilience">Use Case 5 — Resilience</div>
+      <h3>Executor Failure &amp; Auto-Recovery</h3>
+      <p>Kill an executor mid-job. Spark driver detects the missing pod in ~30s, requests a replacement, retries tasks. Job completes with executionAttempts: 1.</p>
+      <div class="result">exec-2: FAILED | exec-4: COMPLETED (replacement)</div>
+    </div>
+  </div>
+  <p style="text-align:center"><a href="usecases.html" style="font-family:'Red Hat Display',sans-serif;font-weight:700;font-size:15px;color:var(--rh-teal)">View Interactive Diagrams &rarr;</a></p>
+</div>
+
+<!-- RESULTS TABLE -->
+<div class="section">
+  <h2><span class="num">3</span> Test Results Summary</h2>
+  <table>
+    <thead>
+      <tr><th>Test Case</th><th>Total CPU</th><th>Kueue</th><th>CQ Quota</th><th>Expected Outcome</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>TC-1: Baseline</td><td>33 (1+4x8)</td><td>No</td><td>N/A</td><td>Half-admitted: driver runs, executors Pending</td><td class="pass">PASS</td></tr>
+      <tr><td>TC-2: Admission Blocking</td><td>33 (1+4x8)</td><td>Yes</td><td>8</td><td>Stays Suspended, zero pods</td><td class="pass">PASS</td></tr>
+      <tr><td>TC-3: Gang Scheduling</td><td>33 (1+4x8)</td><td>Yes</td><td>25</td><td>All-or-nothing: entire job blocked</td><td class="pass">PASS</td></tr>
+      <tr><td>TC-4: Auto Queue/Release</td><td>5+5</td><td>Yes</td><td>6</td><td>Job B auto-admits when Job A finishes</td><td class="pass">PASS</td></tr>
+      <tr><td>TC-5: Dynamic Alloc</td><td>Dynamic</td><td>Yes</td><td>Any</td><td>Webhook rejects at creation</td><td class="pass">PASS</td></tr>
+      <tr><td>TC-6: Retry Behavior</td><td>9 (1+4x2)</td><td>Both</td><td>&lt;9</td><td>Kueue: 0 pods; No Kueue: retry storm</td><td class="pass">PASS</td></tr>
+      <tr><td>TC-7: Executor Failure</td><td>4 (1+3x1)</td><td>N/A</td><td>N/A</td><td>Kill executor, replaced in ~25s, job completes</td><td class="pass">PASS</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- COMPONENT VERSIONS -->
+<div class="section">
+  <h2><span class="num">4</span> Component Versions</h2>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Version</th><th>RHOAI 3.5 Status</th><th>Role in POC</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Kubeflow Spark Operator</td><td>2.4.0</td><td><span class="pass">GA</span></td><td>SparkApplication CRD lifecycle</td></tr>
+      <tr><td>Apache Spark</td><td>4.0.1</td><td><span class="pass">GA</span></td><td>Runtime engine (bundled with KSO)</td></tr>
+      <tr><td>Red Hat build of Kueue</td><td>1.4.3</td><td><span class="pass">GA</span></td><td>Admission control, quota management</td></tr>
+      <tr><td>Kueue + SparkApplication</td><td>-</td><td><span style="color:var(--rh-gold);font-weight:700">Technology Preview</span></td><td>Feature gate: SparkApplicationIntegration</td></tr>
+      <tr><td>Gang Scheduling</td><td>-</td><td><span class="pass">Supported</span></td><td>gangScheduling.policy: ByWorkload</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- KUEUE RESOURCE COMPUTATION -->
+<div class="section">
+  <h2><span class="num">5</span> How Kueue Computes Spark Resource Demand</h2>
+  <div style="background:var(--bg2);border-radius:10px;padding:24px;border-left:4px solid var(--rh-teal)">
+    <p style="margin-bottom:12px"><strong style="color:#fff">CPU Precedence:</strong></p>
+    <p style="margin-bottom:4px"><code>coreRequest</code> (preferred) &rarr; <code>cores</code> &rarr; default <code>1</code></p>
+    <p style="margin-bottom:16px;font-size:14px;color:var(--text2)">Always set <code>coreRequest</code> explicitly to ensure Kueue's computation matches kube-scheduler.</p>
+    <p style="margin-bottom:12px"><strong style="color:#fff">Memory Overhead (Python):</strong></p>
+    <p><code>max(0.4 &times; memory, 384Mi)</code> added automatically by Kueue</p>
+    <p style="margin-top:16px;margin-bottom:12px"><strong style="color:#fff">Total Demand Formula:</strong></p>
+    <p><code>driver_cpu + (executor_instances &times; executor_coreRequest)</code></p>
+  </div>
+</div>
+
+<footer>
+  <p>Kueue + Spark Operator POC &mdash; RHOAI 3.5.1 &mdash; Validated October 2026</p>
+  <p style="margin-top:4px"><a href="https://github.com/rrbanda/ai-platforms/tree/main/redhat/rhoai/v3.5/base/03-workloads/spark-kueue-contention-poc">Source Manifests on GitHub</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidence — Kueue + Spark Operator POC</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Red+Hat+Text:wght@400;500;600;700&family=Red+Hat+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--rh-red:#EE0000;--rh-teal:#009596;--rh-green:#3E8635;--rh-gold:#F0AB00;--rh-blue:#0066CC;--rh-purple:#6753AC;--bg:#0d1117;--bg2:#161b22;--bg3:#1a2332;--border:#30363d;--text:#e0e0e0;--text2:#888}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Red Hat Text',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--rh-teal);text-decoration:none}a:hover{text-decoration:underline}
+nav{background:#000;border-bottom:2px solid var(--rh-red);padding:12px 40px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+nav .logo{font-family:'Red Hat Display',sans-serif;font-weight:800;color:var(--rh-red);font-size:16px}
+nav .links{display:flex;gap:24px;font-size:14px;font-weight:500}
+nav .links a{color:#ccc}nav .links a:hover{color:#fff;text-decoration:none}
+nav .links a.active{color:var(--rh-red);border-bottom:2px solid var(--rh-red);padding-bottom:2px}
+.content{max-width:900px;margin:0 auto;padding:40px}
+h1{font-family:'Red Hat Display',sans-serif;font-size:36px;font-weight:800;color:#fff;margin-bottom:8px}
+h2{font-family:'Red Hat Display',sans-serif;font-size:22px;font-weight:700;color:#fff;margin:36px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.sub{color:var(--text2);font-size:16px;margin-bottom:24px}
+.tc-badge{display:inline-block;padding:3px 12px;border-radius:16px;font-size:11px;font-weight:700;font-family:'Red Hat Display',sans-serif;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.tc-badge.pass{background:#0a2a0a;color:var(--rh-green);border:1px solid #1a4a1a}
+.evidence-block{background:var(--bg2);border-radius:10px;padding:24px;margin:16px 0;border-left:4px solid var(--border)}
+.evidence-block.tc1{border-left-color:var(--rh-red)}
+.evidence-block.tc2{border-left-color:var(--rh-teal)}
+.evidence-block.tc3{border-left-color:var(--rh-teal)}
+.evidence-block.tc4{border-left-color:var(--rh-blue)}
+.evidence-block.tc5{border-left-color:var(--rh-gold)}
+.evidence-block.tc6{border-left-color:var(--rh-red)}
+.evidence-block.tc7{border-left-color:var(--rh-purple)}
+.evidence-block h3{font-family:'Red Hat Display',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:4px}
+.evidence-block .desc{font-size:14px;color:var(--text2);margin-bottom:12px}
+.evidence-label{font-family:'Red Hat Display',sans-serif;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 4px}
+pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;overflow-x:auto;font-family:'Red Hat Mono',monospace;font-size:12px;line-height:1.5;color:#ccc;margin:4px 0 12px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}
+th{background:var(--bg3);color:#fff;padding:8px 12px;text-align:left;font-family:'Red Hat Display',sans-serif;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+td{padding:8px 12px;border-bottom:1px solid var(--border);color:#ccc;font-size:13px}
+.pass-text{color:var(--rh-green);font-weight:700}
+.timeline{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.timeline .event{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;flex:1;min-width:140px}
+.timeline .event .t{color:var(--rh-teal);font-weight:700;font-size:11px}
+.timeline .event .desc{color:#ccc;margin-top:2px}
+footer{background:#000;border-top:1px solid var(--border);padding:20px 40px;text-align:center;color:var(--text2);font-size:13px;margin-top:60px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Red Hat — Kueue + Spark Operator POC</div>
+  <div class="links">
+    <a href="index.html">Home</a>
+    <a href="usecases.html">Use Cases</a>
+    <a href="quickstart.html">Quick Start</a>
+    <a href="evidence.html" class="active">Evidence</a>
+    <a href="rbac.html">RBAC</a>
+  </div>
+</nav>
+
+<div class="content">
+<h1>Test Execution Evidence</h1>
+<div class="sub">All 7 test cases executed on RHOAI 3.5.1 / Spark Operator 2.4.0 / Kueue 1.4.3 — October 2026</div>
+
+<p style="margin-bottom:24px;font-size:14px">Full evidence with timestamps and raw logs: <a href="https://github.com/rrbanda/ai-platforms/blob/main/redhat/rhoai/v3.5/base/03-workloads/spark-kueue-contention-poc/docs/poc-kueue-spark-contention-evidence.md">poc-kueue-spark-contention-evidence.md</a></p>
+
+<h2>Summary</h2>
+<table>
+  <thead><tr><th>TC</th><th>Name</th><th>Kueue</th><th>Key Observation</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td>TC-1</td><td>Baseline (no Kueue)</td><td>No</td><td>Driver + 1 exec Running, 3 exec Pending</td><td class="pass-text">PASS</td></tr>
+    <tr><td>TC-2</td><td>Admission Blocking</td><td>Yes</td><td>SUSPENDED, zero pods, zero CPU</td><td class="pass-text">PASS</td></tr>
+    <tr><td>TC-3</td><td>Gang Scheduling</td><td>Yes</td><td>All-or-nothing: 33 CPU blocked vs 25 quota</td><td class="pass-text">PASS</td></tr>
+    <tr><td>TC-4</td><td>Auto Queue/Release</td><td>Yes</td><td>Job B admitted in ~2s after Job A completed</td><td class="pass-text">PASS</td></tr>
+    <tr><td>TC-5</td><td>Dynamic Allocation</td><td>Yes</td><td>Webhook rejected at creation</td><td class="pass-text">PASS</td></tr>
+    <tr><td>TC-6</td><td>Retry Behavior</td><td>Both</td><td>Kueue: 0 pods; No Kueue: retry storm</td><td class="pass-text">PASS</td></tr>
+    <tr><td>TC-7</td><td>Executor Failure</td><td>N/A</td><td>exec-4 replaced exec-2 in ~25s</td><td class="pass-text">PASS</td></tr>
+  </tbody>
+</table>
+
+<h2>TC-1: Baseline Reproduction</h2>
+<div class="evidence-block tc1">
+  <span class="tc-badge pass">PASS</span>
+  <h3>Half-Admitted State Reproduced</h3>
+  <div class="desc">33 CPU SparkApplication without Kueue label. Cluster had ~22 free CPU across 4 worker nodes.</div>
+  <div class="evidence-label">Pod States</div>
+  <pre>NAME                               READY  STATUS   NODE
+tc1-baseline-no-kueue-driver       1/1    Running  ip-10-0-25-91
+pythonpi-...-exec-1                1/1    Running  ip-10-0-25-91
+pythonpi-...-exec-2                0/1    Pending  &lt;none&gt;
+pythonpi-...-exec-3                0/1    Pending  &lt;none&gt;
+pythonpi-...-exec-4                0/1    Pending  &lt;none&gt;</pre>
+  <div class="evidence-label">Events</div>
+  <pre>FailedScheduling: 0/7 nodes are available:
+  3 Insufficient cpu, 4 node(s) had untolerated taint</pre>
+  <div class="evidence-label">Conclusion</div>
+  <p>9 CPU held (driver 1 + exec-1 8) for a job requiring 33 CPU. Job can never complete.</p>
+</div>
+
+<h2>TC-2: Kueue Admission Blocking</h2>
+<div class="evidence-block tc2">
+  <span class="tc-badge pass">PASS</span>
+  <h3>Job Suspended, Zero Pods Created</h3>
+  <div class="desc">Identical SparkApplication with <code>kueue.x-k8s.io/queue-name: spark-lq</code> label added.</div>
+  <div class="evidence-label">SparkApplication Status</div>
+  <pre>NAME                        SUSPEND  STATUS
+tc2-kueue-admission-block   true     SUSPENDED</pre>
+  <div class="evidence-label">Pods</div>
+  <pre>No resources found in redhat-ods-applications namespace.</pre>
+  <div class="evidence-label">Workload</div>
+  <pre>ADMITTED: False
+Reason: Inadmissible — insufficient unused quota for cpu in flavor default-flavor
+Requested: cpu 33, Available: cpu 8</pre>
+</div>
+
+<h2>TC-3: Gang Scheduling</h2>
+<div class="evidence-block tc3">
+  <span class="tc-badge pass">PASS</span>
+  <h3>All-or-Nothing Admission Verified</h3>
+  <div class="desc">33 CPU job against 25 CPU quota. Kueue could admit the driver (1 CPU) but does not.</div>
+  <div class="evidence-label">Result</div>
+  <pre>STATUS: SUSPENDED | Pods: 0 | Workload ADMITTED: False
+Reason: Inadmissible — insufficient unused quota for cpu
+Requested: cpu 33, Available: cpu 25</pre>
+  <p>Proves Kueue evaluates the entire SparkApplication atomically, not pod-by-pod.</p>
+</div>
+
+<h2>TC-4: Automatic Queuing &amp; Release</h2>
+<div class="evidence-block tc4">
+  <span class="tc-badge pass">PASS</span>
+  <h3>Job B Auto-Admitted After Job A Completed</h3>
+  <div class="desc">Two 5-CPU jobs, 6 CPU quota. Only one fits at a time.</div>
+  <div class="evidence-label">Timeline</div>
+  <div class="timeline">
+    <div class="event"><div class="t">T+0s</div><div class="desc">Job A submitted, admitted (5 &le; 6)</div></div>
+    <div class="event"><div class="t">T+3s</div><div class="desc">Job B submitted, SUSPENDED (10 &gt; 6)</div></div>
+    <div class="event"><div class="t">T+62s</div><div class="desc">Job A COMPLETED</div></div>
+    <div class="event"><div class="t">T+64s</div><div class="desc">Job B admitted, RUNNING (~2s latency)</div></div>
+  </div>
+  <div class="evidence-label">Key Metric</div>
+  <p><strong>Re-admission latency: ~2 seconds</strong> from Job A completion to Job B unsuspend.</p>
+</div>
+
+<h2>TC-5: Dynamic Allocation Rejection</h2>
+<div class="evidence-block tc5">
+  <span class="tc-badge pass">PASS</span>
+  <h3>Validating Webhook Rejected the Request</h3>
+  <div class="desc">SparkApplication with <code>dynamicAllocation.enabled: true</code> and Kueue queue label.</div>
+  <div class="evidence-label">Error Output</div>
+  <pre>Error from server (Forbidden):
+  admission webhook "vsparkapplication.kb.io" denied the request:
+  spec.dynamicAllocation.enabled: Invalid value: true:
+  a kueue managed job can use dynamicAllocation only when the
+  ElasticJobsViaWorkloadSlices feature gate is on and the job is
+  an elastic job</pre>
+  <p>Object was not created. The webhook rejected it at admission time.</p>
+</div>
+
+<h2>TC-6: Retry Behavior Comparison</h2>
+<div class="evidence-block tc6">
+  <span class="tc-badge pass">PASS</span>
+  <h3>Kueue Eliminates Retry Storms</h3>
+  <div class="desc">Same oversized job with <code>restartPolicy: OnFailure</code>, tested with and without Kueue.</div>
+  <div class="evidence-label">With Kueue</div>
+  <pre>STATUS: SUSPENDED | Pods: 0 | retryCount: 0
+Kueue holds the job — no retry storm, no pod churn.</pre>
+  <div class="evidence-label">Without Kueue</div>
+  <pre>Operator creates pods → FailedScheduling → timeout → restart
+→ creates pods again → same failure → restart loop
+Pod churn: 5 pods created/destroyed per attempt</pre>
+</div>
+
+<h2>TC-7: Executor Failure &amp; Recovery</h2>
+<div class="evidence-block tc7">
+  <span class="tc-badge pass">PASS</span>
+  <h3>Spark Driver Replaced Failed Executor Automatically</h3>
+  <div class="desc">Long-running SparkPi (5000 partitions), 3 executors. Killed exec-2 mid-job.</div>
+  <div class="evidence-label">Timeline</div>
+  <div class="timeline">
+    <div class="event"><div class="t">T+0s</div><div class="desc">Job submitted, all 4 pods Running</div></div>
+    <div class="event"><div class="t">T+45s</div><div class="desc">exec-2 killed (oc delete pod --force)</div></div>
+    <div class="event"><div class="t">T+56s</div><div class="desc">exec-4 created (replacement)</div></div>
+    <div class="event"><div class="t">T+59s</div><div class="desc">exec-4 Running</div></div>
+    <div class="event"><div class="t">T+240s</div><div class="desc">Job COMPLETED</div></div>
+  </div>
+  <div class="evidence-label">Driver Logs</div>
+  <pre>Lost executor 2 on ip-10-0-25-91
+ExecutorPodsAllocator: target=3, known=2 — request 1 executors
+Registered executor NettyRpcEndpointRef ... ID 4 (replacement)</pre>
+  <div class="evidence-label">Final Executor States</div>
+  <pre>{
+  "exec-1": "COMPLETED",
+  "exec-2": "FAILED",       &larr; the one we killed
+  "exec-3": "COMPLETED",
+  "exec-4": "COMPLETED"     &larr; the replacement
+}</pre>
+  <div class="evidence-label">Key Finding</div>
+  <p><strong>Recovery mechanism:</strong> The Spark <strong>driver</strong> (not the Operator) handles executor replacement via its built-in <code>KubernetesClusterSchedulerBackend</code>. Detection delay: ~30s (<code>spark.kubernetes.executor.missingPodDetectDelta</code> default). Job completed with <code>executionAttempts: 1</code> — no full restart needed.</p>
+</div>
+
+</div>
+
+<footer>
+  <p>Kueue + Spark Operator POC &mdash; <a href="https://github.com/rrbanda/ai-platforms/tree/main/redhat/rhoai/v3.5/base/03-workloads/spark-kueue-contention-poc">Source on GitHub</a></p>
+</footer>
+
+</body>
+</html>

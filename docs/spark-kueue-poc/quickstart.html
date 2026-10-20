@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Start — Kueue + Spark Operator POC</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Red+Hat+Text:wght@400;500;600;700&family=Red+Hat+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--rh-red:#EE0000;--rh-teal:#009596;--rh-green:#3E8635;--rh-gold:#F0AB00;--rh-blue:#0066CC;--rh-purple:#6753AC;--bg:#0d1117;--bg2:#161b22;--bg3:#1a2332;--border:#30363d;--text:#e0e0e0;--text2:#888}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Red Hat Text',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--rh-teal);text-decoration:none}a:hover{text-decoration:underline}
+nav{background:#000;border-bottom:2px solid var(--rh-red);padding:12px 40px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+nav .logo{font-family:'Red Hat Display',sans-serif;font-weight:800;color:var(--rh-red);font-size:16px}
+nav .links{display:flex;gap:24px;font-size:14px;font-weight:500}
+nav .links a{color:#ccc}nav .links a:hover{color:#fff;text-decoration:none}
+nav .links a.active{color:var(--rh-red);border-bottom:2px solid var(--rh-red);padding-bottom:2px}
+.content{max-width:900px;margin:0 auto;padding:40px}
+h1{font-family:'Red Hat Display',sans-serif;font-size:36px;font-weight:800;color:#fff;margin-bottom:8px}
+h2{font-family:'Red Hat Display',sans-serif;font-size:22px;font-weight:700;color:#fff;margin:36px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h3{font-family:'Red Hat Display',sans-serif;font-size:17px;font-weight:700;color:var(--rh-teal);margin:24px 0 8px}
+.sub{color:var(--text2);font-size:16px;margin-bottom:24px}
+pre{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-family:'Red Hat Mono',monospace;font-size:13px;line-height:1.6;color:#e0e0e0;margin:12px 0 20px}
+code{font-family:'Red Hat Mono',monospace;background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:13px}
+pre code{background:none;padding:0}
+.note{background:var(--bg3);border-left:4px solid var(--rh-gold);border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0;font-size:14px}
+.note strong{color:var(--rh-gold)}
+.step{background:var(--bg2);border-radius:10px;padding:24px;margin:16px 0;border-left:4px solid var(--rh-teal)}
+.step-num{font-family:'Red Hat Display',sans-serif;font-weight:800;color:var(--rh-teal);font-size:14px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+ol{padding-left:20px;margin:8px 0}
+ol li{margin:6px 0;font-size:15px}
+.expect{background:#0a1a0a;border:1px solid #1a3a1a;border-radius:8px;padding:14px;margin:12px 0;font-family:'Red Hat Mono',monospace;font-size:13px;color:var(--rh-green)}
+footer{background:#000;border-top:1px solid var(--border);padding:20px 40px;text-align:center;color:var(--text2);font-size:13px;margin-top:60px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Red Hat — Kueue + Spark Operator POC</div>
+  <div class="links">
+    <a href="index.html">Home</a>
+    <a href="usecases.html">Use Cases</a>
+    <a href="quickstart.html" class="active">Quick Start</a>
+    <a href="evidence.html">Evidence</a>
+    <a href="rbac.html">RBAC</a>
+  </div>
+</nav>
+
+<div class="content">
+<h1>Quick Start Guide</h1>
+<div class="sub">Reproduce all 5 demo use cases on your own cluster in under 15 minutes</div>
+
+<h2>Prerequisites</h2>
+<ol>
+  <li><strong>OpenShift 4.19+</strong> with <strong>RHOAI 3.5</strong> installed</li>
+  <li><strong>Spark Operator</strong> enabled (<code>sparkoperator: Managed</code> in DataScienceCluster)</li>
+  <li><strong>Red Hat build of Kueue v1.4+</strong> with SparkApplication integration and gang scheduling:</li>
+</ol>
+
+<pre><code># oc edit kueue cluster -n openshift-kueue-operator
+apiVersion: kueue.openshift.io/v1
+kind: Kueue
+metadata:
+  name: cluster
+  namespace: openshift-kueue-operator
+spec:
+  managementState: Managed
+  config:
+    integrations:
+      frameworks:
+      - BatchJob
+      - sparkoperator.k8s.io/sparkapplication
+    gangScheduling:
+      policy: ByWorkload
+      byWorkload:
+        admission: Sequential</code></pre>
+
+<div class="note"><strong>Important:</strong> Requires RHBoK 1.4+ (Kueue 0.18). RHBoK 1.3 does not include the SparkApplication reconciler.</div>
+
+<h2>One-Time Admin Setup</h2>
+
+<div class="step">
+  <div class="step-num">Option A — Automated Script</div>
+  <pre><code>git clone https://github.com/rrbanda/ai-platforms.git
+cd ai-platforms/redhat/rhoai/v3.5/base/03-workloads/spark-kueue-contention-poc
+
+# Creates namespace, ClusterQueues, LocalQueues, and RBAC
+./setup-demo-namespace.sh spark-kueue-demo user1</code></pre>
+  <p style="margin-top:8px;font-size:14px;color:var(--text2)">See <a href="rbac.html">RBAC page</a> for what the script creates and manual alternatives.</p>
+</div>
+
+<div class="step">
+  <div class="step-num">Option B — Use Existing Namespace</div>
+  <pre><code># Apply Kueue infrastructure
+oc apply -f kueue-resource-flavor.yaml
+oc apply -f kueue-cluster-queue.yaml
+oc apply -f kueue-local-queue.yaml
+oc apply -f networkpolicy.yaml</code></pre>
+</div>
+
+<h2>Verify Setup</h2>
+<pre><code>oc get clusterqueue spark-cq
+oc get localqueue spark-lq -n &lt;namespace&gt;
+oc get pods -l app.kubernetes.io/name=spark-operator -n redhat-ods-applications</code></pre>
+
+<div class="expect">
+NAME       PENDING WORKLOADS
+spark-cq   0
+
+NAME       CLUSTER QUEUE   PENDING WORKLOADS
+spark-lq   spark-cq        0
+
+spark-operator-controller-...   1/1   Running
+spark-operator-webhook-...      1/1   Running
+</div>
+
+<h2>Run the Test Cases</h2>
+
+<h3>TC-1: Half-Admitted State (The Problem)</h3>
+<div class="step">
+  <div class="step-num">What to look for: driver Running, 3 executors Pending</div>
+  <pre><code>cat tc1-baseline-no-kueue.yaml    # No Kueue label, 33 CPU total
+oc apply -f tc1-baseline-no-kueue.yaml
+sleep 15
+oc get pods -l sparkoperator.k8s.io/app-name=tc1-baseline-no-kueue -o wide</code></pre>
+  <div class="expect">tc1-baseline-no-kueue-driver   1/1   Running
+pythonpi-...-exec-1            1/1   Running
+pythonpi-...-exec-2            0/1   Pending
+pythonpi-...-exec-3            0/1   Pending
+pythonpi-...-exec-4            0/1   Pending</div>
+  <pre><code>oc delete sparkapplication tc1-baseline-no-kueue</code></pre>
+</div>
+
+<h3>TC-2: Kueue Admission Control (The Solution)</h3>
+<div class="step">
+  <div class="step-num">What to look for: SUSPENDED, zero pods</div>
+  <pre><code>cat tc2-kueue-admission-blocking.yaml    # Same job + Kueue label
+oc apply -f tc2-kueue-admission-blocking.yaml
+sleep 5
+oc get sparkapplication tc2-kueue-admission-block
+oc get pods -l sparkoperator.k8s.io/app-name=tc2-kueue-admission-block</code></pre>
+  <div class="expect">NAME                        SUSPEND   STATUS
+tc2-kueue-admission-block   true      SUSPENDED
+
+No resources found in namespace.</div>
+  <pre><code>oc delete sparkapplication tc2-kueue-admission-block</code></pre>
+</div>
+
+<h3>TC-4: Automatic Queuing &amp; Release</h3>
+<div class="step">
+  <div class="step-num">What to look for: Job B auto-admits when Job A completes</div>
+  <pre><code># Patch quota to 6 CPU (or use spark-lq-6cpu if setup script was used)
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"6"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+
+oc apply -f tc4a-large-job.yaml
+sleep 3
+oc apply -f tc4b-queued-job.yaml
+oc get sparkapplication -w</code></pre>
+  <div class="expect">tc4-job-a   false   RUNNING     1   ...
+tc4-job-b   true    SUSPENDED
+...
+tc4-job-a   false   COMPLETED   1   ...
+tc4-job-b   false   RUNNING     1   ...   (admitted in ~2 seconds)</div>
+  <pre><code>oc delete sparkapplication --all --ignore-not-found</code></pre>
+</div>
+
+<h3>TC-5: Dynamic Allocation Rejection</h3>
+<div class="step">
+  <div class="step-num">What to look for: immediate webhook rejection</div>
+  <pre><code>cat tc5-dynamic-allocation.yaml    # dynamicAllocation: true + Kueue label
+oc apply -f tc5-dynamic-allocation.yaml</code></pre>
+  <div class="expect" style="background:#1a0a0a;border-color:#3a1a1a;color:#ff6666">Error from server (Forbidden):
+  admission webhook "vsparkapplication.kb.io" denied the request:
+  a kueue managed job can use dynamicAllocation only when the
+  ElasticJobsViaWorkloadSlices feature gate is on</div>
+</div>
+
+<h3>TC-7: Executor Failure &amp; Recovery</h3>
+<div class="step">
+  <div class="step-num">What to look for: exec-4 replaces killed exec-2, job COMPLETED</div>
+  <pre><code># Restore quota to 8 CPU
+oc patch clusterqueue spark-cq --type merge \
+  -p '{"spec":{"resourceGroups":[{"coveredResources":["cpu","memory"],"flavors":[{"name":"default-flavor","resources":[{"name":"cpu","nominalQuota":"8"},{"name":"memory","nominalQuota":"32Gi"}]}]}]}}'
+
+oc apply -f tc7-executor-failure.yaml
+oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w
+# Wait for all 4 pods Running, then Ctrl+C
+
+# Kill an executor
+EXEC_POD=$(oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure \
+  --no-headers | grep exec-2 | awk '{print $1}')
+oc delete pod $EXEC_POD --grace-period=0 --force
+
+# Watch for replacement
+oc get pods -l sparkoperator.k8s.io/app-name=tc7-executor-failure -w</code></pre>
+  <div class="expect">pythonpi-...-exec-1   1/1   Running   0   32s
+pythonpi-...-exec-3   1/1   Running   0   32s
+pythonpi-...-exec-4   1/1   Running   0   2s    &larr; replacement
+
+# After ~3 minutes:
+oc get sparkapplication tc7-executor-failure
+# STATUS: COMPLETED, executionAttempts: 1</div>
+  <pre><code>oc delete sparkapplication --all --ignore-not-found</code></pre>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<div class="note"><strong>Stale Workloads:</strong> If a SparkApplication stays Suspended after deleting and re-creating, check <code>oc get workloads</code> for orphaned Workload objects and delete them manually.</div>
+
+<div class="note"><strong>Webhook Not Patched:</strong> If TC-5 doesn't reject, verify the Kueue validating webhook covers your namespace: <code>oc get validatingwebhookconfiguration -o yaml | grep namespace</code></div>
+
+<div class="note"><strong>Spark Operator Not Creating Pods:</strong> Check that the namespace is labeled for Kueue management: <code>oc get ns &lt;namespace&gt; --show-labels | grep kueue</code></div>
+
+</div>
+
+<footer>
+  <p>Kueue + Spark Operator POC &mdash; <a href="https://github.com/rrbanda/ai-platforms/tree/main/redhat/rhoai/v3.5/base/03-workloads/spark-kueue-contention-poc">Source on GitHub</a></p>
+</footer>
+
+</body>
+</html>

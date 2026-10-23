@@ -60,7 +60,7 @@ in Suspended state until the full resource set (driver + all executors) can be r
    ```bash
    oc label namespace <ns> kueue.openshift.io/managed=true --overwrite
    ```
-6. **Webhook patched** to include target namespace (see [spark-data-ingestion README](../spark-data-ingestion/README.md#1-webhook-namespace-selector))
+6. **Webhook patched** to include target namespace — use **Fix A** (annotation + patch) so the patch persists across operator reconciliation (see [spark-data-ingestion README](../spark-data-ingestion/README.md#1-webhook-namespace-selector))
 7. **Kueue RBAC** for SparkApplication finalizers (see [verification guide](../spark-data-ingestion/docs/kueue-spark-verification.md#8-kueue-rbac-for-sparkapplication-finalizers))
 
 ## File Inventory
@@ -204,6 +204,17 @@ This creates the `ResourceFlavor`, `ClusterQueue` (25 CPU quota), `LocalQueue` (
 > were observed to cause spark-submit hangs during testing.
 
 ### TC-1: Baseline Reproduction (the problem)
+
+> **If your namespace has `kueue.openshift.io/managed=true`:** Kueue will auto-suspend
+> ALL SparkApplications — including TC-1 which is designed to run WITHOUT Kueue.
+> Remove the label before TC-1, then add it back for TC-2 onwards:
+> ```bash
+> # Before TC-1: disable Kueue management
+> oc label namespace <your-namespace> kueue.openshift.io/managed- kueue-managed-
+>
+> # After TC-1: re-enable for TC-2+
+> oc label namespace <your-namespace> kueue.openshift.io/managed=true kueue-managed=true
+> ```
 
 ```bash
 oc apply -f tc1-baseline-no-kueue.yaml

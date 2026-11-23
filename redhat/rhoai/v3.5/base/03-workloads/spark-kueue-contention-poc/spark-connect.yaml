@@ -1,0 +1,48 @@
+# SparkConnect custom resource for the `spark-notebook` namespace.
+#
+# The Operator automatically provisions:
+#   - A ConfigMap with the executor pod template
+#   - A server pod named `spark-connect-server` (metadata.name + "-server")
+#   - A ClusterIP Service named `spark-connect-server` exposing
+#     7078, 7079, 4040, and 15002
+#
+# Do NOT add explicit security context fields (runAsNonRoot, capabilities,
+# seccomp, ...): the empty `securityContext: {}` delegates enforcement to the
+# OpenShift restricted-v2 SCC, which applies them automatically.
+#
+# Notebook connection URL (record this):
+#   sc://spark-connect-server.spark-notebook.svc.cluster.local:15002
+apiVersion: sparkoperator.k8s.io/v1alpha1
+kind: SparkConnect
+metadata:
+  name: spark-connect
+  namespace: spark-notebook
+spec:
+  sparkVersion: 4.0.1
+  server:
+    template:
+      spec:
+        containers:
+        - name: spark-kubernetes-driver
+          image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 1
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 1Gi
+        serviceAccountName: spark-operator-spark
+        securityContext: {}
+  executor:
+    instances: 2
+    cores: 1
+    memory: 512m
+    template:
+      spec:
+        containers:
+        - name: spark-kubernetes-executor
+          image: quay.io/opendatahub/data-processing:Spark-v4.0.1
+          imagePullPolicy: Always
+        securityContext: {}
